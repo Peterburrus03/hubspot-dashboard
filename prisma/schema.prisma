@@ -1,0 +1,260 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Deal {
+  id        String   @id @default(uuid())
+  dealId    String   @unique
+  dealName  String?
+  ownerId   String?
+
+  // Stage & Probability
+  stage                String?
+  probability          Float?
+
+  // Financials
+  revenue              Float?
+  weightedAmount       Float?
+  ebitda               Float?
+
+  // Dates
+  initialOutreachDate  DateTime?
+  ndaSignedDate        DateTime?
+  loiExtendedDate      DateTime?
+  loiSignedDate        DateTime?
+  targetCloseDate      DateTime?
+  revisedCloseDate     DateTime?
+  closedDate           DateTime?
+
+  // Geography & Practice
+  city                 String?
+  state                String?
+  specialty            String?
+  numDvms              Int?
+
+  // Notes & Status
+  nextStep             String?
+  notes                String?  @db.Text
+  closedLostReason     String?
+  tags                 String?
+
+  // Stage tracking
+  stageEnteredDate     DateTime?
+
+  // Status tracking
+  isOpen               Boolean  @default(true)
+  pipelineId           String?
+  companyId            String?
+  contactId            String?
+
+  // Metadata
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  lastSyncedAt         DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([stage])
+  @@index([state])
+  @@index([specialty])
+  @@index([isOpen])
+  @@index([pipelineId])
+  @@index([companyId])
+  @@index([contactId])
+  @@map("deals")
+}
+
+model Contact {
+  id               String    @id @default(uuid())
+  contactId        String    @unique
+  firstName        String?
+  lastName         String?
+  email            String?
+  ownerId          String?
+
+  // Contact details
+  specialty        String?
+  status           String?
+  leadStatus       String?
+  city             String?
+  state            String?
+
+  // iPad Campaign
+  ipadShipmentDate DateTime?
+  ipadGroup        String?
+  ipadResponse     Boolean?
+  ipadResponseType String?
+
+  // Tier 1 target
+  tier1            Boolean?
+
+  // Company association
+  companyId        String?
+
+  // Metadata
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastSyncedAt     DateTime  @default(now())
+
+  @@index([ownerId])
+  @@index([specialty])
+  @@index([companyId])
+  @@index([ipadGroup])
+  @@index([leadStatus])
+  @@index([tier1])
+  @@map("contacts")
+}
+
+model Company {
+  id           String   @id @default(uuid())
+  companyId    String   @unique
+  companyName  String?
+
+  // Location
+  city         String?
+  state        String?
+
+  // Company details
+  companyType  String?
+  numDvms      Int?
+  revenue      Float?
+  ebitda       Float?
+
+  // Metadata
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastSyncedAt DateTime @default(now())
+
+  @@index([state])
+  @@map("companies")
+}
+
+model Owner {
+  id          String   @id @default(uuid())
+  ownerId     String   @unique
+  firstName   String?
+  lastName    String?
+  email       String?
+
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastSyncedAt DateTime @default(now())
+
+  @@map("owners")
+}
+
+model Engagement {
+  id              String   @id @default(uuid())
+  engagementId    String   @unique
+  type            String   // EMAIL, CALL, NOTE, MEETING, TASK
+
+  ownerId         String?
+  contactId       String?  // Associated HubSpot contact ID
+
+  timestamp       DateTime // When the engagement occurred
+
+  // Email-specific
+  emailDirection  String?  // EMAIL, INCOMING_EMAIL, AUTOMATED_EMAIL, etc.
+  emailSubject    String?
+  emailStatus     String?
+  emailOpens      Int?
+  emailClicks     Int?
+  emailReplied    Boolean?
+
+  // Call-specific
+  callDirection   String?
+  callDuration    Int?
+  callDisposition String?
+  callStatus      String?
+
+  // Content
+  body            String?  @db.Text
+
+  // Sequence link
+  sequenceId      String?
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastSyncedAt    DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([contactId])
+  @@index([type])
+  @@index([timestamp])
+  @@index([sequenceId])
+  @@map("engagements")
+}
+
+model SequenceEnrollment {
+  id            String    @id @default(uuid())
+  enrollmentId  String    @unique
+  sequenceId    String?
+  sequenceName  String?
+  contactId     String?
+  ownerId       String?
+  status        String?   // ACTIVE, FINISHED, UNENROLLED, ERRORED
+  enrolledAt    DateTime?
+  finishedAt    DateTime?
+
+  // Metadata
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastSyncedAt  DateTime  @default(now())
+
+  @@index([sequenceId])
+  @@index([contactId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([enrolledAt])
+  @@map("sequence_enrollments")
+}
+
+model Priority {
+  id        Int      @id
+  text      String   @default("")
+  impact    String   @default("")
+  done      Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@map("priorities")
+}
+
+model DealSnapshot {
+  id          String   @id @default(uuid())
+  snapshotAt  DateTime
+  dealId      String
+  dealName    String?
+  stage       String?
+  ebitda      Float?
+  probability Float?
+  isOpen      Boolean  @default(true)
+
+  @@index([snapshotAt])
+  @@index([dealId])
+  @@map("deal_snapshots")
+}
+
+model CacheMetadata {
+  id           String   @id @default(uuid())
+  cacheKey     String   @unique
+  lastRefresh  DateTime @default(now())
+  recordCount  Int      @default(0)
+  status       String   @default("success")
+  errorMessage String?  @db.Text
+
+  // Metadata
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("cache_metadata")
+}
