@@ -62,7 +62,7 @@ export async function GET() {
       prisma.deal.aggregate({ where: { ...dealBase, ndaSignedDate: { gte: ytdStart } }, _sum: { numDvms: true } }),
       prisma.deal.count({ where: { ...dealBase, loiSignedDate: { gte: ytdStart } } }),
       prisma.deal.count({ where: { ...dealBase, stage: 'APA Signed' } }),
-      prisma.deal.aggregate({ where: { ...dealBase, isOpen: false, closedDate: { gte: ytdStart } }, _sum: { ebitda: true } }),
+      prisma.deal.aggregate({ where: { ...dealBase, stage: 'Closed Won', closedDate: { gte: ytdStart } }, _sum: { ebitda: true } }),
     ])
 
     // Weekly outreach history — cap at current week to exclude future-dated tasks
