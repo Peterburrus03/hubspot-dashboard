@@ -67,11 +67,11 @@ export async function GET(request: NextRequest) {
     const ownerRows = await prisma.$queryRaw<OwnerRow[]>(Prisma.sql`
       SELECT
         e."ownerId"                                                                                                    AS owner_id,
-        COUNT(CASE WHEN e.type = 'EMAIL' AND (e."emailDirection" IS NULL OR e."emailDirection" != 'AUTOMATED_EMAIL') THEN 1 END) AS emails,
+        COUNT(DISTINCT CASE WHEN e.type = 'EMAIL' AND (e."emailDirection" IS NULL OR e."emailDirection" != 'AUTOMATED_EMAIL') THEN e."contactId" || '|' || e.timestamp::date END) AS emails,
         COUNT(CASE WHEN e.type = 'CALL'    THEN 1 END)                                                                AS calls,
         COUNT(CASE WHEN e.type = 'NOTE'    THEN 1 END)                                                                AS notes,
         COUNT(CASE WHEN e.type = 'MEETING' THEN 1 END)                                                                AS meetings,
-        COUNT(CASE WHEN e.type = 'TASK'    THEN 1 END)                                                                AS tasks,
+        COUNT(CASE WHEN e.type = 'TASK' AND e."taskStatus" = 'COMPLETED' THEN 1 END)                                 AS tasks,
         COUNT(CASE WHEN e.type = 'EMAIL' AND e."emailDirection" = 'AUTOMATED_EMAIL' THEN 1 END)                       AS seq_touches,
         COUNT(DISTINCT e."contactId")                                                                                  AS contacts_reached
       FROM engagements e

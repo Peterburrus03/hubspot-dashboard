@@ -187,6 +187,7 @@ export interface EngagementRecord {
   callDuration?: number
   callDisposition?: string
   callStatus?: string
+  taskStatus?: string
   sequenceId?: string
 }
 

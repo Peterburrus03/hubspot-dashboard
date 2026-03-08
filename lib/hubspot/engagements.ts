@@ -57,7 +57,7 @@ const PROPERTIES_MAP: Record<EngagementObjectType, string[]> = {
   ],
   notes: ['hs_timestamp', 'hubspot_owner_id', 'hs_note_body'],
   meetings: ['hs_timestamp', 'hubspot_owner_id', 'hs_meeting_title', 'hs_meeting_start_time'],
-  tasks: ['hs_timestamp', 'hubspot_owner_id', 'hs_task_subject', 'hs_task_status'],
+  tasks: ['hs_timestamp', 'hubspot_owner_id', 'hs_task_subject', 'hs_task_status', 'hs_task_completion_date'],
 }
 
 function parseHsTimestamp(value?: string): Date {
@@ -103,6 +103,7 @@ function transformEngagement(
     callDuration: props.hs_call_duration ? parseInt(props.hs_call_duration, 10) : undefined,
     callDisposition: props.hs_call_disposition || undefined,
     callStatus: props.hs_call_status || undefined,
+    taskStatus: props.hs_task_status || undefined,
   }
 }
 
@@ -205,6 +206,7 @@ async function upsertEngagements(records: EngagementRecord[]): Promise<void> {
             callDuration: r.callDuration ?? null,
             callDisposition: r.callDisposition ?? null,
             callStatus: r.callStatus ?? null,
+            taskStatus: r.taskStatus ?? null,
             body: r.body ?? null,
             sequenceId: r.sequenceId ?? null,
             lastSyncedAt: new Date(),
@@ -225,6 +227,7 @@ async function upsertEngagements(records: EngagementRecord[]): Promise<void> {
             callDuration: r.callDuration ?? null,
             callDisposition: r.callDisposition ?? null,
             callStatus: r.callStatus ?? null,
+            taskStatus: r.taskStatus ?? null,
             body: r.body ?? null,
             sequenceId: r.sequenceId ?? null,
             lastSyncedAt: new Date(),

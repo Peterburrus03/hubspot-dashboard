@@ -51,7 +51,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
   const [preset, setPreset] = useState<FilterState['preset']>('30d')
   const [startDate, setStartDate] = useState(thirtyDaysAgo)
   const [endDate, setEndDate] = useState(today)
-  const [selectedOwners, setSelectedOwners] = useState<string[]>([])
+  const [selectedOwners, setSelectedOwners] = useState<string[]>(['1995098221', '83426466']) // Tracey & Max
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([])
   const [selectedCompanyTypes, setSelectedCompanyTypes] = useState<string[]>(['Private Practice'])
   const [selectedLeadStatuses, setSelectedLeadStatuses] = useState<string[]>(['NEW', 'OPEN', 'CONNECTED', 'IN_PROGRESS', 'OPEN_DEAL', 'Closed and Nurturing'])
@@ -337,7 +337,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
         <button
           onClick={() => {
-            setSelectedOwners([])
+            setSelectedOwners(['1995098221', '83426466']) // Tracey & Max
             setSelectedSpecialties([])
             setSelectedCompanyTypes(['Private Practice'])
             setSelectedLeadStatuses(['NEW', 'OPEN', 'CONNECTED', 'IN_PROGRESS', 'OPEN_DEAL', 'Closed and Nurturing'])

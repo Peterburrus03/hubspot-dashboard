@@ -30,6 +30,8 @@ const DEAL_PROPERTIES = [
   'tags',
   'hs_is_closed',
   'pipeline',
+  // Stage-entered dates — required so hs_date_entered_${stageId} is populated by the API
+  'hs_date_entered_1316238082', // APA Signed
 ]
 
 // Helper to parse date from HubSpot timestamp string (ms) or ISO string
@@ -129,7 +131,7 @@ function transformDeal(hubspotDeal: HubSpotDeal, stageMap: Map<string, string>, 
       case 'Pre-LOI Analysis':                 return parseHubSpotDate(props.nda_sign_date)
       case 'LOI Signed/Diligence':             return parseHubSpotDate(props.loi_signed_date)
       case 'LOI Extended':                     return parseHubSpotDate(props.loi_extended_date) ?? parseHubSpotDate(props.loi_signed_date)
-      case 'APA Signed':                       return parseHubSpotDate(props.loi_signed_date)
+      case 'APA Signed':                       return undefined // rely solely on hs_date_entered_1316238082 fetched above
       default:                                 return parseHubSpotDate(hubspotDeal.createdAt)
     }
   })()

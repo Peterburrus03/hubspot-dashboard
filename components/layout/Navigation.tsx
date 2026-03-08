@@ -10,7 +10,7 @@ export default function Navigation() {
     { label: 'Overview', href: '/' },
     { label: 'Activity', href: '/activity' },
     { label: 'Pipeline', href: '/pipeline' },
-    { label: 'Trends', href: '/trends' },
+    // { label: 'Trends', href: '/trends' },
     { label: 'Game Plan', href: '/funnel' },
   ]
 

@@ -26,14 +26,14 @@ export async function GET() {
     const wtdStart = startOfWeek(now)
     const historyStart = ytdStart
 
-    // Outreach = non-automated emails + calls + notes + meetings + tasks
+    // Outreach = non-automated emails + calls + notes + meetings + completed tasks only
     const outreachWhere = (gte: Date) => ({
       timestamp: { gte },
       OR: [
         { type: 'CALL' },
         { type: 'NOTE' },
         { type: 'MEETING' },
-        { type: 'TASK' },
+        { type: 'TASK', taskStatus: 'COMPLETED' },
         { type: 'EMAIL', emailDirection: null },
         { type: 'EMAIL', emailDirection: { not: 'AUTOMATED_EMAIL' } },
       ],
@@ -65,7 +65,7 @@ export async function GET() {
       prisma.deal.aggregate({ where: { ...dealBase, stage: 'Closed Won', closedDate: { gte: ytdStart } }, _sum: { ebitda: true } }),
     ])
 
-    // Weekly outreach history — cap at now to exclude future-dated tasks
+    // Weekly outreach history — cap at now, dedupe emails by (contact, date), count only completed tasks
     type WeekRow = { week_start: Date; outreach: bigint }
     const weeklyOutreach = await prisma.$queryRaw<WeekRow[]>(Prisma.sql`
       SELECT
@@ -74,9 +74,13 @@ export async function GET() {
           WHERE type = 'CALL'
              OR type = 'NOTE'
              OR type = 'MEETING'
-             OR type = 'TASK'
-             OR (type = 'EMAIL' AND ("emailDirection" IS NULL OR "emailDirection" != 'AUTOMATED_EMAIL'))
-        ) AS outreach
+             OR (type = 'TASK' AND "taskStatus" = 'COMPLETED')
+        )
+        + COUNT(DISTINCT CASE
+            WHEN type = 'EMAIL' AND ("emailDirection" IS NULL OR "emailDirection" != 'AUTOMATED_EMAIL')
+            THEN "contactId" || '|' || timestamp::date
+          END)
+        AS outreach
       FROM engagements
       WHERE timestamp >= ${historyStart}
         AND timestamp <= ${now}

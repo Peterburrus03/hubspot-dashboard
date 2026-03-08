@@ -194,6 +194,9 @@ model Engagement {
   callDisposition String?
   callStatus      String?
 
+  // Task-specific
+  taskStatus      String?  // e.g. 'COMPLETED', 'NOT_STARTED', 'IN_PROGRESS', 'WAITING', 'DEFERRED'
+
   // Content
   body            String?  @db.Text
 

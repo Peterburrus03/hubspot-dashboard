@@ -5,7 +5,6 @@ import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import SummaryStats from '@/components/kpis/SummaryStats'
 import ActivityByOwner from '@/components/charts/ActivityByOwner'
 import SequencePerformance from '@/components/charts/SequencePerformance'
-import LeadStatusBreakdown from '@/components/charts/LeadStatusBreakdown'
 import ActivityTable from '@/components/tables/ActivityTable'
 import type { ActivitySummary } from '@/types/hubspot'
 
@@ -38,14 +37,8 @@ export default function ActivityDashboard() {
     byOwner: any[]
   }>({ summary: null, byOwner: [] })
   const [sequenceData, setSequenceData] = useState<{ sequences: any[] }>({ sequences: [] })
-  const [leadStatusData, setLeadStatusData] = useState<{
-    byStatus: any[]
-    totalContacts: number
-  }>({ byStatus: [], totalContacts: 0 })
-
   const [loadingActivity, setLoadingActivity] = useState(false)
   const [loadingSequences, setLoadingSequences] = useState(false)
-  const [loadingLeadStatus, setLoadingLeadStatus] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
@@ -77,13 +70,11 @@ export default function ActivityDashboard() {
 
       setLoadingActivity(true)
       setLoadingSequences(true)
-      setLoadingLeadStatus(true)
 
-      // Fetch all three in parallel
-      const [actRes, seqRes, lsRes] = await Promise.allSettled([
+      // Fetch in parallel
+      const [actRes, seqRes] = await Promise.allSettled([
         fetch(`/api/dashboard/activity?${qs}`).then((r) => r.json()),
         fetch(`/api/dashboard/sequences?${qs}`).then((r) => r.json()),
-        fetch(`/api/dashboard/lead-status?${qs}`).then((r) => r.json()),
       ])
 
       if (actRes.status === 'fulfilled') {
@@ -99,12 +90,6 @@ export default function ActivityDashboard() {
         else setSequenceData(seqRes.value)
       }
       setLoadingSequences(false)
-
-      if (lsRes.status === 'fulfilled') {
-        if (lsRes.value.error) console.error('Lead Status API error:', lsRes.value.error)
-        else setLeadStatusData(lsRes.value)
-      }
-      setLoadingLeadStatus(false)
     },
     []
   )
@@ -228,15 +213,6 @@ export default function ActivityDashboard() {
       {/* Activity by BD director */}
       <section>
         <ActivityByOwner data={activityData.byOwner} loading={loadingActivity} />
-      </section>
-
-      {/* Lead status breakdown */}
-      <section>
-        <LeadStatusBreakdown
-          data={leadStatusData.byStatus}
-          totalContacts={leadStatusData.totalContacts}
-          loading={loadingLeadStatus}
-        />
       </section>
 
       {/* Sequence performance */}

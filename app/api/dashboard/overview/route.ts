@@ -20,8 +20,21 @@ const WEEKLY_BUDGET = [
 
 export async function GET() {
   try {
+    const now = new Date()
+
     const engagements = await prisma.engagement.findMany({
-      where: { timestamp: { gte: Q1_START } }
+      where: {
+        timestamp: { gte: Q1_START, lte: now },
+        OR: [
+          { type: 'CALL' },
+          { type: 'NOTE' },
+          { type: 'MEETING' },
+          { type: 'TASK', taskStatus: 'COMPLETED' },
+          { type: 'EMAIL', emailDirection: null },
+          { type: 'EMAIL', emailDirection: { not: 'AUTOMATED_EMAIL' } },
+        ],
+      },
+      select: { type: true, timestamp: true, contactId: true, emailDirection: true, taskStatus: true },
     })
 
     const tier1Contacts = await prisma.contact.findMany({
@@ -37,13 +50,24 @@ export async function GET() {
       tier1: 0,
       tier2: 0,
       total: 0,
-      ipad: i === 0 ? 111 : 0 
+      ipad: i === 0 ? 111 : 0
     }))
 
+    // Track seen email (contactId, date) pairs per week to deduplicate threads
+    const seenEmailKeys = new Set<string>()
+
     engagements.forEach(e => {
+      // Deduplicate emails: count only 1 per contact per calendar day
+      if (e.type === 'EMAIL') {
+        const day = e.timestamp.toISOString().split('T')[0]
+        const key = (e.contactId ?? 'none') + '|' + day
+        if (seenEmailKeys.has(key)) return
+        seenEmailKeys.add(key)
+      }
+
       const diffTime = Math.abs(e.timestamp.getTime() - Q1_START.getTime())
       const weekIndex = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7))
-      
+
       if (weekIndex >= 0 && weekIndex < 12) {
         if (t1Ids.has(e.contactId ?? '')) {
           weeklyActuals[weekIndex].tier1++
