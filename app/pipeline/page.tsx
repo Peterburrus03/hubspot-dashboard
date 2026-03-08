@@ -573,14 +573,9 @@ function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: Pipelin
     fetch('/api/dashboard/priorities')
       .then((r) => r.json())
       .then((rows) => {
-        if (Array.isArray(rows) && rows.length > 0 && rows[0].text) {
-          setPriorities(rows)
-          hasGenerated.current = true
-        } else if (!hasGenerated.current) {
-          generate()
-        }
+        if (Array.isArray(rows) && rows.length > 0) setPriorities(rows)
       })
-      .catch(() => { if (!hasGenerated.current) generate() })
+      .catch(console.error)
   }, [])
 
   const save = (updated: typeof EMPTY) => {
@@ -597,8 +592,9 @@ function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: Pipelin
     save(priorities.map((p) => (p.id === id ? { ...p, done: !p.done } : p)))
 
   const generate = async () => {
-    if (hasGenerated.current && loading) return
-    hasGenerated.current = true
+    if (loading) return
+    const filledPriorities = priorities.filter((p) => p.text.trim())
+    if (filledPriorities.length === 0) return
     setLoading(true)
     try {
       const probWtd = (deals.reduce((s, d) => s + d.ebitda * d.prob, 0) / 1000).toFixed(1)
@@ -606,20 +602,18 @@ function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: Pipelin
       const daysLeft = Math.max(0, Math.floor((NDA_DEADLINE.getTime() - TODAY.getTime()) / 86400000))
       const loiDeals = deals.filter((d) => ['LOI Signed/Diligence', 'LOI Extended'].includes(d.crmStage))
       const atRisk = deals.filter(isAtRisk).map((d) => d.name).join(', ') || 'None'
-      const prompt = `You are the M&A chief of staff for AOSN (Animal Outpatient Specialty Network). Today is ${TODAY.toDateString()}.\n\nTARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach\nACTUALS: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdAPAs} APAs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed\nPIPELINE: ${probWtd}M prob-wtd | Gap: ${gap}M | ${daysLeft} days to NDA deadline\nLOI DEALS: ${loiDeals.map((d) => `${d.name} ${(d.ebitda / 1000).toFixed(1)}M`).join('; ')}\nAT RISK: ${atRisk}\n\nReturn ONLY a raw JSON array of exactly 5 objects with two fields: "priority" (action, max 12 words) and "impact" (specific $ or metric impact, max 10 words). No markdown, no explanation.`
+      const priorityList = priorities.map((p, i) => `${i + 1}. ${p.text.trim() || '(empty)'}`).join('\n')
+      const prompt = `You are the M&A chief of staff for AOSN (Animal Outpatient Specialty Network). Today is ${TODAY.toDateString()}.\n\nTARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach\nACTUALS: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdAPAs} APAs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed\nPIPELINE: ${probWtd}M prob-wtd | Gap: ${gap}M | ${daysLeft} days to NDA deadline\nLOI DEALS: ${loiDeals.map((d) => `${d.name} ${(d.ebitda / 1000).toFixed(1)}M`).join('; ')}\nAT RISK: ${atRisk}\n\nThe team has set the following priorities for this week:\n${priorityList}\n\nFor each priority, generate a concise impact statement (max 10 words) grounded in the pipeline data above — specific $, deal counts, or metric progress where possible. Return ONLY a raw JSON array of exactly 5 objects with one field: "impact". No markdown, no explanation.`
       const data = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
       const raw = data.content?.find((b: any) => b.type === 'text')?.text || '[]'
       const arr = JSON.parse(raw.replace(/```json|```/g, '').trim())
-      const updated = arr.slice(0, 5).map((item: any, i: number) => ({
-        id: i + 1,
-        text: typeof item === 'string' ? item : (item.priority || ''),
-        impact: typeof item === 'object' ? (item.impact || '') : '',
-        done: false,
+      const updated = priorities.map((p, i) => ({
+        ...p,
+        impact: arr[i]?.impact || p.impact,
       }))
       save(updated)
     } catch (e) {
-      console.error('Priority generation failed:', e)
-      hasGenerated.current = false
+      console.error('Impact generation failed:', e)
     }
     setLoading(false)
   }
@@ -628,12 +622,12 @@ function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: Pipelin
     <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12, overflow: 'hidden', marginBottom: 24 }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid #3f3f46', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>This Week — Top Priorities</div>
-          <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>AI-generated based on live pipeline gaps & goals</div>
+          <div style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>This Week — Top Priorities <span style={{ color: '#71717a', fontWeight: 400, fontSize: 12 }}>(work in progress)</span></div>
+          <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>Enter your priorities, then click Generate Impact to see pipeline-grounded impact for each</div>
         </div>
-        <button onClick={generate} disabled={loading}
-          style={{ background: '#4f46e5', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
-          {loading ? '⏳ Generating…' : '✦ Regenerate'}
+        <button onClick={generate} disabled={loading || priorities.every(p => !p.text.trim())}
+          style={{ background: '#4f46e5', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: (loading || priorities.every(p => !p.text.trim())) ? 'not-allowed' : 'pointer', opacity: (loading || priorities.every(p => !p.text.trim())) ? 0.5 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {loading ? '⏳ Generating…' : '✦ Generate Impact'}
         </button>
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -656,7 +650,7 @@ function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: Pipelin
             <tr key={p.id} style={{ borderTop: '1px solid #27272a', background: p.done ? 'rgba(6,78,59,0.2)' : 'transparent' }}>
               <td style={{ padding: '8px 12px', color: '#52525b', fontSize: 11, fontWeight: 600 }}>{i + 1}</td>
               <td style={{ padding: '8px 12px' }}>
-                <input type="text" value={p.text} placeholder="Click Regenerate to generate priorities…"
+                <input type="text" value={p.text} placeholder="Enter priority…"
                   onChange={(e) => update(p.id, 'text', e.target.value)}
                   style={{ width: '100%', background: 'transparent', border: '1px solid #3f3f46', borderRadius: 6, padding: '6px 10px', color: p.done ? '#52525b' : '#f4f4f5', fontSize: 13, outline: 'none', textDecoration: p.done ? 'line-through' : 'none', boxSizing: 'border-box' }} />
               </td>
