@@ -143,7 +143,7 @@ export default function ActivityDashboard() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Sales Activity Dashboard</h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            Engagement tracking by BD director across all contact records
+            Engagement tracking by team member across all contact records
           </p>
         </div>
         <div className="flex items-center gap-3">

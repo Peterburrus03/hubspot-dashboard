@@ -171,11 +171,11 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
       </div>
 
       {!collapsed && <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
-        {/* BD Directors */}
+        {/* Team Members */}
         <section>
           <div className="flex items-center gap-2 mb-3">
             <User className="w-3.5 h-3.5 text-blue-500" />
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">BD Director</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Team Member</label>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {owners.map((o) => (

@@ -6,6 +6,11 @@ import { Card } from '@/components/ui/Card'
 import { AlertCircle, Gift, User, Users, ArrowRight, Clock, ChevronDown, ChevronUp, X, Phone, Mail, FileText, CalendarDays, Tablet } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return ''
+  return html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').trim()
+}
+
 const TYPE_ICON: Record<string, React.ReactNode> = {
   CALL:          <Phone className="w-3.5 h-3.5" />,
   EMAIL:         <Mail className="w-3.5 h-3.5" />,
@@ -34,19 +39,29 @@ const TYPE_LABEL: Record<string, string> = {
   IPAD_RESPONSE:      'iPad Response',
 }
 
+const TIMELINE_FILTERS = [
+  { label: '90d', days: 90 },
+  { label: '180d', days: 180 },
+  { label: '1yr', days: 365 },
+  { label: 'All', days: null },
+]
+
 function ContactModal({ contact, onClose }: {
   contact: { contactId: string; name: string; specialty: string | null; ownerName: string }
   onClose: () => void
 }) {
   const [engagements, setEngagements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [days, setDays] = useState<number | null>(null)
 
   useEffect(() => {
-    fetch(`/api/dashboard/contact?contactId=${contact.contactId}`)
+    setLoading(true)
+    const qs = days ? `?contactId=${contact.contactId}&days=${days}` : `?contactId=${contact.contactId}`
+    fetch(`/api/dashboard/contact${qs}`)
       .then(r => r.json())
       .then(d => setEngagements(d.engagements ?? []))
       .finally(() => setLoading(false))
-  }, [contact.contactId])
+  }, [contact.contactId, days])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
@@ -58,9 +73,22 @@ function ContactModal({ contact, onClose }: {
               {contact.specialty ?? '—'} · {contact.ownerName}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              {TIMELINE_FILTERS.map(f => (
+                <button
+                  key={f.label}
+                  onClick={() => setDays(f.days)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-black uppercase transition-colors ${days === f.days ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         <div className="overflow-y-auto flex-1 p-5 space-y-3">
           {loading && <p className="text-center text-sm text-gray-400 animate-pulse py-8">Loading activity...</p>}
@@ -73,6 +101,8 @@ function ContactModal({ contact, onClose }: {
               ? e.type === 'IPAD_COVER_SHIPPED' ? 'iPad Cover Shipped'
               : e.type === 'IPAD_SHIPPED' ? `iPad Shipped${e.ipadGroup ? ` · ${e.ipadGroup}` : ''}`
               : `iPad Response${e.ipadResponseType ? ` · ${e.ipadResponseType}` : ''}`
+              : e.type === 'TASK'
+              ? `Task${e.body ? ` — ${e.body}` : ''}`
               : e.emailSubject || e.callDisposition || TYPE_LABEL[e.type] || e.type
             return (
               <div key={e.engagementId} className="flex gap-3">
@@ -86,8 +116,8 @@ function ContactModal({ contact, onClose }: {
                       {format(new Date(e.timestamp), 'MMM d, yyyy')}
                     </span>
                   </div>
-                  {e.body && (
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{e.body}</p>
+                  {e.body && e.type !== 'TASK' && (
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{stripHtml(e.body)}</p>
                   )}
                   {e.ownerName && <p className="text-[10px] text-gray-400 mt-0.5">{e.ownerName}</p>}
                 </div>
@@ -273,30 +303,35 @@ export default function FunnelPage() {
                   <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">All Tier 1 Targets are up to date!</p>
                 </div>
               ) : data.staleTier1s.map((c: any) => (
-                <div key={c.contactId} className="bg-white border-2 border-rose-50 rounded-xl p-4 shadow-sm hover:border-rose-200 transition-all flex items-center justify-between">
+                <button
+                  key={c.contactId}
+                  onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                  className="w-full bg-white border-2 border-rose-50 rounded-xl p-4 shadow-sm hover:border-rose-200 hover:shadow-md transition-all flex items-center justify-between text-left cursor-pointer"
+                >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center flex-shrink-0">
                       <User className="w-5 h-5 text-rose-400" />
                     </div>
                     <div>
                       <h4 className="font-bold text-gray-900">{c.name}</h4>
-                      <div className="flex items-center gap-3 mt-0.5">
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
                           <User className="w-3 h-3" />{c.ownerName}
                         </span>
+                        {c.specialty && (
+                          <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>
+                        )}
+                        {c.status && (
+                          <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>
+                        )}
                         <span className="flex items-center gap-1 text-[10px] font-bold text-rose-400 uppercase">
                           <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: null, ownerName: c.ownerName })}
-                    className="p-2 bg-gray-50 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
+                  <ArrowRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                </button>
               ))}
             </div>
           </section>
@@ -317,29 +352,39 @@ export default function FunnelPage() {
                 <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
                   <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No recent follow-up triggers detected.</p>
                 </div>
-              ) : data.actionableTriggers.map((t: any, i: number) => (
-                <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase rounded-full">{t.trigger}</span>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase">{t.activityType}</span>
+              ) : data.actionableTriggers.map((t: any, i: number) => {
+                const covered = !!t.coveredByTask
+                return (
+                  <div key={i} className={`bg-white border rounded-xl p-4 shadow-sm transition-all ${covered ? 'border-emerald-100 opacity-60' : 'border-gray-200 hover:shadow-md'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase rounded-full">{t.trigger}</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">{t.activityType}</span>
+                        {covered && (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-full">
+                            Task due {format(new Date(t.coveredByTask.dueDate), 'MMM d')}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-black text-gray-900 uppercase">{format(new Date(t.timestamp), 'MMM d')}</span>
                     </div>
-                    <span className="text-[10px] font-black text-gray-900 uppercase">{format(new Date(t.timestamp), 'MMM d')}</span>
-                  </div>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h4 className="font-bold text-gray-900">{t.contactName}</h4>
-                      {t.body && <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{t.body}</p>}
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="font-bold text-gray-900">{t.contactName}</h4>
+                        {t.body && <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{stripHtml(t.body)}</p>}
+                      </div>
+                      {!covered && (
+                        <button
+                          onClick={() => setSelectedContact({ contactId: t.contactId, name: t.contactName, specialty: null, ownerName: t.ownerName })}
+                          className="mt-1 shrink-0 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                    <button
-                      onClick={() => setSelectedContact({ contactId: t.contactId, name: t.contactName, specialty: null, ownerName: t.ownerName })}
-                      className="mt-1 shrink-0 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
 

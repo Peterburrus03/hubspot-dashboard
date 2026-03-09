@@ -70,12 +70,15 @@ export async function GET(request: NextRequest) {
     const fourWeeksAgo = subDays(new Date(), 28)
     const staleTier1s = tier1Contacts.map(c => {
       const lastEng = engagementMap.get(c.contactId)
-      const lastDate = lastEng?.timestamp
+      // Fall back to iPad shipment date if no engagement on record
+      const ipadDate = c.ipadShipmentDate ?? c.ipadCoverShipDate ?? null
+      const lastDate = lastEng?.timestamp ?? ipadDate ?? undefined
       const isStale = !lastDate || lastDate < fourWeeksAgo
-      
+
       return {
         contactId: c.contactId,
         name: `${c.firstName} ${c.lastName}`,
+        specialty: c.specialty ?? null,
         ownerName: ownerMap.get(c.ownerId ?? '') ?? 'Unassigned',
         lastActivity: lastDate,
         status: c.leadStatus,
@@ -105,6 +108,26 @@ export async function GET(request: NextRequest) {
     })
     const triggerContactMap = new Map(triggerContacts.map(c => [c.contactId, c]))
 
+    // Fetch open tasks (NOT_STARTED, due in the future) for all trigger contacts
+    const now = new Date()
+    const openTasks = await prisma.engagement.findMany({
+      where: {
+        contactId: { in: contactIdsForTriggers },
+        type: 'TASK',
+        taskStatus: 'NOT_STARTED',
+        timestamp: { gt: now },
+      },
+      orderBy: { timestamp: 'asc' },
+      select: { contactId: true, timestamp: true, body: true },
+    })
+    // Map contactId -> earliest open task
+    const openTaskByContact = new Map<string, { timestamp: Date; body: string | null }>()
+    for (const task of openTasks) {
+      if (task.contactId && !openTaskByContact.has(task.contactId)) {
+        openTaskByContact.set(task.contactId, { timestamp: task.timestamp, body: task.body })
+      }
+    }
+
     for (const t of triggers) {
       const body = t.body?.toLowerCase() || ''
       const matchedWord = triggerWords.find(word => body.includes(word))
@@ -112,6 +135,7 @@ export async function GET(request: NextRequest) {
       if (matchedWord) {
         const contact = triggerContactMap.get(t.contactId!)
         if (contact) {
+          const openTask = openTaskByContact.get(contact.contactId)
           actionableTriggers.push({
             contactId: contact.contactId,
             contactName: `${contact.firstName} ${contact.lastName}`,
@@ -119,7 +143,10 @@ export async function GET(request: NextRequest) {
             activityType: t.type,
             body: t.body,
             timestamp: t.timestamp,
-            trigger: matchedWord
+            trigger: matchedWord,
+            coveredByTask: openTask
+              ? { dueDate: openTask.timestamp, subject: openTask.body }
+              : null,
           })
         }
       }

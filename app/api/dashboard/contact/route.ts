@@ -5,6 +5,9 @@ export async function GET(request: NextRequest) {
   const contactId = request.nextUrl.searchParams.get('contactId')
   if (!contactId) return NextResponse.json({ error: 'Missing contactId' }, { status: 400 })
 
+  const daysParam = request.nextUrl.searchParams.get('days')
+  const sinceDate = daysParam ? new Date(Date.now() - parseInt(daysParam) * 86400000) : undefined
+
   const [contact, engagements, owners] = await Promise.all([
     prisma.contact.findUnique({
       where: { contactId },
@@ -17,9 +20,9 @@ export async function GET(request: NextRequest) {
       }
     }),
     prisma.engagement.findMany({
-      where: { contactId },
+      where: { contactId, ...(sinceDate ? { timestamp: { gte: sinceDate } } : {}) },
       orderBy: { timestamp: 'desc' },
-      take: 50,
+      take: 100,
       select: {
         engagementId: true,
         type: true,
