@@ -253,8 +253,8 @@ export default function FunnelPage() {
             </div>
           </section>
 
-          {/* Stale Tier 1 + Action Triggers + Sequence Momentum side by side */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Stale Tier 1 + Action Triggers side by side */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
 
           {/* Stale Tier 1 Targets */}
           <section className="space-y-4">
@@ -343,36 +343,7 @@ export default function FunnelPage() {
             </div>
           </section>
 
-          {/* Sequence Momentum */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-3 px-1">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Mail className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Sequence Momentum</h3>
-                <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Recently enrolled contacts (Last 7 Days)</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {data.recentEnrollments.length === 0 ? (
-                <div className="col-span-full text-center py-8 bg-gray-50 rounded-xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No new enrollments this week.</p>
-                </div>
-              ) : data.recentEnrollments.map((e: any, i: number) => (
-                <div key={i} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full uppercase tracking-widest">{e.sequenceName ?? 'Unknown'}</span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">{e.enrolledAt ? format(new Date(e.enrolledAt), 'MMM d') : '—'}</span>
-                  </div>
-                  <h4 className="font-bold text-gray-900">{e.contactName}</h4>
-                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mt-0.5">{e.ownerName}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          </div>{/* end 3-col grid */}
+          </div>{/* end 2-col grid */}
         </div>
       )}
     </div>

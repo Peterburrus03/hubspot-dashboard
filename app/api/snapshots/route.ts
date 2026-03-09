@@ -34,24 +34,46 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET — return the most recent snapshot grouped by deal
-export async function GET() {
+// GET — return snapshot(s)
+// ?list=true  → returns all available snapshot timestamps
+// ?at=<iso>   → returns snapshot at that specific timestamp
+// (default)   → returns the most recent snapshot
+export async function GET(request: NextRequest) {
   try {
-    // Find the latest snapshot timestamp
-    const latest = await prisma.dealSnapshot.findFirst({
-      orderBy: { snapshotAt: 'desc' },
-      select: { snapshotAt: true },
-    })
+    const { searchParams } = new URL(request.url)
 
-    if (!latest) return NextResponse.json({ snapshotAt: null, deals: [] })
+    // Return list of all available snapshot timestamps
+    if (searchParams.get('list') === 'true') {
+      const rows = await prisma.dealSnapshot.findMany({
+        distinct: ['snapshotAt'],
+        orderBy: { snapshotAt: 'desc' },
+        select: { snapshotAt: true },
+      })
+      return NextResponse.json(rows.map((r) => r.snapshotAt))
+    }
 
-    // Get all deals from that snapshot
+    // Find the target snapshot timestamp
+    const atParam = searchParams.get('at')
+    let targetAt: Date | null = null
+
+    if (atParam) {
+      targetAt = new Date(atParam)
+    } else {
+      const latest = await prisma.dealSnapshot.findFirst({
+        orderBy: { snapshotAt: 'desc' },
+        select: { snapshotAt: true },
+      })
+      targetAt = latest?.snapshotAt ?? null
+    }
+
+    if (!targetAt) return NextResponse.json({ snapshotAt: null, deals: [] })
+
     const deals = await prisma.dealSnapshot.findMany({
-      where: { snapshotAt: latest.snapshotAt },
+      where: { snapshotAt: targetAt },
       orderBy: { dealId: 'asc' },
     })
 
-    return NextResponse.json({ snapshotAt: latest.snapshotAt, deals })
+    return NextResponse.json({ snapshotAt: targetAt, deals })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message }, { status: 500 })
   }

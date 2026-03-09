@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     const tier1Contacts = await prisma.contact.findMany({
-      where: { tier1: true, ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}) }
+      where: { ...baseWhere, tier1: true }
     })
 
 
@@ -101,17 +101,17 @@ export async function GET(request: NextRequest) {
     const actionableTriggers = []
     const contactIdsForTriggers = Array.from(new Set(triggers.map(t => t.contactId).filter(Boolean) as string[]))
     const triggerContacts = await prisma.contact.findMany({
-      where: { contactId: { in: contactIdsForTriggers } }
+      where: { ...baseWhere, contactId: { in: contactIdsForTriggers } }
     })
     const triggerContactMap = new Map(triggerContacts.map(c => [c.contactId, c]))
 
     for (const t of triggers) {
       const body = t.body?.toLowerCase() || ''
       const matchedWord = triggerWords.find(word => body.includes(word))
-      
+
       if (matchedWord) {
         const contact = triggerContactMap.get(t.contactId!)
-        if (contact && (!ownerIds.length || ownerIds.includes(contact.ownerId ?? ''))) {
+        if (contact) {
           actionableTriggers.push({
             contactId: contact.contactId,
             contactName: `${contact.firstName} ${contact.lastName}`,
@@ -124,32 +124,6 @@ export async function GET(request: NextRequest) {
         }
       }
     }
-
-    const sevenDaysAgo = subDays(new Date(), 7)
-    const recentEnrollments = await prisma.sequenceEnrollment.findMany({
-      where: {
-        enrolledAt: { gte: sevenDaysAgo },
-        ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
-      },
-      orderBy: { enrolledAt: 'desc' },
-      take: 10
-    })
-
-    const enrollmentContactIds = recentEnrollments.map(se => se.contactId).filter(Boolean) as string[]
-    const enrollmentContacts = await prisma.contact.findMany({
-      where: { contactId: { in: enrollmentContactIds } }
-    })
-    const enrollmentContactMap = new Map(enrollmentContacts.map(c => [c.contactId, c]))
-    const enrollmentDetails = recentEnrollments.map((se) => {
-      const contact = enrollmentContactMap.get(se.contactId ?? '')
-      return {
-        contactId: se.contactId,
-        contactName: contact ? `${contact.firstName} ${contact.lastName}` : 'Unknown',
-        sequenceName: se.sequenceName,
-        enrolledAt: se.enrolledAt,
-        ownerName: ownerMap.get(se.ownerId ?? '') ?? 'Unassigned'
-      }
-    })
 
     // Addressable universe — all contacts bucketed by interest disposition
     const allContacts = await prisma.contact.findMany({
@@ -202,7 +176,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       staleTier1s,
       actionableTriggers: actionableTriggers.slice(0, 20),
-      recentEnrollments: enrollmentDetails,
       universe: {
         total: allContacts.length,
         interested:         { count: universe.interested.length,         contacts: mapContacts(universe.interested) },
