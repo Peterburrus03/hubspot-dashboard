@@ -331,28 +331,26 @@ function MiniGauge({ actual, goal, color, label: lbl, sublabel }: {
 
 // ─── OutreachSection ──────────────────────────────────────────────────────────
 
-type OutreachPeriod = 'wtd' | 'last_week' | 'mtd' | 'qtd'
-
-const PERIOD_LABELS: Record<OutreachPeriod, string> = {
-  wtd: 'WTD', last_week: 'Last Week', mtd: 'MTD', qtd: 'QTD',
-}
+type OutreachPeriod = 'wtd' | 'last_week' | 'historical'
 
 function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals; weeklyHistory: WeekPoint[] }) {
   const [showDetail, setShowDetail] = useState(false)
   const [period, setPeriod] = useState<OutreachPeriod>('last_week')
+  const [selectedWeekStart, setSelectedWeekStart] = useState<string>('')
   const mGoal = TARGETS.monthlyOutreach[CURRENT_MONTH] || 318
   const mNdaGoal = TARGETS.monthlyNDAs[CURRENT_MONTH] || 9
   const chartStyle = { fontSize: 10, fill: '#71717a' }
   const conversionRate = actuals.ytdOutreach > 0 ? ((actuals.ytdNDAs / actuals.ytdOutreach) * 100).toFixed(1) : '—'
 
-  const PERIOD_DATA: Record<OutreachPeriod, { outreach: number; ndas: number; goal: number; ndaGoal: number }> = {
-    wtd:       { outreach: actuals.wtdOutreach,      ndas: actuals.wtdNDAs,      goal: THIS_WEEK_GOALS.contacts, ndaGoal: THIS_WEEK_GOALS.ndas },
-    last_week: { outreach: actuals.lastWeekOutreach, ndas: actuals.lastWeekNDAs, goal: THIS_WEEK_GOALS.contacts, ndaGoal: THIS_WEEK_GOALS.ndas },
-    mtd:       { outreach: actuals.mtdOutreach,      ndas: actuals.mtdNDAs,      goal: mGoal,                    ndaGoal: mNdaGoal },
-    qtd:       { outreach: actuals.qtdOutreach,      ndas: actuals.qtdNDAs,      goal: mGoal * 3,                ndaGoal: mNdaGoal * 3 },
-  }
-  const active = PERIOD_DATA[period]
-  const breakdownKey = period === 'last_week' ? 'lastWeek' : period === 'qtd' ? 'qtd' : period === 'mtd' ? 'mtd' : 'wtd'
+  const selectedPoint = weeklyHistory.find(w => w.weekStart === selectedWeekStart) ?? null
+  const historicalGoals = selectedPoint ? (WEEKLY_GOALS[getISOWeek(new Date(selectedPoint.weekStart))] ?? THIS_WEEK_GOALS) : THIS_WEEK_GOALS
+
+  const activeOutreach = period === 'wtd' ? actuals.wtdOutreach : period === 'last_week' ? actuals.lastWeekOutreach : (selectedPoint?.outreach ?? 0)
+  const activeNDAs     = period === 'wtd' ? actuals.wtdNDAs     : period === 'last_week' ? actuals.lastWeekNDAs     : (selectedPoint?.ndas ?? 0)
+  const activeGoal     = period === 'historical' ? historicalGoals.contacts : THIS_WEEK_GOALS.contacts
+  const activeNdaGoal  = period === 'historical' ? historicalGoals.ndas     : THIS_WEEK_GOALS.ndas
+  const activeLabel    = period === 'wtd' ? 'WTD' : period === 'last_week' ? 'Last Week' : (selectedPoint?.week ?? 'Selected')
+  const breakdownKey   = period === 'last_week' ? 'lastWeek' : 'wtd'
 
   const TYPE_META = [
     { key: 'emails' as const, label: 'Emails', icon: '✉️', color: '#818cf8' },
@@ -364,13 +362,23 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
     <div className={card}><div className={cardPad}>
       <div className="flex items-center justify-between mb-0.5">
         <h2 className={h2Cls}>Outreach & NDA Tracker</h2>
-        <div className="flex gap-1">
-          {(Object.keys(PERIOD_LABELS) as OutreachPeriod[]).map((p) => (
+        <div className="flex items-center gap-2">
+          {(['wtd', 'last_week'] as const).map((p) => (
             <button key={p} onClick={() => setPeriod(p)}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${period === p ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700'}`}>
-              {PERIOD_LABELS[p]}
+              {p === 'wtd' ? 'WTD' : 'Last Week'}
             </button>
           ))}
+          <select
+            value={period === 'historical' ? selectedWeekStart : ''}
+            onChange={e => { setSelectedWeekStart(e.target.value); setPeriod('historical') }}
+            className={`text-xs bg-zinc-800 border text-zinc-300 rounded-lg px-2 py-1.5 focus:outline-none ${period === 'historical' ? 'border-indigo-500' : 'border-zinc-600'}`}
+          >
+            <option value="">Select week…</option>
+            {[...weeklyHistory].reverse().map((w) => (
+              <option key={w.weekStart ?? w.week} value={w.weekStart ?? ''}>{w.week}</option>
+            ))}
+          </select>
         </div>
       </div>
       <p className={`text-xs ${mutedCls} mb-5 mt-0.5`}>{THIS_WEEK_GOALS.contacts} contacts/week · {THIS_WEEK_GOALS.ndas} NDAs/week · 1,820 total by Sep 7</p>
@@ -378,7 +386,7 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
         <div>
           <div className="text-xs font-bold text-indigo-400 uppercase tracking-wide mb-3">📞 Outreach Contacts</div>
           <div className="flex justify-around">
-            <MiniGauge actual={active.outreach} goal={active.goal} color="#818cf8" label={PERIOD_LABELS[period]} sublabel={`goal ${active.goal}`} />
+            <MiniGauge actual={activeOutreach} goal={activeGoal} color="#818cf8" label={activeLabel} sublabel={`goal ${activeGoal}`} />
             <MiniGauge actual={actuals.mtdOutreach} goal={mGoal} color="#818cf8" label="MTD" sublabel={`goal ${mGoal}`} />
             <MiniGauge actual={actuals.ytdOutreach} goal={TARGETS.totalOutreach} color="#818cf8" label="YTD" sublabel={`goal ${TARGETS.totalOutreach}`} />
           </div>
@@ -386,7 +394,7 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
         <div>
           <div className="text-xs font-bold text-purple-400 uppercase tracking-wide mb-3">📋 NDAs Signed</div>
           <div className="flex justify-around">
-            <MiniGauge actual={active.ndas} goal={active.ndaGoal} color="#c084fc" label={PERIOD_LABELS[period]} sublabel={`goal ${active.ndaGoal}`} />
+            <MiniGauge actual={activeNDAs} goal={activeNdaGoal} color="#c084fc" label={activeLabel} sublabel={`goal ${activeNdaGoal}`} />
             <MiniGauge actual={actuals.mtdNDAs} goal={mNdaGoal} color="#c084fc" label="MTD" sublabel={`goal ${mNdaGoal}`} />
             <MiniGauge actual={actuals.ytdNDAs} goal={TARGETS.totalNDAs} color="#c084fc" label="YTD" sublabel={`goal ${TARGETS.totalNDAs}`} />
           </div>
@@ -434,12 +442,12 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
 
         {showDetail && actuals.breakdown && (
           <div className="mt-4 border-t border-zinc-700 pt-4">
-            <div className={`${labelCls} mb-3`}>Activity by type — {PERIOD_LABELS[period]}</div>
+            <div className={`${labelCls} mb-3`}>Activity by type — {activeLabel}</div>
             <table className="w-full text-xs">
               <thead>
                 <tr>
                   <th className="text-left text-zinc-500 font-semibold pb-2 w-32">Type</th>
-                  <th className="text-right text-zinc-500 font-semibold pb-2">{PERIOD_LABELS[period]}</th>
+                  <th className="text-right text-zinc-500 font-semibold pb-2">{activeLabel}</th>
                   <th className="text-right text-zinc-500 font-semibold pb-2">MTD</th>
                   <th className="text-right text-zinc-500 font-semibold pb-2">YTD</th>
                 </tr>
@@ -451,14 +459,14 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
                       <span>{icon}</span>
                       <span style={{ color }} className="font-semibold">{label}</span>
                     </td>
-                    <td className="text-right text-zinc-300 font-mono py-2">{actuals.breakdown![breakdownKey as keyof typeof actuals.breakdown][key]}</td>
+                    <td className="text-right text-zinc-300 font-mono py-2">{actuals.breakdown![breakdownKey as 'wtd' | 'mtd' | 'ytd' | 'lastWeek' | 'qtd'][key]}</td>
                     <td className="text-right text-zinc-300 font-mono py-2">{actuals.breakdown!.mtd[key]}</td>
                     <td className="text-right text-zinc-300 font-mono py-2">{actuals.breakdown!.ytd[key]}</td>
                   </tr>
                 ))}
                 <tr className="border-t border-zinc-700">
                   <td className="py-2 text-zinc-400 font-bold">Total</td>
-                  <td className="text-right text-white font-bold font-mono py-2">{active.outreach}</td>
+                  <td className="text-right text-white font-bold font-mono py-2">{activeOutreach}</td>
                   <td className="text-right text-white font-bold font-mono py-2">{actuals.mtdOutreach}</td>
                   <td className="text-right text-white font-bold font-mono py-2">{actuals.ytdOutreach}</td>
                 </tr>
