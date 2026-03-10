@@ -4,6 +4,16 @@ import { Prisma } from '@/generated/prisma'
 
 const PIPELINE_ID = '705209413'
 
+// Deals closed before 2026 tracking began, or excluded by agreement — never count toward closed EBITDA
+const EXCLUDED_CLOSED_DEAL_IDS = [
+  '20861205806', // Great Lakes Vet Dermatology (Stepnik) — Brookfield, WI
+  '38221572192', // Dentistry for Animals (Force) — Aptos, CA
+  '44585896885', // OREV Specialty Vet Care (Kramer) — Portland, OR
+  '38447478071', // Vet Dentistry & Oral Surgery of NM (Bannon) — Algodones, NM
+  '42920468852', // Veterinary Cancer & Surgery Specialists (Wooldridge) — Portland, OR
+  '42920526097', // Van Lue Veterinary Surgical (Van Lue) — Oviedo, FL
+]
+
 function startOfWeek(d: Date): Date {
   // Use UTC so this matches DATE_TRUNC('week', ...) in Postgres
   const day = d.getUTCDay() // 0=Sun
@@ -71,7 +81,7 @@ export async function GET() {
       prisma.deal.aggregate({ where: { ...dealBase, ndaSignedDate: { gte: ytdStart } }, _sum: { numDvms: true } }),
       prisma.deal.count({ where: { ...dealBase, loiSignedDate: { gte: ytdStart } } }),
       prisma.deal.count({ where: { ...dealBase, stage: 'APA Signed' } }),
-      prisma.deal.aggregate({ where: { ...dealBase, stage: 'Closed Won', closedDate: { gte: ytdStart } }, _sum: { ebitda: true } }),
+      prisma.deal.aggregate({ where: { ...dealBase, stage: 'Closed Won', closedDate: { gte: ytdStart }, dealId: { notIn: EXCLUDED_CLOSED_DEAL_IDS } }, _sum: { ebitda: true } }),
     ])
 
     // Weekly outreach history — cap at now, dedupe emails by (contact, date), count only completed tasks
