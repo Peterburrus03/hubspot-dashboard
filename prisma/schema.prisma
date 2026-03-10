@@ -27,13 +27,17 @@ model Deal {
   ebitda               Float?
 
   // Dates
-  initialOutreachDate  DateTime?
-  ndaSignedDate        DateTime?
-  loiExtendedDate      DateTime?
-  loiSignedDate        DateTime?
-  targetCloseDate      DateTime?
-  revisedCloseDate     DateTime?
-  closedDate           DateTime?
+  dealCreatedAt             DateTime?
+  initialOutreachDate       DateTime?
+  qualifiedToBuyDate        DateTime?
+  ndaSignedDate             DateTime?
+  loiExtendedDate           DateTime?
+  loiSignedDate             DateTime?
+  targetCloseDate           DateTime?
+  revisedCloseDate          DateTime?
+  closedDate                DateTime?
+  integrationCompletionDate DateTime?
+  officialClosedDate        DateTime?
 
   // Geography & Practice
   city                 String?

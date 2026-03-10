@@ -1,22 +1,42 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 
-const Q1_START = new Date('2025-12-29')
+const Q1_START = new Date('2026-01-05')
 
-const WEEKLY_BUDGET = [
-  { total: 73, items: { "iPad Case Send": 70, "Tier 1 Campaigns": 6, "Intro Letters": 10, "Peer to Peer": 5, "LinkedIn": 2 } },
-  { total: 65, items: { "iPad Case Send": 5, "Tier 1 Campaigns": 10, "Intro Letters": 10, "Tier 2 Emails": 5, "Peer to Peer": 5, "LinkedIn": 2 } },
-  { total: 19, items: { "Tier 1 Campaigns": 10, "Intro Letters": 10, "Tier 2 Emails": 5, "Peer to Peer": 3, "LinkedIn": 2 } },
-  { total: 20, items: { "iPad Case Send": 7, "Tier 1 Campaigns": 11, "Intro Letters": 10, "Tier 2 Emails": 6, "Peer to Peer": 2, "LinkedIn": 2 } },
-  { total: 35, items: { "Tier 1 Campaigns": 12, "Intro Letters": 10, "Tier 2 Emails": 10, "Peer to Peer": 2, "LinkedIn": 2 } },
-  { total: 39, items: { "iPad Case Send": 12, "Tier 1 Campaigns": 12, "Intro Letters": 10, "Tier 2 Emails": 10, "Peer to Peer": 2, "LinkedIn": 2 } },
-  { total: 37, items: { "iPad Case Send": 7, "Tier 1 Campaigns": 12, "Intro Letters": 7, "Tier 2 Emails": 10, "Peer to Peer": 2, "LinkedIn": 2 } },
-  { total: 34, items: { "Intro Letters": 6, "Tier 2 Emails": 7, "Gone Dark Emails": 12, "LinkedIn": 2, "Practice Gifts": 1 } },
-  { total: 23, items: { "Intro Letters": 6, "Tier 2 Emails": 5, "Gone Dark Emails": 12, "LinkedIn": 2, "Practice Gifts": 1 } },
-  { total: 22, items: { "Intro Letters": 6, "Tier 2 Emails": 3, "LinkedIn": 2, "Practice Gifts": 2 } },
-  { total: 22, items: { "Intro Letters": 9, "LinkedIn": 2, "Practice Gifts": 2 } },
-  { total: 0, items: { "LinkedIn": 2 } }
-]
+// Weekly outreach goals keyed by ISO week number
+const WEEKLY_GOALS: Record<number, number> = {
+  // January–February (ISO weeks 2–9) — original marketing plan budgets
+  2: 73, 3: 65, 4: 19, 5: 20,
+  6: 35, 7: 39, 8: 37, 9: 34,
+  // March (ISO weeks 10–13)
+  10: 74, 11: 74, 12: 74, 13: 74,
+  // April (ISO weeks 14–18)
+  14: 74, 15: 74, 16: 74, 17: 74, 18: 74,
+  // May (ISO weeks 19–22)
+  19: 74, 20: 74, 21: 74, 22: 74,
+  // June (ISO weeks 23–27)
+  23: 64, 24: 64, 25: 64, 26: 64, 27: 64,
+  // July (ISO weeks 28–31)
+  28: 60, 29: 60, 30: 60, 31: 60,
+  // August (ISO weeks 32–36)
+  32: 60, 33: 60, 34: 60, 35: 60, 36: 60,
+  // September deadline week
+  37: 0,
+}
+const DEFAULT_WEEKLY_GOAL = 68
+
+function getISOWeek(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const day = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+}
+
+function weekGoal(weekStart: Date): number {
+  const iso = getISOWeek(weekStart)
+  return WEEKLY_GOALS[iso] ?? DEFAULT_WEEKLY_GOAL
+}
 
 export async function GET() {
   try {
@@ -43,15 +63,20 @@ export async function GET() {
     })
     const t1Ids = new Set(tier1Contacts.map(c => c.contactId))
 
-    const weeklyActuals = Array(12).fill(0).map((_, i) => ({
-      week: `Week ${i + 1}`,
-      target: WEEKLY_BUDGET[i]?.total || 0,
-      budgetDetails: WEEKLY_BUDGET[i]?.items || {},
-      tier1: 0,
-      tier2: 0,
-      total: 0,
-      ipad: i === 0 ? 111 : 0
-    }))
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    const weeklyActuals = Array(12).fill(0).map((_, i) => {
+      const weekStart = new Date(Q1_START.getTime() + i * 7 * 24 * 60 * 60 * 1000)
+      const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000)
+      const monthLabel = MONTHS[weekEnd.getUTCMonth()]
+      return {
+        week: `Wk ${i + 1} ${monthLabel}`,
+        target: weekGoal(weekStart),
+        tier1: 0,
+        tier2: 0,
+        total: 0,
+        ipad: i === 0 ? 111 : 0
+      }
+    })
 
     // Track seen email (contactId, date) pairs per week to deduplicate threads
     const seenEmailKeys = new Set<string>()
@@ -96,8 +121,10 @@ export async function GET() {
       }
     })
 
+    const q1TotalTarget = weeklyActuals.reduce((sum, w) => sum + w.target, 0)
+
     return NextResponse.json({
-      q1TotalTarget: 389,
+      q1TotalTarget,
       q1TotalActual: cumulativeActual,
       weeklyData: report
     })

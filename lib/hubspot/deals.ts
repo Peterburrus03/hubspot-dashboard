@@ -12,13 +12,17 @@ const DEAL_PROPERTIES = [
   'amount',
   'hs_projected_amount',
   'normalized_ebitda',
+  'createdate',
   'initial_outreach_date',
+  'hs_v2_date_entered_qualifiedtobuy',
   'nda_sign_date',
   'loi_extended_date',
   'loi_signed_date',
   'target_close_date',
   'revised_expected_close_date',
   'closedate',
+  'integration_completion_and_handover_date',
+  'official_closed_date',
   'city',
   'state',
   'specialty',
@@ -148,13 +152,17 @@ function transformDeal(hubspotDeal: HubSpotDeal, stageMap: Map<string, string>, 
     revenue: parseNumber(props.amount),
     weightedAmount: parseNumber(props.hs_projected_amount),
     ebitda: parseNumber(props.normalized_ebitda),
+    dealCreatedAt: parseHubSpotDate(props.createdate),
     initialOutreachDate: parseHubSpotDate(props.initial_outreach_date),
+    qualifiedToBuyDate: parseHubSpotDate(props.hs_v2_date_entered_qualifiedtobuy),
     ndaSignedDate: parseHubSpotDate(props.nda_sign_date),
     loiExtendedDate: parseHubSpotDate(props.loi_extended_date),
     loiSignedDate: parseHubSpotDate(props.loi_signed_date),
     targetCloseDate: parseHubSpotDate(props.target_close_date),
     revisedCloseDate: parseHubSpotDate(props.revised_expected_close_date),
     closedDate: parseHubSpotDate(props.closedate),
+    integrationCompletionDate: parseHubSpotDate(props.integration_completion_and_handover_date),
+    officialClosedDate: parseHubSpotDate(props.official_closed_date),
     city: props.city,
     state: props.state,
     specialty: props.specialty,
@@ -316,6 +324,17 @@ async function syncDealsToDatabase(deals: Deal[]): Promise<void> {
           lastSyncedAt: new Date(),
         },
       })
+
+      // Update new fields that the generated client doesn't know about yet
+      // (regeneration blocked by locked DLL — use raw SQL instead)
+      await prisma.$executeRaw`
+        UPDATE deals
+        SET "dealCreatedAt"             = ${deal.dealCreatedAt ?? null},
+            "qualifiedToBuyDate"        = ${deal.qualifiedToBuyDate ?? null},
+            "integrationCompletionDate" = ${deal.integrationCompletionDate ?? null},
+            "officialClosedDate"        = ${deal.officialClosedDate ?? null}
+        WHERE "dealId" = ${deal.dealId}
+      `
     }
 
     // Update cache metadata

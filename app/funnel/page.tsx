@@ -1,10 +1,175 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import { Card } from '@/components/ui/Card'
-import { AlertCircle, Gift, User, Users, ArrowRight, Clock, ChevronDown, ChevronUp, X, Phone, Mail, FileText, CalendarDays, Tablet } from 'lucide-react'
+import { AlertCircle, Gift, User, Users, ArrowRight, Clock, ChevronDown, ChevronUp, X, Phone, Mail, FileText, CalendarDays, Tablet, Bot } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
+
+// ─── NDA Strategy AI Chat ─────────────────────────────────────────────────────
+
+async function callAI(body: object): Promise<any> {
+  const res = await fetch('/api/ai/pipeline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return res.json()
+}
+
+function NDAStrategyChat() {
+  const [msgs, setMsgs] = useState<{ role: string; content: string }[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [context, setContext] = useState<string | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Load pipeline context once on mount
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/dashboard/pipeline?isOpenOnly=false').then(r => r.json()),
+      fetch('/api/dashboard/pipeline-stats').then(r => r.json()),
+      fetch('/api/dashboard/vintages').then(r => r.json()),
+    ]).then(([pipelineData, statsData, vintageData]) => {
+      const deals = pipelineData.deals ?? []
+      const actuals = statsData.actuals ?? {}
+      const vintages = vintageData.vintages ?? []
+
+      const dealLines = deals.map((d: any) =>
+        `- ${d.dealName} | Stage: ${d.stage} | ${d.daysInStage ?? '?'}d in stage | EBITDA: $${((d.ebitda ?? 0) / 1000).toFixed(1)}M | DVMs: ${d.numDvms ?? '?'} | ${d.state ?? ''}`
+      ).join('\n')
+
+      const vintageLines = vintages
+        .filter((v: any) => v.engaged > 0)
+        .map((v: any) => `  ${v.quarter}: ${v.engaged} engaged → ${v.ndas} NDAs (${v.ndaConv}% conv, avg ${v.avgDaysToNda ?? '?'}d) → ${v.lois} LOIs (${v.loiConv}% conv)`)
+        .join('\n')
+
+      const ctx = `You are a strategic M&A advisor for AOSN, a veterinary specialty practice acquisition firm.
+
+IMPORTANT MARKET CONTEXT:
+- Approximately 2/3 of AOSN's total addressable market has already been contacted and has responded in some capacity
+- This means cold outreach is largely exhausted — the focus must be on deepening existing relationships, re-engaging warm contacts, and converting engaged prospects to NDAs
+- Each deal has unique dynamics (owner personality, practice size, location, specialty, timeline) — recommendations must be deal-specific, not generic
+- NDA DEADLINE: September 7, 2026 (${Math.floor((new Date('2026-09-07').getTime() - Date.now()) / 86400000)} days away)
+
+ANNUAL TARGETS: $18.9M EBITDA closed | 60 NDAs | 23 APAs
+
+YTD ACTUALS:
+- NDAs signed: ${actuals.ytdNDAs ?? 0}
+- LOIs signed: ${actuals.ytdLOIs ?? 0}
+- APAs signed: ${actuals.ytdAPAs ?? 0}
+- Outreach touches: ${actuals.ytdOutreach ?? 0}
+- Closed EBITDA: $${((actuals.closedEBITDA ?? 0) / 1000).toFixed(1)}M
+
+VINTAGE CONVERSION RATES (cohort by quarter of deal creation):
+${vintageLines}
+
+FULL PIPELINE (${deals.length} deals):
+${dealLines}
+
+Your role is to help the BD team be clever and strategic. Focus on:
+1. Which specific deals are closest to NDA and what's the right move to get them there
+2. Re-engagement strategies for deals that have gone quiet
+3. Timing and sequencing of outreach given the NDA deadline
+4. Deal-specific angles based on practice type, size, and owner situation
+Be direct, specific, and actionable. Reference deals by name.`
+
+      setContext(ctx)
+    }).catch(console.error)
+  }, [])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [msgs, loading])
+
+  const send = async () => {
+    if (!input.trim() || !context) return
+    const userMsg = input.trim()
+    setInput('')
+    const newMsgs = [...msgs, { role: 'user', content: userMsg }]
+    setMsgs(newMsgs)
+    setLoading(true)
+    try {
+      const data = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 1200, system: context, messages: newMsgs })
+      setMsgs(m => [...m, { role: 'assistant', content: data.content?.find((b: any) => b.type === 'text')?.text || 'No response.' }])
+    } catch {
+      setMsgs(m => [...m, { role: 'assistant', content: 'Error contacting API.' }])
+    }
+    setLoading(false)
+  }
+
+  const suggestions = [
+    'Which deals are closest to NDA right now?',
+    'Who has gone quiet that we should re-engage?',
+    'Given the deadline, what should we prioritize this week?',
+    'Which deals have the best NDA conversion signals?',
+  ]
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div className="p-2 bg-indigo-50 rounded-lg">
+          <Bot className="w-5 h-5 text-indigo-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">NDA Strategy Assistant</h3>
+          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Full pipeline context · deal-specific recommendations</p>
+        </div>
+        <div className="ml-auto">
+          {context
+            ? <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Pipeline loaded</span>
+            : <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full animate-pulse">Loading context…</span>
+          }
+        </div>
+      </div>
+
+      <div className="h-80 overflow-y-auto p-4 space-y-3 bg-gray-50">
+        {msgs.length === 0 && (
+          <div className="space-y-2 pt-2">
+            <p className="text-xs text-gray-400 text-center mb-4">Ask anything about NDA strategy — the full pipeline is loaded as context.</p>
+            <div className="grid grid-cols-2 gap-2">
+              {suggestions.map(s => (
+                <button key={s} onClick={() => setInput(s)}
+                  className="text-left text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-600 hover:border-indigo-300 hover:text-indigo-700 transition-colors font-medium">
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
+            <div className={'text-sm rounded-xl px-3 py-2 max-w-xl leading-relaxed whitespace-pre-wrap ' +
+              (m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-800 shadow-sm')}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="text-sm bg-white border border-gray-200 text-gray-400 rounded-xl px-3 py-2 shadow-sm">Thinking…</div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="p-3 border-t border-gray-100 flex gap-2 bg-white">
+        <input
+          className="flex-1 bg-gray-50 border border-gray-200 text-gray-900 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 placeholder-gray-400"
+          placeholder={context ? 'Ask about NDA strategy, specific deals, re-engagement…' : 'Loading pipeline context…'}
+          disabled={!context}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && send()}
+        />
+        <button onClick={send} disabled={loading || !context}
+          className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 font-medium">
+          Send
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function stripHtml(html: string | null | undefined): string {
   if (!html) return ''
@@ -228,6 +393,9 @@ export default function FunnelPage() {
       </div>
 
       <FilterBar onFilterChange={setFilters} showDateFilter={false} />
+
+      {/* NDA Strategy AI — always visible at top */}
+      <NDAStrategyChat />
 
       {data && (
         <div className="space-y-8">

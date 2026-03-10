@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer,
@@ -1267,12 +1267,220 @@ function WeeklyChanges({ deals }: { deals: DealItem[] }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+// ─── Vintage Cohort Analysis ─────────────────────────────────────────────────
+
+type VintageDeal = {
+  dealId: string
+  dealName: string | null
+  stage: string | null
+  dealCreatedAt: string | null
+  qualifiedToBuyDate: string | null
+  ndaSignedDate: string | null
+  loiSignedDate: string | null
+  integrationCompletionDate: string | null
+  officialClosedDate: string | null
+  milestone: string
+}
+
+type VintageRow = {
+  quarter: string
+  engaged: number
+  ndas: number
+  ndaConv: number
+  avgDaysToNda: number | null
+  lois: number
+  loiConv: number
+  avgDaysNdaToLoi: number | null
+  apas: number
+  apaConv: number
+  closed: number
+  closedConv: number
+  deals: VintageDeal[]
+}
+
+const MILESTONE_COLORS: Record<string, string> = {
+  Closed:  'text-emerald-400 bg-emerald-900/40 border-emerald-700',
+  APA:     'text-amber-400 bg-amber-900/40 border-amber-700',
+  LOI:     'text-violet-400 bg-violet-900/40 border-violet-700',
+  NDA:     'text-indigo-400 bg-indigo-900/40 border-indigo-700',
+  Engaged: 'text-zinc-400 bg-zinc-800 border-zinc-600',
+}
+
+function ConvBadge({ pct, count }: { pct: number; count: number }) {
+  if (count === 0) return <span className="text-zinc-600 text-xs">—</span>
+  const color = pct >= 50 ? 'text-emerald-400' : pct >= 25 ? 'text-amber-400' : 'text-zinc-400'
+  return <span className={`text-xs font-bold ${color}`}>{pct}%</span>
+}
+
+function VintageAnalysis() {
+  const [rows, setRows] = useState<VintageRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/dashboard/vintages')
+      .then((r) => r.json())
+      .then((d) => { if (d.vintages) setRows(d.vintages) })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  // Build trend map: for each row, find the previous row that had data
+  const prevWithData = (idx: number, field: (r: VintageRow) => number | null) => {
+    for (let i = idx - 1; i >= 0; i--) {
+      const v = field(rows[i])
+      if (v != null && rows[i].engaged > 0) return v
+    }
+    return null
+  }
+
+  function Trend({ cur, prev, lowerIsBetter = false }: { cur: number | null; prev: number | null; lowerIsBetter?: boolean }) {
+    if (cur == null || prev == null) return null
+    if (cur === prev) return null
+    const improved = lowerIsBetter ? cur < prev : cur > prev
+    return <span className={`ml-1 text-[10px] font-black ${improved ? 'text-emerald-400' : 'text-red-400'}`}>{improved ? '↑' : '↓'}</span>
+  }
+
+  if (loading) return (
+    <div className={`${card} p-6`}>
+      <div className="h-4 w-40 bg-zinc-800 rounded animate-pulse mb-4" />
+      <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-8 bg-zinc-800 rounded animate-pulse" />)}</div>
+    </div>
+  )
+
+  return (
+    <div className={`${card} overflow-hidden`}>
+      <div className={cardPad}>
+        <div className="mb-5">
+          <h2 className={h2Cls}>Pipeline Vintage Analysis</h2>
+          <p className={`text-xs ${mutedCls} mt-0.5`}>Cohort conversion by quarter of deal creation — click a row to see deals. ↑ green = improving vs prior quarter</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-zinc-800">
+                <th className="text-left py-2 pr-4 text-xs font-black text-zinc-500 uppercase tracking-widest w-6" />
+                <th className="text-left py-2 pr-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Vintage</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">Engaged</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">NDAs</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">Conv%</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">Avg Eng→NDA</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">LOIs</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">Conv%</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">Avg NDA→LOI</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">APAs</th>
+                <th className="text-right py-2 px-3 text-xs font-black text-zinc-500 uppercase tracking-widest">Conv%</th>
+                <th className="text-right py-2 pl-3 text-xs font-black text-zinc-500 uppercase tracking-widest">Closed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, idx) => {
+                const isOpen = expanded === r.quarter
+                const hasDeals = r.engaged > 0
+                const pNdaConv    = prevWithData(idx, x => x.ndas > 0 ? x.ndaConv : null)
+                const pDaysToNda  = prevWithData(idx, x => x.avgDaysToNda)
+                const pLoiConv    = prevWithData(idx, x => x.lois > 0 ? x.loiConv : null)
+                const pDaysNdaLoi = prevWithData(idx, x => x.avgDaysNdaToLoi)
+                const pApaConv    = prevWithData(idx, x => x.apas > 0 ? x.apaConv : null)
+                return (
+                  <React.Fragment key={r.quarter}>
+                    <tr
+                      onClick={() => hasDeals && setExpanded(isOpen ? null : r.quarter)}
+                      className={`border-b border-zinc-800/50 transition-colors ${hasDeals ? 'cursor-pointer hover:bg-zinc-800/40' : ''} ${isOpen ? 'bg-zinc-800/40' : ''}`}
+                    >
+                      <td className="py-3 pl-1 pr-2 text-zinc-500 text-xs">
+                        {hasDeals && <span>{isOpen ? '▾' : '▸'}</span>}
+                      </td>
+                      <td className="py-3 pr-4 font-black text-white text-sm">{r.quarter}</td>
+                      <td className="py-3 px-3 text-right font-bold text-zinc-200">{r.engaged || '—'}</td>
+                      <td className="py-3 px-3 text-right font-bold text-indigo-300">{r.ndas || '—'}</td>
+                      <td className="py-3 px-3 text-right">
+                        <ConvBadge pct={r.ndaConv} count={r.ndas} />
+                        <Trend cur={r.ndas > 0 ? r.ndaConv : null} prev={pNdaConv} />
+                      </td>
+                      <td className="py-3 px-3 text-right text-xs text-zinc-400">
+                        {r.avgDaysToNda != null ? `${r.avgDaysToNda}d` : '—'}
+                        <Trend cur={r.avgDaysToNda} prev={pDaysToNda} lowerIsBetter />
+                      </td>
+                      <td className="py-3 px-3 text-right font-bold text-violet-300">{r.lois > 0 ? r.lois : '—'}</td>
+                      <td className="py-3 px-3 text-right">
+                        <ConvBadge pct={r.loiConv} count={r.lois} />
+                        <Trend cur={r.lois > 0 ? r.loiConv : null} prev={pLoiConv} />
+                      </td>
+                      <td className="py-3 px-3 text-right text-xs text-zinc-400">
+                        {r.avgDaysNdaToLoi != null ? `${r.avgDaysNdaToLoi}d` : '—'}
+                        <Trend cur={r.avgDaysNdaToLoi} prev={pDaysNdaLoi} lowerIsBetter />
+                      </td>
+                      <td className="py-3 px-3 text-right font-bold text-amber-300">{r.apas > 0 ? r.apas : '—'}</td>
+                      <td className="py-3 px-3 text-right">
+                        <ConvBadge pct={r.apaConv} count={r.apas} />
+                        <Trend cur={r.apas > 0 ? r.apaConv : null} prev={pApaConv} />
+                      </td>
+                      <td className="py-3 pl-3 text-right font-bold text-emerald-400">{r.closed > 0 ? r.closed : '—'}</td>
+                    </tr>
+                    {isOpen && (
+                      <tr className="border-b border-zinc-800/50">
+                        <td colSpan={12} className="px-4 py-3 bg-zinc-900/60">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-zinc-700/50">
+                                <th className="text-left pb-2 pr-4 font-black text-zinc-500 uppercase tracking-widest">Deal</th>
+                                <th className="text-left pb-2 px-3 font-black text-zinc-500 uppercase tracking-widest">Milestone</th>
+                                <th className="text-left pb-2 px-3 font-black text-zinc-500 uppercase tracking-widest">Engaged</th>
+                                <th className="text-left pb-2 px-3 font-black text-zinc-500 uppercase tracking-widest">NDA</th>
+                                <th className="text-left pb-2 px-3 font-black text-zinc-500 uppercase tracking-widest">LOI</th>
+                                <th className="text-left pb-2 px-3 font-black text-zinc-500 uppercase tracking-widest">APA</th>
+                                <th className="text-left pb-2 pl-3 font-black text-zinc-500 uppercase tracking-widest">Closed</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800/30">
+                              {r.deals.map((d) => {
+                                const mc = MILESTONE_COLORS[d.milestone] ?? MILESTONE_COLORS.Engaged
+                                return (
+                                  <tr key={d.dealId} className="hover:bg-zinc-800/20">
+                                    <td className="py-2 pr-4 text-zinc-200 font-medium max-w-xs truncate">{d.dealName ?? d.dealId}</td>
+                                    <td className="py-2 px-3">
+                                      <span className={`px-1.5 py-0.5 rounded border text-[10px] font-black ${mc}`}>{d.milestone}</span>
+                                    </td>
+                                    <td className="py-2 px-3 text-zinc-400">{d.qualifiedToBuyDate ?? '—'}</td>
+                                    <td className="py-2 px-3 text-zinc-400">{d.ndaSignedDate ?? '—'}</td>
+                                    <td className="py-2 px-3 text-zinc-400">{d.loiSignedDate ?? '—'}</td>
+                                    <td className="py-2 px-3 text-zinc-400">{d.integrationCompletionDate ?? '—'}</td>
+                                    <td className="py-2 pl-3 text-zinc-400">{d.officialClosedDate ?? '—'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-zinc-800">
+          <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-indigo-400 inline-block" />Engaged → NDA</span>
+          <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-violet-400 inline-block" />NDA → LOI</span>
+          <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />LOI → APA</span>
+          <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />Closed</span>
+          <span className="text-xs text-zinc-600 ml-auto">Conv% = % of prior stage that advanced · Avg Days = time between milestones</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function PipelinePage() {
   const [deals, setDeals] = useState<DealItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastSync, setLastSync] = useState<string | null>(null)
-  const [tab, setTab] = useState<'dashboard' | 'pipeline' | 'weekly' | 'ai'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'pipeline' | 'weekly'>('dashboard')
   const [actuals, setActuals] = useState<PipelineActuals>(DEFAULT_ACTUALS)
   const [weeklyHistory, setWeeklyHistory] = useState<WeekPoint[]>([])
 
@@ -1358,7 +1566,7 @@ export default function PipelinePage() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-zinc-900 rounded-lg p-1 w-fit border border-zinc-700">
-          {([['dashboard', '📊 Dashboard'], ['pipeline', '🏗 Pipeline'], ['weekly', '📅 Weekly Changes'], ['ai', '🤖 AI Analysis']] as [typeof tab, string][]).map(([k, l]) => (
+          {([['dashboard', '📊 Dashboard'], ['pipeline', '🏗 Pipeline'], ['weekly', '📅 Weekly Changes']] as [typeof tab, string][]).map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)}
               className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${tab === k ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}>
               {l}
@@ -1379,6 +1587,7 @@ export default function PipelinePage() {
                 <EBITDATargetBar deals={deals} closedEBITDA={actuals.closedEBITDA} />
                 <OutreachSection actuals={actuals} weeklyHistory={weeklyHistory} />
                 <PipelineWeightedTiming deals={deals} />
+                <VintageAnalysis />
                 <TopPriorities deals={deals} actuals={actuals} />
               </>
             )}
@@ -1386,7 +1595,6 @@ export default function PipelinePage() {
               <DealPipelineTable deals={deals} onNotesChange={handleNotesChange} />
             )}
             {tab === 'weekly' && <WeeklyChanges deals={deals} />}
-            {tab === 'ai' && <AIChat deals={deals} actuals={actuals} />}
           </>
         )}
       </div>

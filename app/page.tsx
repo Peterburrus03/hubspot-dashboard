@@ -1,17 +1,16 @@
 'use client'
 
-import { useState, useEffect, Fragment } from 'react'
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, AreaChart, Area, Cell 
+import { useState, useEffect } from 'react'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, AreaChart, Area, Cell
 } from 'recharts'
 import { Card, StatCard } from '@/components/ui/Card'
-import { TrendingUp, ChevronDown, ChevronRight, Info } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
 
 export default function OverviewPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [expandedWeeks, setExpandedStages] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     fetch('/api/dashboard/overview')
@@ -21,10 +20,6 @@ export default function OverviewPage() {
         setLoading(false)
       })
   }, [])
-
-  const toggleWeek = (week: string) => {
-    setExpandedStages(prev => ({ ...prev, [week]: !prev[week] }))
-  }
 
   if (loading) return <div className="p-8 text-center text-gray-500 animate-pulse font-bold uppercase tracking-widest">Loading Q1 Performance...</div>
 
@@ -42,8 +37,8 @@ export default function OverviewPage() {
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Q1 Total Goal" value="389" sublabel="Total touches target" color="gray" />
-        <StatCard label="Actual to Date" value={data.q1TotalActual} sublabel={`${((data.q1TotalActual / 389) * 100).toFixed(1)}% of Q1 complete`} color="blue" />
+        <StatCard label="Q1 Total Goal" value={data.q1TotalTarget} sublabel="Total touches target" color="gray" />
+        <StatCard label="Actual to Date" value={data.q1TotalActual} sublabel={`${((data.q1TotalActual / data.q1TotalTarget) * 100).toFixed(1)}% of Q1 complete`} color="blue" />
         <StatCard 
           label="Current Delta" 
           value={currentStatus.cumulativeDelta > 0 ? `+${currentStatus.cumulativeDelta}` : currentStatus.cumulativeDelta} 
@@ -85,13 +80,13 @@ export default function OverviewPage() {
         <Card>
           <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm mb-6">Weekly Performance Variance</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.weeklyData}>
+            <BarChart data={data.weeklyData.slice(0, currentWeekIdx + 1)}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="week" tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} />
               <Tooltip cursor={{fill: '#f8fafc'}} />
               <Bar dataKey="delta" radius={[4, 4, 0, 0]}>
-                {data.weeklyData.map((entry: any, index: number) => (
+                {data.weeklyData.slice(0, currentWeekIdx + 1).map((entry: any, index: number) => (
                   <Cell key={index} fill={entry.delta >= 0 ? '#22c55e' : '#ef4444'} />
                 ))}
               </Bar>
@@ -109,7 +104,6 @@ export default function OverviewPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-white border-b border-gray-100">
-                <th className="py-4 px-4 w-10"></th>
                 <th className="text-left py-4 px-4 font-black text-gray-400 text-[10px] uppercase tracking-widest">Period</th>
                 <th className="text-right py-4 px-4 font-black text-gray-400 text-[10px] uppercase tracking-widest">Budget</th>
                 <th className="text-right py-4 px-4 font-black text-gray-400 text-[10px] uppercase tracking-widest">Tier 1</th>
@@ -121,59 +115,23 @@ export default function OverviewPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {data.weeklyData.map((w: any) => (
-                <Fragment key={w.week}>
-                  <tr 
-                    className={`${w.actual > 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-blue-50/30 transition-colors cursor-pointer group`}
-                    onClick={() => toggleWeek(w.week)}
-                  >
-                    <td className="py-4 px-4">
-                      {expandedWeeks[w.week] ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-500" />}
-                    </td>
-                    <td className="py-4 px-4 font-black text-gray-900">{w.week}</td>
-                    <td className="py-4 px-4 text-right font-bold text-gray-400">{w.target}</td>
-                    <td className="py-4 px-4 text-right font-black text-purple-600">{w.tier1 > 0 ? w.tier1 : '—'}</td>
-                    <td className="py-4 px-4 text-right font-black text-blue-600">{w.tier2 > 0 ? w.tier2 : '—'}</td>
-                    <td className="py-4 px-4 text-right">
-                      <span className={`inline-block font-black text-gray-900 ${w.actual > 0 ? 'bg-gray-100' : 'text-gray-300'} px-3 py-1 rounded-lg text-xs`}>
-                        {w.actual > 0 ? w.actual : 0}
-                      </span>
-                    </td>
-                    <td className={`py-4 px-4 text-right font-black text-xs ${w.delta >= 0 ? 'text-green-600' : 'text-rose-600'}`}>
-                      {w.delta > 0 ? `+${w.delta}` : w.delta}
-                    </td>
-                    <td className="py-4 px-4 text-right font-black text-gray-900 bg-blue-50/30">
-                      {w.cumulativeActual}
-                    </td>
-                  </tr>
-                  {expandedWeeks[w.week] && (
-                    <tr className="bg-gray-50/50">
-                      <td colSpan={8} className="py-4 px-12">
-                        <div className="flex flex-wrap gap-x-12 gap-y-4">
-                          <div>
-                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                              <Info className="w-3 h-3 text-blue-500" /> Budgeted Activities
-                            </div>
-                            <div className="grid grid-cols-1 gap-2">
-                              {Object.entries(w.budgetDetails).map(([item, qty]) => (
-                                <div key={item} className="flex items-center justify-between gap-8 min-w-[200px] border-b border-gray-100 pb-1">
-                                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-tight">{item}</span>
-                                  <span className="text-xs font-black text-gray-900 bg-white px-2 rounded border border-gray-200">{qty as any}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="border-l border-gray-200 pl-8">
-                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Goal Context</div>
-                            <div className="text-[11px] font-medium text-gray-500 max-w-xs leading-relaxed">
-                              This week focus is on {Object.keys(w.budgetDetails)[0]} and high-touch campaigns. 
-                              The target of {w.target} touches aims to maintain Q1 momentum.
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                <tr key={w.week} className={w.actual > 0 ? 'bg-white' : 'bg-gray-50/30'}>
+                  <td className="py-4 px-4 font-black text-gray-900">{w.week}</td>
+                  <td className="py-4 px-4 text-right font-bold text-gray-400">{w.target}</td>
+                  <td className="py-4 px-4 text-right font-black text-purple-600">{w.tier1 > 0 ? w.tier1 : '—'}</td>
+                  <td className="py-4 px-4 text-right font-black text-blue-600">{w.tier2 > 0 ? w.tier2 : '—'}</td>
+                  <td className="py-4 px-4 text-right">
+                    <span className={`inline-block font-black text-gray-900 ${w.actual > 0 ? 'bg-gray-100' : 'text-gray-300'} px-3 py-1 rounded-lg text-xs`}>
+                      {w.actual > 0 ? w.actual : 0}
+                    </span>
+                  </td>
+                  <td className={`py-4 px-4 text-right font-black text-xs ${w.delta >= 0 ? 'text-green-600' : 'text-rose-600'}`}>
+                    {w.delta > 0 ? `+${w.delta}` : w.delta}
+                  </td>
+                  <td className="py-4 px-4 text-right font-black text-gray-900 bg-blue-50/30">
+                    {w.cumulativeActual}
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
