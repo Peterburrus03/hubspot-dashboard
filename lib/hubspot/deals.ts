@@ -244,11 +244,13 @@ async function syncDealsToDatabase(deals: Deal[]): Promise<void> {
     // Upsert all deals
     for (const deal of deals) {
       const existing = stageMap2.get(deal.dealId)
-      // If stage changed since last sync, record entry date as now
+      // If stage changed since last sync, record entry date as now.
+      // If stage is unchanged, preserve any existing DB value (may be manually corrected)
+      // and only fall back to the HubSpot-derived date if we have nothing stored yet.
       const stageChanged = existing && existing.stage !== deal.stage
       const stageEnteredDate = stageChanged
         ? new Date()
-        : (deal.stageEnteredDate ?? existing?.stageEnteredDate ?? undefined)
+        : (existing?.stageEnteredDate ?? deal.stageEnteredDate ?? undefined)
 
       await prisma.deal.upsert({
         where: { dealId: deal.dealId },

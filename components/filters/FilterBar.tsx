@@ -14,7 +14,7 @@ export interface FilterState {
   includeRemoved: boolean
   tier1Only: boolean
   locationFilter: 'all' | 'us' | 'international'
-  preset: '7d' | '30d' | '60d' | '90d' | 'custom'
+  preset: 'this_week' | 'last_week' | 'custom'
 }
 
 interface FilterOption {
@@ -24,33 +24,49 @@ interface FilterOption {
 
 interface FilterBarProps {
   onFilterChange: (filters: FilterState) => void
+  showDateFilter?: boolean
+}
+
+function getMondayOfWeek(date: Date): Date {
+  const d = new Date(date)
+  const day = d.getDay() // 0=Sun
+  const diff = (day + 6) % 7 // days since Monday
+  d.setDate(d.getDate() - diff)
+  d.setHours(0, 1, 0, 0) // 12:01 AM Monday
+  return d
 }
 
 function getPresetDates(preset: FilterState['preset']): { start: string; end: string } {
-  const end = new Date()
-  end.setHours(23, 59, 59, 999)
-  const start = new Date()
+  const now = new Date()
 
-  const daysMap: Record<string, number> = { '7d': 7, '30d': 30, '60d': 60, '90d': 90 }
-  if (preset in daysMap) {
-    start.setDate(start.getDate() - daysMap[preset])
-    start.setHours(0, 0, 0, 0)
+  if (preset === 'this_week') {
+    const start = getMondayOfWeek(now)
+    const end = new Date(now)
+    end.setHours(23, 59, 59, 999)
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
   }
 
-  return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
+  if (preset === 'last_week') {
+    const thisMonday = getMondayOfWeek(now)
+    const lastMonday = new Date(thisMonday)
+    lastMonday.setDate(thisMonday.getDate() - 7)
+    const lastSunday = new Date(thisMonday)
+    lastSunday.setDate(thisMonday.getDate() - 1)
+    lastSunday.setHours(23, 59, 59, 999)
+    return { start: lastMonday.toISOString().slice(0, 10), end: lastSunday.toISOString().slice(0, 10) }
   }
+
+  // custom — return current values unchanged
+  return { start: now.toISOString().slice(0, 10), end: now.toISOString().slice(0, 10) }
 }
 
-export default function FilterBar({ onFilterChange }: FilterBarProps) {
-  const today = new Date().toISOString().slice(0, 10)
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+export default function FilterBar({ onFilterChange, showDateFilter = true }: FilterBarProps) {
   const [collapsed, setCollapsed] = useState(true)
 
-  const [preset, setPreset] = useState<FilterState['preset']>('30d')
-  const [startDate, setStartDate] = useState(thirtyDaysAgo)
-  const [endDate, setEndDate] = useState(today)
+  const [preset, setPreset] = useState<FilterState['preset']>('last_week')
+  const lastWeekDates = getPresetDates('last_week')
+  const [startDate, setStartDate] = useState(lastWeekDates.start)
+  const [endDate, setEndDate] = useState(lastWeekDates.end)
   const [selectedOwners, setSelectedOwners] = useState<string[]>(['1995098221', '83426466']) // Tracey & Max
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([])
   const [selectedCompanyTypes, setSelectedCompanyTypes] = useState<string[]>(['Private Practice'])
@@ -125,49 +141,53 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
           {collapsed ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronUp className="w-4 h-4 text-gray-400" />}
         </button>
         
-        <div className="flex flex-wrap gap-2 items-center">
-          {(['7d', '30d', '60d', '90d'] as const).map((p) => (
+        {showDateFilter && (
+          <div className="flex flex-wrap gap-2 items-center">
+            {([
+              { key: 'this_week', label: 'This Week' },
+              { key: 'last_week', label: 'Last Week' },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => handlePreset(key)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  preset === key
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
             <button
-              key={p}
-              onClick={() => handlePreset(p)}
+              onClick={() => handlePreset('custom')}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                preset === p
+                preset === 'custom'
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
                   : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
               }`}
             >
-              Last {p.replace('d', '')} days
+              Custom
             </button>
-          ))}
-          <button
-            onClick={() => handlePreset('custom')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-              preset === 'custom'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
-            }`}
-          >
-            Custom
-          </button>
-          
-          {preset === 'custom' && (
-            <div className="flex items-center gap-2 ml-2 bg-white p-1 rounded-lg border border-gray-200">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="text-xs border-none focus:ring-0 p-0"
-              />
-              <span className="text-gray-400">→</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="text-xs border-none focus:ring-0 p-0"
-              />
-            </div>
-          )}
-        </div>
+            {preset === 'custom' && (
+              <div className="flex items-center gap-2 ml-2 bg-white p-1 rounded-lg border border-gray-200">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="text-xs border-none focus:ring-0 p-0"
+                />
+                <span className="text-gray-400">→</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="text-xs border-none focus:ring-0 p-0"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {!collapsed && <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">

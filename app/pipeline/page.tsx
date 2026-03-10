@@ -566,8 +566,8 @@ function PipelineWeightedTiming({ deals }: { deals: DealItem[] }) {
 function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: PipelineActuals }) {
   const EMPTY = [1, 2, 3, 4, 5].map((id) => ({ id, text: '', impact: '', done: false }))
   const [priorities, setPriorities] = useState(EMPTY)
+  const [aiRows, setAiRows] = useState<{ priority: string; impact: string }[]>([])
   const [loading, setLoading] = useState(false)
-  const hasGenerated = useRef(false)
 
   useEffect(() => {
     fetch('/api/dashboard/priorities')
@@ -593,8 +593,6 @@ function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: Pipelin
 
   const generate = async () => {
     if (loading) return
-    const filledPriorities = priorities.filter((p) => p.text.trim())
-    if (filledPriorities.length === 0) return
     setLoading(true)
     try {
       const probWtd = (deals.reduce((s, d) => s + d.ebitda * d.prob, 0) / 1000).toFixed(1)
@@ -602,70 +600,113 @@ function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: Pipelin
       const daysLeft = Math.max(0, Math.floor((NDA_DEADLINE.getTime() - TODAY.getTime()) / 86400000))
       const loiDeals = deals.filter((d) => ['LOI Signed/Diligence', 'LOI Extended'].includes(d.crmStage))
       const atRisk = deals.filter(isAtRisk).map((d) => d.name).join(', ') || 'None'
-      const priorityList = priorities.map((p, i) => `${i + 1}. ${p.text.trim() || '(empty)'}`).join('\n')
-      const prompt = `You are the M&A chief of staff for AOSN (Animal Outpatient Specialty Network). Today is ${TODAY.toDateString()}.\n\nTARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach\nACTUALS: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdAPAs} APAs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed\nPIPELINE: ${probWtd}M prob-wtd | Gap: ${gap}M | ${daysLeft} days to NDA deadline\nLOI DEALS: ${loiDeals.map((d) => `${d.name} ${(d.ebitda / 1000).toFixed(1)}M`).join('; ')}\nAT RISK: ${atRisk}\n\nThe team has set the following priorities for this week:\n${priorityList}\n\nFor each priority, generate a concise impact statement (max 10 words) grounded in the pipeline data above — specific $, deal counts, or metric progress where possible. Return ONLY a raw JSON array of exactly 5 objects with one field: "impact". No markdown, no explanation.`
-      const data = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
-      const raw = data.content?.find((b: any) => b.type === 'text')?.text || '[]'
-      const arr = JSON.parse(raw.replace(/```json|```/g, '').trim())
-      const updated = priorities.map((p, i) => ({
-        ...p,
-        impact: arr[i]?.impact || p.impact,
-      }))
-      save(updated)
+
+      // Also generate impact for manual priorities if any are filled
+      const filledPriorities = priorities.filter((p) => p.text.trim())
+      if (filledPriorities.length > 0) {
+        const priorityList = priorities.map((p, i) => `${i + 1}. ${p.text.trim() || '(empty)'}`).join('\n')
+        const impactPrompt = `You are the M&A chief of staff for AOSN (Animal Outpatient Specialty Network). Today is ${TODAY.toDateString()}.\n\nTARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach\nACTUALS: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdAPAs} APAs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed\nPIPELINE: ${probWtd}M prob-wtd | Gap: ${gap}M | ${daysLeft} days to NDA deadline\nLOI DEALS: ${loiDeals.map((d) => `${d.name} ${(d.ebitda / 1000).toFixed(1)}M`).join('; ')}\nAT RISK: ${atRisk}\n\nThe team has set the following priorities for this week:\n${priorityList}\n\nFor each priority, generate a concise impact statement (max 10 words) grounded in the pipeline data above. Return ONLY a raw JSON array of exactly 5 objects with one field: "impact". No markdown, no explanation.`
+        const impactData = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: impactPrompt }] })
+        const impactRaw = impactData.content?.find((b: any) => b.type === 'text')?.text || '[]'
+        const impactArr = JSON.parse(impactRaw.replace(/```json|```/g, '').trim())
+        save(priorities.map((p, i) => ({ ...p, impact: impactArr[i]?.impact || p.impact })))
+      }
+
+      // Generate AI-suggested priorities + impact
+      const aiPrompt = `You are the M&A chief of staff for AOSN (Animal Outpatient Specialty Network). Today is ${TODAY.toDateString()}.\n\nTARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach\nACTUALS: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdAPAs} APAs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed\nPIPELINE: ${probWtd}M prob-wtd | Gap: ${gap}M | ${daysLeft} days to NDA deadline\nLOI DEALS: ${loiDeals.map((d) => `${d.name} ${(d.ebitda / 1000).toFixed(1)}M`).join('; ')}\nAT RISK: ${atRisk}\n\nBased on the pipeline data above, identify the 5 highest-impact priorities for this week. For each, write a short action-oriented priority (max 8 words) and a concise impact statement (max 10 words) grounded in specific $ amounts, deal counts, or metric gaps. Return ONLY a raw JSON array of exactly 5 objects with fields: "priority" and "impact". No markdown, no explanation.`
+      const aiData = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: aiPrompt }] })
+      const aiRaw = aiData.content?.find((b: any) => b.type === 'text')?.text || '[]'
+      const aiArr = JSON.parse(aiRaw.replace(/```json|```/g, '').trim())
+      setAiRows(aiArr)
     } catch (e) {
-      console.error('Impact generation failed:', e)
+      console.error('Generation failed:', e)
     }
     setLoading(false)
   }
 
   return (
-    <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12, overflow: 'hidden', marginBottom: 24 }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #3f3f46', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>This Week — Top Priorities <span style={{ color: '#71717a', fontWeight: 400, fontSize: 12 }}>(work in progress)</span></div>
-          <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>Enter your priorities, then click Generate Impact to see pipeline-grounded impact for each</div>
+    <div style={{ marginBottom: 24 }}>
+      {/* Manual priorities */}
+      <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #3f3f46', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>This Week — Top Priorities <span style={{ color: '#71717a', fontWeight: 400, fontSize: 12 }}>(work in progress)</span></div>
+            <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>Enter your priorities manually · click Generate to fill impact and get AI suggestions below</div>
+          </div>
+          <button onClick={generate} disabled={loading}
+            style={{ background: '#4f46e5', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {loading ? '⏳ Generating…' : '✦ Generate'}
+          </button>
         </div>
-        <button onClick={generate} disabled={loading || priorities.every(p => !p.text.trim())}
-          style={{ background: '#4f46e5', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: (loading || priorities.every(p => !p.text.trim())) ? 'not-allowed' : 'pointer', opacity: (loading || priorities.every(p => !p.text.trim())) ? 0.5 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
-          {loading ? '⏳ Generating…' : '✦ Generate Impact'}
-        </button>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#27272a' }}>
+              <th style={{ padding: '8px 12px', textAlign: 'left', color: '#71717a', fontSize: 11, fontWeight: 600, width: 32 }}>#</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', color: '#a1a1aa', fontSize: 11, fontWeight: 600 }}>Priority</th>
+              <th style={{ padding: '8px 12px', textAlign: 'center', color: '#a1a1aa', fontSize: 11, fontWeight: 600, width: 60 }}>Done</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', color: '#a1a1aa', fontSize: 11, fontWeight: 600 }}>Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            {priorities.map((p, i) => (
+              <tr key={p.id} style={{ borderTop: '1px solid #27272a', background: p.done ? 'rgba(6,78,59,0.2)' : 'transparent' }}>
+                <td style={{ padding: '8px 12px', color: '#52525b', fontSize: 11, fontWeight: 600 }}>{i + 1}</td>
+                <td style={{ padding: '8px 12px' }}>
+                  <input type="text" value={p.text} placeholder="Enter priority…"
+                    onChange={(e) => update(p.id, 'text', e.target.value)}
+                    style={{ width: '100%', background: 'transparent', border: '1px solid #3f3f46', borderRadius: 6, padding: '6px 10px', color: p.done ? '#52525b' : '#f4f4f5', fontSize: 13, outline: 'none', textDecoration: p.done ? 'line-through' : 'none', boxSizing: 'border-box' }} />
+                </td>
+                <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                  <span onClick={() => toggle(p.id)} style={{ fontSize: 22, cursor: 'pointer', color: p.done ? '#34d399' : '#3f3f46', userSelect: 'none' }}>✓</span>
+                </td>
+                <td style={{ padding: '8px 16px', maxWidth: 320 }}>
+                  {loading
+                    ? <div style={{ height: 14, background: '#27272a', borderRadius: 4, width: '60%' }} />
+                    : p.impact
+                    ? <span style={{ color: '#e4e4e7', fontSize: 12, lineHeight: '1.5' }}>{p.impact}</span>
+                    : <span style={{ color: '#3f3f46', fontSize: 12, fontStyle: 'italic' }}>—</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ background: '#27272a' }}>
-            <th style={{ padding: '8px 12px', textAlign: 'left', color: '#71717a', fontSize: 11, fontWeight: 600, width: 32 }}>#</th>
-            <th style={{ padding: '8px 12px', textAlign: 'left', color: '#a1a1aa', fontSize: 11, fontWeight: 600 }}>Priority</th>
-            <th style={{ padding: '8px 12px', textAlign: 'center', color: '#a1a1aa', fontSize: 11, fontWeight: 600, width: 60 }}>Done</th>
-            <th style={{ padding: '8px 12px', textAlign: 'left', color: '#a1a1aa', fontSize: 11, fontWeight: 600 }}>Impact</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? [1, 2, 3, 4, 5].map((i) => (
-            <tr key={i} style={{ borderTop: '1px solid #27272a' }}>
-              <td style={{ padding: '12px', color: '#52525b', fontSize: 11 }}>{i}</td>
-              <td style={{ padding: '12px' }}><div style={{ height: 14, background: '#27272a', borderRadius: 4, width: '70%' }} /></td>
-              <td /><td style={{ padding: '12px' }}><div style={{ height: 14, background: '#27272a', borderRadius: 4, width: '40%' }} /></td>
-            </tr>
-          )) : priorities.map((p, i) => (
-            <tr key={p.id} style={{ borderTop: '1px solid #27272a', background: p.done ? 'rgba(6,78,59,0.2)' : 'transparent' }}>
-              <td style={{ padding: '8px 12px', color: '#52525b', fontSize: 11, fontWeight: 600 }}>{i + 1}</td>
-              <td style={{ padding: '8px 12px' }}>
-                <input type="text" value={p.text} placeholder="Enter priority…"
-                  onChange={(e) => update(p.id, 'text', e.target.value)}
-                  style={{ width: '100%', background: 'transparent', border: '1px solid #3f3f46', borderRadius: 6, padding: '6px 10px', color: p.done ? '#52525b' : '#f4f4f5', fontSize: 13, outline: 'none', textDecoration: p.done ? 'line-through' : 'none', boxSizing: 'border-box' }} />
-              </td>
-              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                <span onClick={() => toggle(p.id)} style={{ fontSize: 22, cursor: 'pointer', color: p.done ? '#34d399' : '#3f3f46', userSelect: 'none' }}>✓</span>
-              </td>
-              <td style={{ padding: '8px 16px', maxWidth: 320 }}>
-                {p.impact
-                  ? <span style={{ color: '#e4e4e7', fontSize: 12, lineHeight: '1.5' }}>{p.impact}</span>
-                  : <span style={{ color: '#3f3f46', fontSize: 12, fontStyle: 'italic' }}>—</span>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      {/* AI-generated priorities */}
+      {(aiRows.length > 0 || loading) && (
+        <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid #3f3f46' }}>
+            <div style={{ color: '#a78bfa', fontWeight: 700, fontSize: 13 }}>✦ AI-Suggested Priorities</div>
+            <div style={{ color: '#52525b', fontSize: 11, marginTop: 2 }}>Generated from current pipeline data</div>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#27272a' }}>
+                <th style={{ padding: '8px 12px', textAlign: 'left', color: '#71717a', fontSize: 11, fontWeight: 600, width: 32 }}>#</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left', color: '#a1a1aa', fontSize: 11, fontWeight: 600 }}>Priority</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left', color: '#a1a1aa', fontSize: 11, fontWeight: 600 }}>Impact</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? [1,2,3,4,5].map((i) => (
+                <tr key={i} style={{ borderTop: '1px solid #27272a' }}>
+                  <td style={{ padding: '12px', color: '#52525b', fontSize: 11 }}>{i}</td>
+                  <td style={{ padding: '12px' }}><div style={{ height: 14, background: '#27272a', borderRadius: 4, width: '70%' }} /></td>
+                  <td style={{ padding: '12px' }}><div style={{ height: 14, background: '#27272a', borderRadius: 4, width: '40%' }} /></td>
+                </tr>
+              )) : aiRows.map((r, i) => (
+                <tr key={i} style={{ borderTop: '1px solid #27272a' }}>
+                  <td style={{ padding: '8px 12px', color: '#52525b', fontSize: 11, fontWeight: 600 }}>{i + 1}</td>
+                  <td style={{ padding: '8px 12px', color: '#f4f4f5', fontSize: 13 }}>{r.priority}</td>
+                  <td style={{ padding: '8px 16px', maxWidth: 320 }}>
+                    <span style={{ color: '#a78bfa', fontSize: 12, lineHeight: '1.5' }}>{r.impact}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

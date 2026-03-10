@@ -227,7 +227,7 @@ export default function FunnelPage() {
         <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-1">Strategic Priorities & Follow-up Triggers</p>
       </div>
 
-      <FilterBar onFilterChange={setFilters} />
+      <FilterBar onFilterChange={setFilters} showDateFilter={false} />
 
       {data && (
         <div className="space-y-8">
