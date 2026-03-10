@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect } from 'react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import SummaryStats from '@/components/kpis/SummaryStats'
 import ActivityByOwner from '@/components/charts/ActivityByOwner'
-import SequencePerformance from '@/components/charts/SequencePerformance'
 import ActivityTable from '@/components/tables/ActivityTable'
 import type { ActivitySummary } from '@/types/hubspot'
 
@@ -36,9 +35,7 @@ export default function ActivityDashboard() {
     summary: ActivitySummary | null
     byOwner: any[]
   }>({ summary: null, byOwner: [] })
-  const [sequenceData, setSequenceData] = useState<{ sequences: any[] }>({ sequences: [] })
   const [loadingActivity, setLoadingActivity] = useState(false)
-  const [loadingSequences, setLoadingSequences] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
@@ -69,27 +66,12 @@ export default function ActivityDashboard() {
       setError(null)
 
       setLoadingActivity(true)
-      setLoadingSequences(true)
 
-      // Fetch in parallel
-      const [actRes, seqRes] = await Promise.allSettled([
-        fetch(`/api/dashboard/activity?${qs}`).then((r) => r.json()),
-        fetch(`/api/dashboard/sequences?${qs}`).then((r) => r.json()),
-      ])
-
-      if (actRes.status === 'fulfilled') {
-        if (actRes.value.error) setError(actRes.value.error)
-        else setActivityData(actRes.value)
-      } else {
-        setError('Failed to load activity data')
-      }
+      const actRes = await fetch(`/api/dashboard/activity?${qs}`).then((r) => r.json()).catch(() => null)
+      if (actRes?.error) setError(actRes.error)
+      else if (actRes) setActivityData(actRes)
+      else setError('Failed to load activity data')
       setLoadingActivity(false)
-
-      if (seqRes.status === 'fulfilled') {
-        if (seqRes.value.error) console.error('Sequences API error:', seqRes.value.error)
-        else setSequenceData(seqRes.value)
-      }
-      setLoadingSequences(false)
     },
     []
   )
@@ -213,11 +195,6 @@ export default function ActivityDashboard() {
       {/* Activity by BD director */}
       <section>
         <ActivityByOwner data={activityData.byOwner} loading={loadingActivity} />
-      </section>
-
-      {/* Sequence performance */}
-      <section>
-        <SequencePerformance data={sequenceData.sequences} loading={loadingSequences} />
       </section>
 
       {/* Raw data table */}
