@@ -119,13 +119,17 @@ export interface Deal {
   revenue?: number
   weightedAmount?: number
   ebitda?: number
+  dealCreatedAt?: Date
   initialOutreachDate?: Date
+  qualifiedToBuyDate?: Date
   ndaSignedDate?: Date
   loiExtendedDate?: Date
   loiSignedDate?: Date
   targetCloseDate?: Date
   revisedCloseDate?: Date
   closedDate?: Date
+  integrationCompletionDate?: Date
+  officialClosedDate?: Date
   city?: string
   state?: string
   specialty?: string
