@@ -24,11 +24,14 @@ export async function GET() {
     const ytdStart = new Date(now.getFullYear(), 0, 1)
     const mtdStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const wtdStart = startOfWeek(now)
+    const lastWeekStart = new Date(wtdStart); lastWeekStart.setDate(wtdStart.getDate() - 7)
+    const lastWeekEnd = new Date(wtdStart); lastWeekEnd.setMilliseconds(-1)
+    const qtdStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
     const historyStart = ytdStart
 
     // Outreach = non-automated emails + calls + notes + meetings + completed tasks only
-    const outreachWhere = (gte: Date) => ({
-      timestamp: { gte },
+    const outreachWhere = (gte: Date, lte: Date = now) => ({
+      timestamp: { gte, lte },
       OR: [
         { type: 'CALL' },
         { type: 'NOTE' },
@@ -39,10 +42,12 @@ export async function GET() {
       ],
     })
 
-    const [ytdOutreach, mtdOutreach, wtdOutreach] = await Promise.all([
-      prisma.engagement.count({ where: { ...outreachWhere(ytdStart), timestamp: { gte: ytdStart, lte: now } } }),
-      prisma.engagement.count({ where: { ...outreachWhere(mtdStart), timestamp: { gte: mtdStart, lte: now } } }),
-      prisma.engagement.count({ where: { ...outreachWhere(wtdStart), timestamp: { gte: wtdStart, lte: now } } }),
+    const [ytdOutreach, mtdOutreach, wtdOutreach, lastWeekOutreach, qtdOutreach] = await Promise.all([
+      prisma.engagement.count({ where: outreachWhere(ytdStart) }),
+      prisma.engagement.count({ where: outreachWhere(mtdStart) }),
+      prisma.engagement.count({ where: outreachWhere(wtdStart) }),
+      prisma.engagement.count({ where: outreachWhere(lastWeekStart, lastWeekEnd) }),
+      prisma.engagement.count({ where: outreachWhere(qtdStart) }),
     ])
 
     // Deal milestone counts (AOSN pipeline only)
@@ -51,6 +56,8 @@ export async function GET() {
       ytdNDAsResult,
       mtdNDAsResult,
       wtdNDAsResult,
+      lastWeekNDAsResult,
+      qtdNDAsResult,
       ytdNDADvmsResult,
       ytdLOIsResult,
       ytdAPAsResult,
@@ -59,6 +66,8 @@ export async function GET() {
       prisma.deal.count({ where: { ...dealBase, ndaSignedDate: { gte: ytdStart } } }),
       prisma.deal.count({ where: { ...dealBase, ndaSignedDate: { gte: mtdStart } } }),
       prisma.deal.count({ where: { ...dealBase, ndaSignedDate: { gte: wtdStart } } }),
+      prisma.deal.count({ where: { ...dealBase, ndaSignedDate: { gte: lastWeekStart, lte: lastWeekEnd } } }),
+      prisma.deal.count({ where: { ...dealBase, ndaSignedDate: { gte: qtdStart } } }),
       prisma.deal.aggregate({ where: { ...dealBase, ndaSignedDate: { gte: ytdStart } }, _sum: { numDvms: true } }),
       prisma.deal.count({ where: { ...dealBase, loiSignedDate: { gte: ytdStart } } }),
       prisma.deal.count({ where: { ...dealBase, stage: 'APA Signed' } }),
@@ -110,13 +119,13 @@ export async function GET() {
       ndas: ndaByWeek.get(r.week_start.toISOString()) ?? 0,
     }))
 
-    // Per-type breakdown for WTD / MTD / YTD
+    // Per-type breakdown for WTD / MTD / YTD / Last Week / QTD
     type TypeBreakdown = { emails: number; calls: number; notes: number; meetings: number }
-    async function typeBreakdown(gte: Date): Promise<TypeBreakdown> {
+    async function typeBreakdown(gte: Date, lte: Date = now): Promise<TypeBreakdown> {
       const rows = await prisma.$queryRaw<{ type: string; cnt: bigint }[]>(Prisma.sql`
         SELECT type, COUNT(*) AS cnt
         FROM engagements
-        WHERE timestamp >= ${gte}
+        WHERE timestamp >= ${gte} AND timestamp <= ${lte}
           AND (
             type IN ('CALL','NOTE','MEETING')
             OR (type = 'EMAIL' AND ("emailDirection" IS NULL OR "emailDirection" != 'AUTOMATED_EMAIL'))
@@ -127,10 +136,12 @@ export async function GET() {
       return { emails: m.get('EMAIL') ?? 0, calls: m.get('CALL') ?? 0, notes: m.get('NOTE') ?? 0, meetings: m.get('MEETING') ?? 0 }
     }
 
-    const [wtdBreakdown, mtdBreakdown, ytdBreakdown] = await Promise.all([
+    const [wtdBreakdown, mtdBreakdown, ytdBreakdown, lastWeekBreakdown, qtdBreakdown] = await Promise.all([
       typeBreakdown(wtdStart),
       typeBreakdown(mtdStart),
       typeBreakdown(ytdStart),
+      typeBreakdown(lastWeekStart, lastWeekEnd),
+      typeBreakdown(qtdStart),
     ])
 
     return NextResponse.json({
@@ -138,14 +149,18 @@ export async function GET() {
         wtdOutreach,
         mtdOutreach,
         ytdOutreach,
+        lastWeekOutreach,
+        qtdOutreach,
         wtdNDAs: wtdNDAsResult,
         mtdNDAs: mtdNDAsResult,
         ytdNDAs: ytdNDAsResult,
+        lastWeekNDAs: lastWeekNDAsResult,
+        qtdNDAs: qtdNDAsResult,
         ytdNDADvms: ytdNDADvmsResult._sum.numDvms ?? 0,
         ytdLOIs: ytdLOIsResult,
         ytdAPAs: ytdAPAsResult,
         closedEBITDA: Math.round(closedEBITDAResult._sum.ebitda ?? 0),
-        breakdown: { wtd: wtdBreakdown, mtd: mtdBreakdown, ytd: ytdBreakdown },
+        breakdown: { wtd: wtdBreakdown, mtd: mtdBreakdown, ytd: ytdBreakdown, lastWeek: lastWeekBreakdown, qtd: qtdBreakdown },
       },
       weeklyHistory,
     })

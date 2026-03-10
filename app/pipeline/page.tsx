@@ -121,16 +121,16 @@ const TARGETS = {
 
 interface ActivityBreakdown { emails: number; calls: number; notes: number; meetings: number }
 interface PipelineActuals {
-  wtdOutreach: number; mtdOutreach: number; ytdOutreach: number
-  wtdNDAs: number; mtdNDAs: number; ytdNDAs: number
+  wtdOutreach: number; mtdOutreach: number; ytdOutreach: number; lastWeekOutreach: number; qtdOutreach: number
+  wtdNDAs: number; mtdNDAs: number; ytdNDAs: number; lastWeekNDAs: number; qtdNDAs: number
   ytdNDADvms: number; ytdLOIs: number; ytdAPAs: number; closedEBITDA: number
-  breakdown?: { wtd: ActivityBreakdown; mtd: ActivityBreakdown; ytd: ActivityBreakdown }
+  breakdown?: { wtd: ActivityBreakdown; mtd: ActivityBreakdown; ytd: ActivityBreakdown; lastWeek: ActivityBreakdown; qtd: ActivityBreakdown }
 }
 interface WeekPoint { week: string; weekStart: string; outreach: number; ndas: number }
 
 const DEFAULT_ACTUALS: PipelineActuals = {
-  wtdOutreach: 0, mtdOutreach: 0, ytdOutreach: 0,
-  wtdNDAs: 0, mtdNDAs: 0, ytdNDAs: 0,
+  wtdOutreach: 0, mtdOutreach: 0, ytdOutreach: 0, lastWeekOutreach: 0, qtdOutreach: 0,
+  wtdNDAs: 0, mtdNDAs: 0, ytdNDAs: 0, lastWeekNDAs: 0, qtdNDAs: 0,
   ytdNDADvms: 0, ytdLOIs: 0, ytdAPAs: 0, closedEBITDA: 0,
 }
 
@@ -331,23 +331,28 @@ function MiniGauge({ actual, goal, color, label: lbl, sublabel }: {
 
 // ─── OutreachSection ──────────────────────────────────────────────────────────
 
+type OutreachPeriod = 'wtd' | 'last_week' | 'mtd' | 'qtd'
+
+const PERIOD_LABELS: Record<OutreachPeriod, string> = {
+  wtd: 'WTD', last_week: 'Last Week', mtd: 'MTD', qtd: 'QTD',
+}
+
 function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals; weeklyHistory: WeekPoint[] }) {
   const [showDetail, setShowDetail] = useState(false)
-  const [selectedWeekStart, setSelectedWeekStart] = useState<string>('') // '' = current week
+  const [period, setPeriod] = useState<OutreachPeriod>('last_week')
   const mGoal = TARGETS.monthlyOutreach[CURRENT_MONTH] || 318
   const mNdaGoal = TARGETS.monthlyNDAs[CURRENT_MONTH] || 9
   const chartStyle = { fontSize: 10, fill: '#71717a' }
   const conversionRate = actuals.ytdOutreach > 0 ? ((actuals.ytdNDAs / actuals.ytdOutreach) * 100).toFixed(1) : '—'
 
-  // Resolve selected week data + goals
-  const isCurrentWeek = selectedWeekStart === ''
-  const selectedPoint = weeklyHistory.find(w => w.weekStart === selectedWeekStart) ?? null
-  const weekGoals = selectedPoint
-    ? (WEEKLY_GOALS[getISOWeek(new Date(selectedPoint.weekStart))] ?? THIS_WEEK_GOALS)
-    : THIS_WEEK_GOALS
-  const weekOutreach = isCurrentWeek ? actuals.wtdOutreach : (selectedPoint?.outreach ?? 0)
-  const weekNDAs    = isCurrentWeek ? actuals.wtdNDAs    : (selectedPoint?.ndas ?? 0)
-  const weekLabel   = isCurrentWeek ? 'This Week' : (selectedPoint?.week ?? '')
+  const PERIOD_DATA: Record<OutreachPeriod, { outreach: number; ndas: number; goal: number; ndaGoal: number }> = {
+    wtd:       { outreach: actuals.wtdOutreach,      ndas: actuals.wtdNDAs,      goal: THIS_WEEK_GOALS.contacts, ndaGoal: THIS_WEEK_GOALS.ndas },
+    last_week: { outreach: actuals.lastWeekOutreach, ndas: actuals.lastWeekNDAs, goal: THIS_WEEK_GOALS.contacts, ndaGoal: THIS_WEEK_GOALS.ndas },
+    mtd:       { outreach: actuals.mtdOutreach,      ndas: actuals.mtdNDAs,      goal: mGoal,                    ndaGoal: mNdaGoal },
+    qtd:       { outreach: actuals.qtdOutreach,      ndas: actuals.qtdNDAs,      goal: mGoal * 3,                ndaGoal: mNdaGoal * 3 },
+  }
+  const active = PERIOD_DATA[period]
+  const breakdownKey = period === 'last_week' ? 'lastWeek' : period === 'qtd' ? 'qtd' : period === 'mtd' ? 'mtd' : 'wtd'
 
   const TYPE_META = [
     { key: 'emails' as const, label: 'Emails', icon: '✉️', color: '#818cf8' },
@@ -359,23 +364,21 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
     <div className={card}><div className={cardPad}>
       <div className="flex items-center justify-between mb-0.5">
         <h2 className={h2Cls}>Outreach & NDA Tracker</h2>
-        <select
-          value={selectedWeekStart}
-          onChange={e => setSelectedWeekStart(e.target.value)}
-          className="text-xs bg-zinc-800 border border-zinc-600 text-zinc-300 rounded-lg px-2 py-1.5 focus:outline-none"
-        >
-          <option value="">This Week</option>
-          {[...weeklyHistory].reverse().map((w) => (
-            <option key={w.weekStart ?? w.week} value={w.weekStart ?? ''}>{w.week}</option>
+        <div className="flex gap-1">
+          {(Object.keys(PERIOD_LABELS) as OutreachPeriod[]).map((p) => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${period === p ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700'}`}>
+              {PERIOD_LABELS[p]}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
-      <p className={`text-xs ${mutedCls} mb-5 mt-0.5`}>{weekGoals.contacts} contacts/week · {weekGoals.ndas} NDAs/week · 1,820 total by Sep 7</p>
+      <p className={`text-xs ${mutedCls} mb-5 mt-0.5`}>{THIS_WEEK_GOALS.contacts} contacts/week · {THIS_WEEK_GOALS.ndas} NDAs/week · 1,820 total by Sep 7</p>
       <div className="grid grid-cols-2 gap-6 mb-6">
         <div>
           <div className="text-xs font-bold text-indigo-400 uppercase tracking-wide mb-3">📞 Outreach Contacts</div>
           <div className="flex justify-around">
-            <MiniGauge actual={weekOutreach} goal={weekGoals.contacts} color="#818cf8" label={weekLabel} sublabel={`goal ${weekGoals.contacts}`} />
+            <MiniGauge actual={active.outreach} goal={active.goal} color="#818cf8" label={PERIOD_LABELS[period]} sublabel={`goal ${active.goal}`} />
             <MiniGauge actual={actuals.mtdOutreach} goal={mGoal} color="#818cf8" label="MTD" sublabel={`goal ${mGoal}`} />
             <MiniGauge actual={actuals.ytdOutreach} goal={TARGETS.totalOutreach} color="#818cf8" label="YTD" sublabel={`goal ${TARGETS.totalOutreach}`} />
           </div>
@@ -383,7 +386,7 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
         <div>
           <div className="text-xs font-bold text-purple-400 uppercase tracking-wide mb-3">📋 NDAs Signed</div>
           <div className="flex justify-around">
-            <MiniGauge actual={weekNDAs} goal={weekGoals.ndas} color="#c084fc" label={weekLabel} sublabel={`goal ${weekGoals.ndas}`} />
+            <MiniGauge actual={active.ndas} goal={active.ndaGoal} color="#c084fc" label={PERIOD_LABELS[period]} sublabel={`goal ${active.ndaGoal}`} />
             <MiniGauge actual={actuals.mtdNDAs} goal={mNdaGoal} color="#c084fc" label="MTD" sublabel={`goal ${mNdaGoal}`} />
             <MiniGauge actual={actuals.ytdNDAs} goal={TARGETS.totalNDAs} color="#c084fc" label="YTD" sublabel={`goal ${TARGETS.totalNDAs}`} />
           </div>
@@ -431,12 +434,12 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
 
         {showDetail && actuals.breakdown && (
           <div className="mt-4 border-t border-zinc-700 pt-4">
-            <div className={`${labelCls} mb-3`}>Activity by type</div>
+            <div className={`${labelCls} mb-3`}>Activity by type — {PERIOD_LABELS[period]}</div>
             <table className="w-full text-xs">
               <thead>
                 <tr>
                   <th className="text-left text-zinc-500 font-semibold pb-2 w-32">Type</th>
-                  <th className="text-right text-zinc-500 font-semibold pb-2">WTD</th>
+                  <th className="text-right text-zinc-500 font-semibold pb-2">{PERIOD_LABELS[period]}</th>
                   <th className="text-right text-zinc-500 font-semibold pb-2">MTD</th>
                   <th className="text-right text-zinc-500 font-semibold pb-2">YTD</th>
                 </tr>
@@ -448,14 +451,14 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
                       <span>{icon}</span>
                       <span style={{ color }} className="font-semibold">{label}</span>
                     </td>
-                    <td className="text-right text-zinc-300 font-mono py-2">{actuals.breakdown!.wtd[key]}</td>
+                    <td className="text-right text-zinc-300 font-mono py-2">{actuals.breakdown![breakdownKey as keyof typeof actuals.breakdown][key]}</td>
                     <td className="text-right text-zinc-300 font-mono py-2">{actuals.breakdown!.mtd[key]}</td>
                     <td className="text-right text-zinc-300 font-mono py-2">{actuals.breakdown!.ytd[key]}</td>
                   </tr>
                 ))}
                 <tr className="border-t border-zinc-700">
                   <td className="py-2 text-zinc-400 font-bold">Total</td>
-                  <td className="text-right text-white font-bold font-mono py-2">{actuals.wtdOutreach}</td>
+                  <td className="text-right text-white font-bold font-mono py-2">{active.outreach}</td>
                   <td className="text-right text-white font-bold font-mono py-2">{actuals.mtdOutreach}</td>
                   <td className="text-right text-white font-bold font-mono py-2">{actuals.ytdOutreach}</td>
                 </tr>
