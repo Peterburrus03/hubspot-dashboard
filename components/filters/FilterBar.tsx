@@ -14,7 +14,7 @@ export interface FilterState {
   includeRemoved: boolean
   tier1Only: boolean
   locationFilter: 'all' | 'us' | 'international'
-  preset: 'this_week' | 'last_week' | 'custom'
+  preset: 'this_week' | 'last_week' | 'mtd' | 'qtd' | 'custom'
 }
 
 interface FilterOption {
@@ -38,12 +38,11 @@ function getMondayOfWeek(date: Date): Date {
 
 function getPresetDates(preset: FilterState['preset']): { start: string; end: string } {
   const now = new Date()
+  const today = now.toISOString().slice(0, 10)
 
   if (preset === 'this_week') {
     const start = getMondayOfWeek(now)
-    const end = new Date(now)
-    end.setHours(23, 59, 59, 999)
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
+    return { start: start.toISOString().slice(0, 10), end: today }
   }
 
   if (preset === 'last_week') {
@@ -52,12 +51,22 @@ function getPresetDates(preset: FilterState['preset']): { start: string; end: st
     lastMonday.setDate(thisMonday.getDate() - 7)
     const lastSunday = new Date(thisMonday)
     lastSunday.setDate(thisMonday.getDate() - 1)
-    lastSunday.setHours(23, 59, 59, 999)
     return { start: lastMonday.toISOString().slice(0, 10), end: lastSunday.toISOString().slice(0, 10) }
   }
 
-  // custom — return current values unchanged
-  return { start: now.toISOString().slice(0, 10), end: now.toISOString().slice(0, 10) }
+  if (preset === 'mtd') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    return { start: start.toISOString().slice(0, 10), end: today }
+  }
+
+  if (preset === 'qtd') {
+    const quarter = Math.floor(now.getMonth() / 3)
+    const start = new Date(now.getFullYear(), quarter * 3, 1)
+    return { start: start.toISOString().slice(0, 10), end: today }
+  }
+
+  // custom — caller manages dates
+  return { start: today, end: today }
 }
 
 export default function FilterBar({ onFilterChange, showDateFilter = true }: FilterBarProps) {
@@ -144,8 +153,10 @@ export default function FilterBar({ onFilterChange, showDateFilter = true }: Fil
         {showDateFilter && (
           <div className="flex flex-wrap gap-2 items-center">
             {([
-              { key: 'this_week', label: 'This Week' },
+              { key: 'this_week', label: 'WTD' },
               { key: 'last_week', label: 'Last Week' },
+              { key: 'mtd', label: 'MTD' },
+              { key: 'qtd', label: 'QTD' },
             ] as const).map(({ key, label }) => (
               <button
                 key={key}
