@@ -66,8 +66,7 @@ export async function GET() {
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     const weeklyActuals = Array(12).fill(0).map((_, i) => {
       const weekStart = new Date(Q1_START.getTime() + i * 7 * 24 * 60 * 60 * 1000)
-      const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000)
-      const monthLabel = MONTHS[weekEnd.getUTCMonth()]
+      const monthLabel = MONTHS[weekStart.getUTCMonth()]
       return {
         week: `Wk ${i + 1} ${monthLabel}`,
         target: weekGoal(weekStart),
