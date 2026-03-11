@@ -122,10 +122,12 @@ export async function GET() {
 
     const q1TotalTarget = weeklyActuals.reduce((sum, w) => sum + w.target, 0)
 
+    const anchor = { week: '', target: 0, tier1: 0, tier2: 0, total: 0, ipad: 0, actual: 0, cumulativeActual: 0, cumulativeTarget: 0, delta: 0, cumulativeDelta: 0 }
+
     return NextResponse.json({
       q1TotalTarget,
       q1TotalActual: cumulativeActual,
-      weeklyData: report
+      weeklyData: [anchor, ...report]
     })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })

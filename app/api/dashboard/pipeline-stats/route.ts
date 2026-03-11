@@ -22,10 +22,13 @@ function startOfWeek(d: Date): Date {
   return result
 }
 
+const Q1_START_MS = Date.UTC(2026, 0, 5) // Jan 5, 2026
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
 function isoWeekLabel(d: Date): string {
-  const weekOfMonth = Math.ceil(d.getDate() / 7)
-  const month = d.toLocaleDateString('en-US', { month: 'short' })
-  return `W${weekOfMonth} ${month}`
+  const weekNum = Math.round((d.getTime() - Q1_START_MS) / (7 * 24 * 60 * 60 * 1000)) + 1
+  const month = MONTHS[d.getUTCMonth()]
+  return `Wk ${weekNum} ${month}`
 }
 
 export async function GET() {
@@ -121,13 +124,21 @@ export async function GET() {
       ORDER BY week_start
     `)
 
+    // iPad campaign — 111 touches hardcoded for week of Jan 5 (matches overview)
+    const IPAD_WEEK = new Date('2026-01-05T00:00:00.000Z').toISOString()
+    const IPAD_COUNT = 111
+
     const ndaByWeek = new Map(weeklyNDAs.map((r) => [r.week_start.toISOString(), Number(r.count)]))
-    const weeklyHistory = weeklyOutreach.map((r) => ({
-      week: isoWeekLabel(r.week_start),
-      weekStart: r.week_start.toISOString(),
-      outreach: Number(r.outreach),
-      ndas: ndaByWeek.get(r.week_start.toISOString()) ?? 0,
-    }))
+    const weeklyHistory = weeklyOutreach.map((r) => {
+      const ws = r.week_start.toISOString()
+      const ipad = ws === IPAD_WEEK ? IPAD_COUNT : 0
+      return {
+        week: isoWeekLabel(r.week_start),
+        weekStart: ws,
+        outreach: Number(r.outreach) + ipad,
+        ndas: ndaByWeek.get(ws) ?? 0,
+      }
+    })
 
     // Per-type breakdown for WTD / MTD / YTD / Last Week / QTD
     type TypeBreakdown = { emails: number; calls: number; notes: number; meetings: number }
@@ -154,13 +165,14 @@ export async function GET() {
       typeBreakdown(qtdStart),
     ])
 
+    const ipadWeekDate = new Date(IPAD_WEEK)
     return NextResponse.json({
       actuals: {
         wtdOutreach,
-        mtdOutreach,
-        ytdOutreach,
-        lastWeekOutreach,
-        qtdOutreach,
+        mtdOutreach: ipadWeekDate >= mtdStart ? mtdOutreach + IPAD_COUNT : mtdOutreach,
+        ytdOutreach: ipadWeekDate >= ytdStart ? ytdOutreach + IPAD_COUNT : ytdOutreach,
+        lastWeekOutreach: ipadWeekDate >= lastWeekStart && ipadWeekDate < wtdStart ? lastWeekOutreach + IPAD_COUNT : lastWeekOutreach,
+        qtdOutreach: ipadWeekDate >= qtdStart ? qtdOutreach + IPAD_COUNT : qtdOutreach,
         wtdNDAs: wtdNDAsResult,
         mtdNDAs: mtdNDAsResult,
         ytdNDAs: ytdNDAsResult,
@@ -173,6 +185,7 @@ export async function GET() {
         breakdown: { wtd: wtdBreakdown, mtd: mtdBreakdown, ytd: ytdBreakdown, lastWeek: lastWeekBreakdown, qtd: qtdBreakdown },
       },
       weeklyHistory,
+      lastWeekStart: lastWeekStart.toISOString(),
     })
   } catch (error: any) {
     console.error('Pipeline stats error:', error)

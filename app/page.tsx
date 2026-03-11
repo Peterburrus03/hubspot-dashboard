@@ -23,9 +23,10 @@ export default function OverviewPage() {
 
   if (loading) return <div className="p-8 text-center text-gray-500 animate-pulse font-bold uppercase tracking-widest">Loading Q1 Performance...</div>
 
-  const lastActiveWeekIndex = [...data.weeklyData].reverse().findIndex((w: any) => w.actual > 0)
-  const currentWeekIdx = lastActiveWeekIndex === -1 ? 0 : 11 - lastActiveWeekIndex
-  const currentStatus = data.weeklyData[currentWeekIdx]
+  const realWeeks = data.weeklyData.filter((w: any) => w.week !== '')
+  const lastActiveWeekIndex = [...realWeeks].reverse().findIndex((w: any) => w.actual > 0)
+  const currentWeekIdx = lastActiveWeekIndex === -1 ? 0 : realWeeks.length - 1 - lastActiveWeekIndex
+  const currentStatus = realWeeks[currentWeekIdx]
 
   return (
     <div className="space-y-8">
@@ -80,13 +81,13 @@ export default function OverviewPage() {
         <Card>
           <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm mb-6">Weekly Performance Variance</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.weeklyData.slice(0, currentWeekIdx + 1)}>
+            <BarChart data={realWeeks.slice(0, currentWeekIdx + 1)}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="week" tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} />
               <Tooltip cursor={{fill: '#f8fafc'}} />
               <Bar dataKey="delta" radius={[4, 4, 0, 0]}>
-                {data.weeklyData.slice(0, currentWeekIdx + 1).map((entry: any, index: number) => (
+                {realWeeks.slice(0, currentWeekIdx + 1).map((entry: any, index: number) => (
                   <Cell key={index} fill={entry.delta >= 0 ? '#22c55e' : '#ef4444'} />
                 ))}
               </Bar>
@@ -114,7 +115,7 @@ export default function OverviewPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {data.weeklyData.map((w: any) => (
+              {data.weeklyData.filter((w: any) => w.week !== '').map((w: any) => (
                 <tr key={w.week} className={w.actual > 0 ? 'bg-white' : 'bg-gray-50/30'}>
                   <td className="py-4 px-4 font-black text-gray-900">{w.week}</td>
                   <td className="py-4 px-4 text-right font-bold text-gray-400">{w.target}</td>

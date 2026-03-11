@@ -333,7 +333,7 @@ function MiniGauge({ actual, goal, color, label: lbl, sublabel }: {
 
 type OutreachPeriod = 'wtd' | 'last_week' | 'historical'
 
-function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals; weeklyHistory: WeekPoint[] }) {
+function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: PipelineActuals; weeklyHistory: WeekPoint[]; lastWeekStart: string }) {
   const [showDetail, setShowDetail] = useState(false)
   const [period, setPeriod] = useState<OutreachPeriod>('last_week')
   const [selectedWeekStart, setSelectedWeekStart] = useState<string>('')
@@ -345,12 +345,34 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
   const selectedPoint = weeklyHistory.find(w => w.weekStart === selectedWeekStart) ?? null
   const historicalGoals = selectedPoint ? (WEEKLY_GOALS[getISOWeek(new Date(selectedPoint.weekStart))] ?? THIS_WEEK_GOALS) : THIS_WEEK_GOALS
 
-  const activeOutreach = period === 'wtd' ? actuals.wtdOutreach : period === 'last_week' ? actuals.lastWeekOutreach : (selectedPoint?.outreach ?? 0)
-  const activeNDAs     = period === 'wtd' ? actuals.wtdNDAs     : period === 'last_week' ? actuals.lastWeekNDAs     : (selectedPoint?.ndas ?? 0)
+  const lastWeekPoint = weeklyHistory.find(w => w.weekStart === lastWeekStart) ?? null
+  const activeOutreach = period === 'wtd' ? actuals.wtdOutreach : period === 'last_week' ? (lastWeekPoint?.outreach ?? actuals.lastWeekOutreach) : (selectedPoint?.outreach ?? 0)
+  const activeNDAs     = period === 'wtd' ? actuals.wtdNDAs     : period === 'last_week' ? (lastWeekPoint?.ndas     ?? actuals.lastWeekNDAs)     : (selectedPoint?.ndas ?? 0)
   const activeGoal     = period === 'historical' ? historicalGoals.contacts : THIS_WEEK_GOALS.contacts
   const activeNdaGoal  = period === 'historical' ? historicalGoals.ndas     : THIS_WEEK_GOALS.ndas
   const activeLabel    = period === 'wtd' ? 'WTD' : period === 'last_week' ? 'Last Week' : (selectedPoint?.week ?? 'Selected')
   const breakdownKey   = period === 'last_week' ? 'lastWeek' : 'wtd'
+
+  // Compute MTD/YTD up to the reference week end (historical or last_week)
+  const refWeekStart = period === 'historical' ? selectedWeekStart : period === 'last_week' ? lastWeekStart : ''
+  const refDate = refWeekStart ? new Date(refWeekStart) : null
+
+  const displayMtdOutreach = refDate
+    ? weeklyHistory
+        .filter(w => w.weekStart <= refWeekStart && new Date(w.weekStart).getUTCMonth() === refDate.getUTCMonth() && new Date(w.weekStart).getUTCFullYear() === refDate.getUTCFullYear())
+        .reduce((sum, w) => sum + w.outreach, 0)
+    : actuals.mtdOutreach
+  const displayYtdOutreach = refDate
+    ? weeklyHistory.filter(w => w.weekStart <= refWeekStart).reduce((sum, w) => sum + w.outreach, 0)
+    : actuals.ytdOutreach
+  const displayMtdNDAs = refDate
+    ? weeklyHistory
+        .filter(w => w.weekStart <= refWeekStart && new Date(w.weekStart).getUTCMonth() === refDate.getUTCMonth() && new Date(w.weekStart).getUTCFullYear() === refDate.getUTCFullYear())
+        .reduce((sum, w) => sum + w.ndas, 0)
+    : actuals.mtdNDAs
+  const displayYtdNDAs = refDate
+    ? weeklyHistory.filter(w => w.weekStart <= refWeekStart).reduce((sum, w) => sum + w.ndas, 0)
+    : actuals.ytdNDAs
 
   const TYPE_META = [
     { key: 'emails' as const, label: 'Emails', icon: '✉️', color: '#818cf8' },
@@ -387,16 +409,16 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
           <div className="text-xs font-bold text-indigo-400 uppercase tracking-wide mb-3">📞 Outreach Contacts</div>
           <div className="flex justify-around">
             <MiniGauge actual={activeOutreach} goal={activeGoal} color="#818cf8" label={activeLabel} sublabel={`goal ${activeGoal}`} />
-            <MiniGauge actual={actuals.mtdOutreach} goal={mGoal} color="#818cf8" label="MTD" sublabel={`goal ${mGoal}`} />
-            <MiniGauge actual={actuals.ytdOutreach} goal={TARGETS.totalOutreach} color="#818cf8" label="YTD" sublabel={`goal ${TARGETS.totalOutreach}`} />
+            <MiniGauge actual={displayMtdOutreach} goal={mGoal} color="#818cf8" label="MTD" sublabel={`goal ${mGoal}`} />
+            <MiniGauge actual={displayYtdOutreach} goal={TARGETS.totalOutreach} color="#818cf8" label="YTD" sublabel={`goal ${TARGETS.totalOutreach}`} />
           </div>
         </div>
         <div>
           <div className="text-xs font-bold text-purple-400 uppercase tracking-wide mb-3">📋 NDAs Signed</div>
           <div className="flex justify-around">
             <MiniGauge actual={activeNDAs} goal={activeNdaGoal} color="#c084fc" label={activeLabel} sublabel={`goal ${activeNdaGoal}`} />
-            <MiniGauge actual={actuals.mtdNDAs} goal={mNdaGoal} color="#c084fc" label="MTD" sublabel={`goal ${mNdaGoal}`} />
-            <MiniGauge actual={actuals.ytdNDAs} goal={TARGETS.totalNDAs} color="#c084fc" label="YTD" sublabel={`goal ${TARGETS.totalNDAs}`} />
+            <MiniGauge actual={displayMtdNDAs} goal={mNdaGoal} color="#c084fc" label="MTD" sublabel={`goal ${mNdaGoal}`} />
+            <MiniGauge actual={displayYtdNDAs} goal={TARGETS.totalNDAs} color="#c084fc" label="YTD" sublabel={`goal ${TARGETS.totalNDAs}`} />
           </div>
         </div>
       </div>
@@ -467,8 +489,8 @@ function OutreachSection({ actuals, weeklyHistory }: { actuals: PipelineActuals;
                 <tr className="border-t border-zinc-700">
                   <td className="py-2 text-zinc-400 font-bold">Total</td>
                   <td className="text-right text-white font-bold font-mono py-2">{activeOutreach}</td>
-                  <td className="text-right text-white font-bold font-mono py-2">{actuals.mtdOutreach}</td>
-                  <td className="text-right text-white font-bold font-mono py-2">{actuals.ytdOutreach}</td>
+                  <td className="text-right text-white font-bold font-mono py-2">{displayMtdOutreach}</td>
+                  <td className="text-right text-white font-bold font-mono py-2">{displayYtdOutreach}</td>
                 </tr>
               </tbody>
             </table>
@@ -1483,6 +1505,7 @@ export default function PipelinePage() {
   const [tab, setTab] = useState<'dashboard' | 'pipeline' | 'weekly'>('dashboard')
   const [actuals, setActuals] = useState<PipelineActuals>(DEFAULT_ACTUALS)
   const [weeklyHistory, setWeeklyHistory] = useState<WeekPoint[]>([])
+  const [lastWeekStart, setLastWeekStart] = useState<string>('')
 
   const loadDeals = useCallback(async (syncFirst = false) => {
     setLoading(true)
@@ -1522,6 +1545,7 @@ export default function PipelinePage() {
       .then((data) => {
         if (data.actuals) setActuals(data.actuals)
         if (data.weeklyHistory) setWeeklyHistory(data.weeklyHistory)
+        if (data.lastWeekStart) setLastWeekStart(data.lastWeekStart)
       })
       .catch(console.error)
   }, [])
@@ -1585,7 +1609,7 @@ export default function PipelinePage() {
             {tab === 'dashboard' && (
               <>
                 <EBITDATargetBar deals={deals} closedEBITDA={actuals.closedEBITDA} />
-                <OutreachSection actuals={actuals} weeklyHistory={weeklyHistory} />
+                <OutreachSection actuals={actuals} weeklyHistory={weeklyHistory} lastWeekStart={lastWeekStart} />
                 <PipelineWeightedTiming deals={deals} />
                 <VintageAnalysis />
                 <TopPriorities deals={deals} actuals={actuals} />
