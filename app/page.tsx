@@ -69,7 +69,7 @@ export default function OverviewPage() {
             <AreaChart data={data.weeklyData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="week" tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} domain={[0, 'auto']} />
               <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 700 }} />
               <Area type="monotone" dataKey="cumulativeTarget" stroke="#d1d5db" fill="#f3f4f6" strokeWidth={2} />
               <Area type="monotone" dataKey="cumulativeActual" stroke="#2563eb" fill="#dbeafe" strokeWidth={4} />
