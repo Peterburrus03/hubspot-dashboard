@@ -210,7 +210,6 @@ export interface SequenceEnrollmentRecord {
 export interface ActivitySummary {
   totalEmails: number
   totalCalls: number
-  totalNotes: number
   totalMeetings: number
   totalSequenceTouches: number
   totalTasks: number

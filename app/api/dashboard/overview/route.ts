@@ -47,7 +47,6 @@ export async function GET() {
         timestamp: { gte: Q1_START, lte: now },
         OR: [
           { type: 'CALL' },
-          { type: 'NOTE' },
           { type: 'MEETING' },
           { type: 'TASK', taskStatus: 'COMPLETED' },
           { type: 'EMAIL', emailDirection: null },

@@ -216,6 +216,7 @@ function ContactModal({ contact, onClose }: {
   onClose: () => void
 }) {
   const [engagements, setEngagements] = useState<any[]>([])
+  const [taskCategories, setTaskCategories] = useState<{ label: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState<number | null>(null)
 
@@ -224,7 +225,10 @@ function ContactModal({ contact, onClose }: {
     const qs = days ? `?contactId=${contact.contactId}&days=${days}` : `?contactId=${contact.contactId}`
     fetch(`/api/dashboard/contact${qs}`)
       .then(r => r.json())
-      .then(d => setEngagements(d.engagements ?? []))
+      .then(d => {
+        setEngagements(d.engagements ?? [])
+        setTaskCategories(d.taskCategories ?? [])
+      })
       .finally(() => setLoading(false))
   }, [contact.contactId, days])
 
@@ -257,17 +261,32 @@ function ContactModal({ contact, onClose }: {
         </div>
         <div className="overflow-y-auto flex-1 p-5 space-y-3">
           {loading && <p className="text-center text-sm text-gray-400 animate-pulse py-8">Loading activity...</p>}
-          {!loading && engagements.length === 0 && (
+          {!loading && engagements.length === 0 && taskCategories.length === 0 && (
             <p className="text-center text-sm font-bold text-gray-400 uppercase py-8">No outreach on record</p>
           )}
+
+          {/* Task category rollup */}
+          {taskCategories.length > 0 && (
+            <div className="bg-gray-50 rounded-xl p-3 mb-1">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tasks by Type</p>
+              <div className="flex flex-wrap gap-2">
+                {taskCategories.map(({ label, count }) => (
+                  <span key={label} className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-700 shadow-sm">
+                    <CalendarDays className="w-3 h-3 text-amber-500" />
+                    {label} <span className="text-gray-400 font-black">·</span> <span className="text-amber-600">{count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Chronological engagement timeline (no tasks) */}
           {engagements.map(e => {
             const isIpad = e.type === 'IPAD_COVER_SHIPPED' || e.type === 'IPAD_SHIPPED' || e.type === 'IPAD_RESPONSE'
             const title = isIpad
               ? e.type === 'IPAD_COVER_SHIPPED' ? 'iPad Cover Shipped'
               : e.type === 'IPAD_SHIPPED' ? `iPad Shipped${e.ipadGroup ? ` · ${e.ipadGroup}` : ''}`
               : `iPad Response${e.ipadResponseType ? ` · ${e.ipadResponseType}` : ''}`
-              : e.type === 'TASK'
-              ? `Task${e.body ? ` — ${e.body}` : ''}`
               : e.emailSubject || e.callDisposition || TYPE_LABEL[e.type] || e.type
             return (
               <div key={e.engagementId} className="flex gap-3">
@@ -281,7 +300,7 @@ function ContactModal({ contact, onClose }: {
                       {format(new Date(e.timestamp), 'MMM d, yyyy')}
                     </span>
                   </div>
-                  {e.body && e.type !== 'TASK' && (
+                  {e.body && (
                     <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{stripHtml(e.body)}</p>
                   )}
                   {e.ownerName && <p className="text-[10px] text-gray-400 mt-0.5">{e.ownerName}</p>}

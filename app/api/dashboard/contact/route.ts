@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 
+const TASK_CATEGORIES: Record<string, string> = {
+  '01': 'Text',
+  '02': 'Postal / Snail Mail Letter',
+  '03': 'Greeting Card / Gift Card',
+  '04': 'FedEx Letter',
+  '05': 'LinkedIn Outreach',
+  '06': 'Peer to Peer',
+  '07': 'Other',
+}
+
+function getTaskCategory(body: string | null | undefined): string {
+  if (!body) return 'Uncategorized'
+  const prefix = body.substring(0, 2)
+  return TASK_CATEGORIES[prefix] ?? 'Uncategorized'
+}
+
 export async function GET(request: NextRequest) {
   const contactId = request.nextUrl.searchParams.get('contactId')
   if (!contactId) return NextResponse.json({ error: 'Missing contactId' }, { status: 400 })
@@ -75,5 +91,18 @@ export async function GET(request: NextRequest) {
     ...ipadEvents,
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-  return NextResponse.json({ engagements: allEvents, ipad: contact })
+  // Group tasks by category — don't expose individual task records
+  const taskEvents = allEvents.filter(e => e.type === 'TASK')
+  const taskCategoryMap: Record<string, number> = {}
+  for (const t of taskEvents) {
+    const cat = getTaskCategory((t as any).body)
+    taskCategoryMap[cat] = (taskCategoryMap[cat] ?? 0) + 1
+  }
+  const taskCategories = Object.entries(taskCategoryMap)
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+
+  const nonTaskEvents = allEvents.filter(e => e.type !== 'TASK')
+
+  return NextResponse.json({ engagements: nonTaskEvents, taskCategories, ipad: contact })
 }

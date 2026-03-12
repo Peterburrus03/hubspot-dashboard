@@ -119,7 +119,7 @@ const TARGETS = {
   monthlyNDAs: { 3: 9, 4: 9, 5: 9, 6: 9, 7: 9, 8: 9, 9: 6 } as Record<number, number>,
 }
 
-interface ActivityBreakdown { emails: number; calls: number; notes: number; meetings: number }
+interface ActivityBreakdown { emails: number; calls: number; meetings: number }
 interface PipelineActuals {
   wtdOutreach: number; mtdOutreach: number; ytdOutreach: number; lastWeekOutreach: number; qtdOutreach: number
   wtdNDAs: number; mtdNDAs: number; ytdNDAs: number; lastWeekNDAs: number; qtdNDAs: number
@@ -378,7 +378,7 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
     { key: 'emails' as const, label: 'Emails', icon: '✉️', color: '#818cf8' },
     { key: 'calls' as const, label: 'Calls', icon: '📞', color: '#34d399' },
     { key: 'meetings' as const, label: 'Meetings', icon: '🤝', color: '#fbbf24' },
-    { key: 'notes' as const, label: 'Notes', icon: '📝', color: '#f87171' },
+    // Sales Activity (tasks) shown as total in breakdown — categories visible on Activity tab
   ]
   return (
     <div className={card}><div className={cardPad}>

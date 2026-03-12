@@ -34,7 +34,8 @@ export default function ActivityDashboard() {
   const [activityData, setActivityData] = useState<{
     summary: ActivitySummary | null
     byOwner: any[]
-  }>({ summary: null, byOwner: [] })
+    taskCategories: { label: string; count: number }[]
+  }>({ summary: null, byOwner: [], taskCategories: [] })
   const [loadingActivity, setLoadingActivity] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -69,7 +70,7 @@ export default function ActivityDashboard() {
 
       const actRes = await fetch(`/api/dashboard/activity?${qs}`).then((r) => r.json()).catch(() => null)
       if (actRes?.error) setError(actRes.error)
-      else if (actRes) setActivityData(actRes)
+      else if (actRes) setActivityData({ summary: actRes.summary, byOwner: actRes.byOwner, taskCategories: actRes.taskCategories ?? [] })
       else setError('Failed to load activity data')
       setLoadingActivity(false)
     },
@@ -189,8 +190,8 @@ export default function ActivityDashboard() {
       {/* Filters */}
       <FilterBar onFilterChange={handleFilterChange} />
 
-      {/* Summary stats */}
-      <SummaryStats summary={activityData.summary} loading={loadingActivity} />
+      {/* Summary stats — tasks expanded per category */}
+      <SummaryStats summary={activityData.summary} loading={loadingActivity} taskCategories={activityData.taskCategories} />
 
       {/* Activity by BD director */}
       <section>

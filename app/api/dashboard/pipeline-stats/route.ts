@@ -42,12 +42,11 @@ export async function GET() {
     const qtdStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
     const historyStart = ytdStart
 
-    // Outreach = non-automated emails + calls + notes + meetings + completed tasks only
+    // Outreach = non-automated emails + calls + meetings + completed tasks (notes excluded)
     const outreachWhere = (gte: Date, lte: Date = now) => ({
       timestamp: { gte, lte },
       OR: [
         { type: 'CALL' },
-        { type: 'NOTE' },
         { type: 'MEETING' },
         { type: 'TASK', taskStatus: 'COMPLETED' },
         { type: 'EMAIL', emailDirection: null },
@@ -94,7 +93,6 @@ export async function GET() {
         DATE_TRUNC('week', timestamp) AS week_start,
         COUNT(*) FILTER (
           WHERE type = 'CALL'
-             OR type = 'NOTE'
              OR type = 'MEETING'
              OR (type = 'TASK' AND "taskStatus" = 'COMPLETED')
         )
@@ -148,13 +146,13 @@ export async function GET() {
         FROM engagements
         WHERE timestamp >= ${gte} AND timestamp <= ${lte}
           AND (
-            type IN ('CALL','NOTE','MEETING')
+            type IN ('CALL','MEETING')
             OR (type = 'EMAIL' AND ("emailDirection" IS NULL OR "emailDirection" != 'AUTOMATED_EMAIL'))
           )
         GROUP BY type
       `)
       const m = new Map(rows.map((r) => [r.type, Number(r.cnt)]))
-      return { emails: m.get('EMAIL') ?? 0, calls: m.get('CALL') ?? 0, notes: m.get('NOTE') ?? 0, meetings: m.get('MEETING') ?? 0 }
+      return { emails: m.get('EMAIL') ?? 0, calls: m.get('CALL') ?? 0, meetings: m.get('MEETING') ?? 0 }
     }
 
     const [wtdBreakdown, mtdBreakdown, ytdBreakdown, lastWeekBreakdown, qtdBreakdown] = await Promise.all([

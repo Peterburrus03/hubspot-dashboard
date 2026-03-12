@@ -163,7 +163,7 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
           ? a.ownerName.localeCompare(b.ownerName)
           : b.ownerName.localeCompare(a.ownerName)
       }
-      const total = (row: typeof a) => row.emails + row.calls + row.notes + row.meetings + row.tasks + row.sequenceTouches
+      const total = (row: typeof a) => row.emails + row.calls + row.meetings + row.tasks + row.sequenceTouches
       const aVal = sortKey === 'total' ? total(a) : (a as any)[sortKey]
       const bVal = sortKey === 'total' ? total(b) : (b as any)[sortKey]
       return sortDir === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number)
@@ -202,12 +202,12 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
     let csv = ''
     if (view === 'owner') {
       csv = [
-        'Team Member,Emails,Calls,Notes,Meetings,Tasks,Seq. Touches,Contacts Reached,Total Activity',
+        'Team Member,Emails,Calls,Meetings,Sales Activity,Seq. Touches,Contacts Reached,Total Activity',
         ...sortedData.map((r) =>
           [
             `"${r.ownerName}"`,
-            r.emails, r.calls, r.notes, r.meetings, r.tasks, r.sequenceTouches, r.contactsReached,
-            r.emails + r.calls + r.notes + r.meetings + r.sequenceTouches,
+            r.emails, r.calls, r.meetings, r.tasks, r.sequenceTouches, r.contactsReached,
+            r.emails + r.calls + r.meetings + r.sequenceTouches,
           ].join(',')
         ),
       ].join('\n')
@@ -290,9 +290,8 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
                       ['Team Member', 'ownerName'],
                       ['Emails', 'emails'],
                       ['Calls', 'calls'],
-                      ['Notes', 'notes'],
                       ['Meetings', 'meetings'],
-                      ['Tasks', 'tasks'],
+                      ['Sales Activity', 'tasks'],
                       ['Seq. Touches', 'sequenceTouches'],
                       ['Contacts', 'contactsReached'],
                       ['Total', 'total'],
@@ -311,13 +310,12 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
               </thead>
               <tbody>
                 {sortedData.map((row) => {
-                  const total = row.emails + row.calls + row.notes + row.meetings + row.sequenceTouches
+                  const total = row.emails + row.calls + row.meetings + row.sequenceTouches
                   return (
                     <tr key={row.ownerId} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="py-2.5 px-3 font-medium text-gray-800">{row.ownerName}</td>
                       <td className="py-2.5 px-3 text-blue-600 font-medium">{row.emails}</td>
                       <td className="py-2.5 px-3 text-green-600 font-medium">{row.calls}</td>
-                      <td className="py-2.5 px-3 text-purple-600 font-medium">{row.notes}</td>
                       <td className="py-2.5 px-3 text-orange-600 font-medium">{row.meetings}</td>
                       <td className="py-2.5 px-3 text-gray-500">{row.tasks}</td>
                       <td className="py-2.5 px-3 text-rose-600 font-medium">{row.sequenceTouches}</td>

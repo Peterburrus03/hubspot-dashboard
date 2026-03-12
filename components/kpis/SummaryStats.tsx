@@ -4,9 +4,13 @@ import type { ActivitySummary } from '@/types/hubspot'
 interface SummaryStatsProps {
   summary: ActivitySummary | null
   loading: boolean
+  taskCategories?: { label: string; count: number }[]
 }
 
-export default function SummaryStats({ summary, loading }: SummaryStatsProps) {
+export default function SummaryStats({ summary, loading, taskCategories = [] }: SummaryStatsProps) {
+  const catCount = taskCategories.length || 1
+  const totalCols = 4 + catCount // Total, Emails, Calls, Meetings + one per category
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -22,12 +26,22 @@ export default function SummaryStats({ summary, loading }: SummaryStatsProps) {
   const total =
     summary.totalEmails +
     summary.totalCalls +
-    summary.totalNotes +
     summary.totalMeetings +
     summary.totalTasks
 
+  const CATEGORY_COLORS: Record<string, 'blue' | 'green' | 'rose' | 'purple' | 'orange' | 'gray'> = {
+    'LinkedIn Outreach': 'blue',
+    'Postal / Snail Mail Letter': 'purple',
+    'Greeting Card / Gift Card': 'rose',
+    'FedEx Letter': 'orange',
+    'Text': 'green',
+    'Peer to Peer': 'orange',
+    'Other': 'gray',
+    'Uncategorized': 'gray',
+  }
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-${Math.min(totalCols, 6)} gap-4`}>
       <StatCard
         label="Total Activities"
         value={total}
@@ -47,23 +61,29 @@ export default function SummaryStats({ summary, loading }: SummaryStatsProps) {
         color="green"
       />
       <StatCard
-        label="Notes Created"
-        value={summary.totalNotes}
-        sublabel="Contact notes"
-        color="purple"
-      />
-      <StatCard
         label="Meetings Booked"
         value={summary.totalMeetings}
         sublabel="Scheduled meetings"
         color="orange"
       />
-      <StatCard
-        label="Tasks"
-        value={summary.totalTasks}
-        sublabel="Logged tasks"
-        color="rose"
-      />
+      {taskCategories.length > 0 ? (
+        taskCategories.map(({ label, count }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={count}
+            sublabel="Sales activity"
+            color={CATEGORY_COLORS[label] ?? 'gray'}
+          />
+        ))
+      ) : (
+        <StatCard
+          label="Sales Activity"
+          value={summary.totalTasks}
+          sublabel="Completed tasks"
+          color="rose"
+        />
+      )}
     </div>
   )
 }

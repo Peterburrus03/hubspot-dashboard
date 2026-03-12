@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
       owner_id: string
       emails: bigint
       calls: bigint
-      notes: bigint
       meetings: bigint
       tasks: bigint
       seq_touches: bigint
@@ -69,7 +68,6 @@ export async function GET(request: NextRequest) {
         e."ownerId"                                                                                                    AS owner_id,
         COUNT(DISTINCT CASE WHEN e.type = 'EMAIL' AND (e."emailDirection" IS NULL OR e."emailDirection" != 'AUTOMATED_EMAIL') THEN e."contactId" || '|' || e.timestamp::date END) AS emails,
         COUNT(CASE WHEN e.type = 'CALL'    THEN 1 END)                                                                AS calls,
-        COUNT(CASE WHEN e.type = 'NOTE'    THEN 1 END)                                                                AS notes,
         COUNT(CASE WHEN e.type = 'MEETING' THEN 1 END)                                                                AS meetings,
         COUNT(CASE WHEN e.type = 'TASK' AND e."taskStatus" = 'COMPLETED' THEN 1 END)                                 AS tasks,
         COUNT(CASE WHEN e.type = 'EMAIL' AND e."emailDirection" = 'AUTOMATED_EMAIL' THEN 1 END)                       AS seq_touches,
@@ -151,6 +149,49 @@ export async function GET(request: NextRequest) {
       LIMIT 500
     `)
 
+    // ── Task category breakdown (global + per-owner) ──────────────────
+    const TASK_CATEGORIES: Record<string, string> = {
+      '01': 'Text', '02': 'Postal / Snail Mail Letter', '03': 'Greeting Card / Gift Card',
+      '04': 'FedEx Letter', '05': 'LinkedIn Outreach', '06': 'Peer to Peer', '07': 'Other',
+    }
+    type TaskRow = { owner_id: string | null; body: string | null; cnt: bigint }
+    const taskRows = await prisma.$queryRaw<TaskRow[]>(Prisma.sql`
+      SELECT e."ownerId" AS owner_id, e.body, COUNT(*) AS cnt
+      FROM engagements e
+      LEFT JOIN contacts c ON c."contactId" = e."contactId"
+      WHERE e.type = 'TASK'
+        AND e."taskStatus" = 'COMPLETED'
+        AND e.timestamp >= ${startDate}
+        AND e.timestamp <= ${endDate}
+        ${ownerFilter}
+        ${specialtyFilter}
+        ${removedFilter}
+        ${companyFilter}
+        ${tier1Filter}
+        ${ownerStatusFilter}
+        ${locationSqlFilter}
+      GROUP BY e."ownerId", e.body
+    `)
+
+    // Global totals
+    const taskCategoryMap: Record<string, number> = {}
+    // Per-owner: ownerId -> { categoryLabel -> count }
+    const taskCatByOwner = new Map<string, Record<string, number>>()
+
+    for (const row of taskRows) {
+      const prefix = row.body?.substring(0, 2) ?? ''
+      const label = TASK_CATEGORIES[prefix] ?? 'Uncategorized'
+      const cnt = Number(row.cnt)
+      taskCategoryMap[label] = (taskCategoryMap[label] ?? 0) + cnt
+      const oid = row.owner_id ?? 'unknown'
+      if (!taskCatByOwner.has(oid)) taskCatByOwner.set(oid, {})
+      const ownerMap2 = taskCatByOwner.get(oid)!
+      ownerMap2[label] = (ownerMap2[label] ?? 0) + cnt
+    }
+    const taskCategories = Object.entries(taskCategoryMap)
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count)
+
     // ── Load owners for name mapping ──────────────────────────────────
     const owners = await prisma.owner.findMany()
     const ownerMap = new Map(
@@ -190,9 +231,9 @@ export async function GET(request: NextRequest) {
         ownerName: ownerMap.get(oid) ?? oid,
         emails: Number(row.emails),
         calls: Number(row.calls),
-        notes: Number(row.notes),
         meetings: Number(row.meetings),
         tasks: Number(row.tasks),
+        taskCategories: taskCatByOwner.get(oid) ?? {},
         sequenceTouches: seqTouches,
         contactsReached: Number(row.contacts_reached),
         followUps: followUpsByOwner.get(oid) ?? [],
@@ -201,20 +242,19 @@ export async function GET(request: NextRequest) {
 
     byOwner.sort(
       (a, b) =>
-        b.emails + b.calls + b.notes + b.meetings + b.sequenceTouches -
-        (a.emails + a.calls + a.notes + a.meetings + a.sequenceTouches)
+        b.emails + b.calls + b.meetings + b.sequenceTouches -
+        (a.emails + a.calls + a.meetings + a.sequenceTouches)
     )
 
     const summary = {
       totalEmails: byOwner.reduce((s, r) => s + r.emails, 0),
       totalCalls: byOwner.reduce((s, r) => s + r.calls, 0),
-      totalNotes: byOwner.reduce((s, r) => s + r.notes, 0),
       totalMeetings: byOwner.reduce((s, r) => s + r.meetings, 0),
       totalTasks: byOwner.reduce((s, r) => s + r.tasks, 0),
       totalSequenceTouches: byOwner.reduce((s, r) => s + r.sequenceTouches, 0),
     }
 
-    return NextResponse.json({ summary, byOwner })
+    return NextResponse.json({ summary, byOwner, taskCategories })
   } catch (error: any) {
     console.error('Activity API error:', error)
     return NextResponse.json({ error: error?.message }, { status: 500 })
