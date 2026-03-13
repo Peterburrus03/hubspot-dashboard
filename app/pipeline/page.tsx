@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer,
@@ -1014,7 +1015,7 @@ function AIChat({ deals, actuals }: { deals: DealItem[]; actuals: PipelineActual
         <h2 className={h2Cls}>AI Pipeline Analysis</h2>
         <p className={`text-xs ${mutedCls} mt-0.5`}>Full pipeline context · gaps · risk · NDA deadline</p>
       </div>
-      <div className="p-4 h-64 overflow-y-auto space-y-3 bg-zinc-950">
+      <div className="p-4 h-[520px] overflow-y-auto space-y-3 bg-zinc-950">
         {msgs.length === 0 && (
           <div className="text-xs text-zinc-600 text-center mt-20">
             Try: "What's the EBITDA gap?" · "Which deals are at risk?" · "How many NDAs do we need per week?"
@@ -1022,9 +1023,28 @@ function AIChat({ deals, actuals }: { deals: DealItem[]; actuals: PipelineActual
         )}
         {msgs.map((m, i) => (
           <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            <div className={'text-sm rounded-xl px-3 py-2 max-w-lg ' + (m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-zinc-800 border border-zinc-700 text-zinc-200')}>
-              {m.content}
-            </div>
+            {m.role === 'user' ? (
+              <div className="text-sm rounded-xl px-3 py-2 max-w-lg bg-indigo-600 text-white">
+                {m.content}
+              </div>
+            ) : (
+              <div className="text-sm rounded-xl px-4 py-3 w-full bg-zinc-800 border border-zinc-700 text-zinc-200 prose prose-invert prose-sm max-w-none
+                [&_h1]:text-white [&_h1]:font-black [&_h1]:text-base [&_h1]:mt-4 [&_h1]:mb-2
+                [&_h2]:text-zinc-100 [&_h2]:font-bold [&_h2]:text-sm [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:border-zinc-700 [&_h2]:pb-1
+                [&_h3]:text-zinc-200 [&_h3]:font-semibold [&_h3]:text-sm [&_h3]:mt-3 [&_h3]:mb-1
+                [&_p]:text-zinc-300 [&_p]:leading-relaxed [&_p]:my-1
+                [&_strong]:text-white [&_strong]:font-bold
+                [&_ul]:text-zinc-300 [&_ul]:my-1 [&_ul]:pl-4
+                [&_ol]:text-zinc-300 [&_ol]:my-1 [&_ol]:pl-4
+                [&_li]:my-0.5
+                [&_hr]:border-zinc-700 [&_hr]:my-3
+                [&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_table]:my-2
+                [&_th]:text-left [&_th]:text-zinc-400 [&_th]:font-semibold [&_th]:px-2 [&_th]:py-1 [&_th]:border-b [&_th]:border-zinc-600
+                [&_td]:px-2 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-zinc-700/50 [&_td]:align-top
+                [&_code]:bg-zinc-900 [&_code]:px-1 [&_code]:rounded [&_code]:text-indigo-300 [&_code]:text-xs">
+                <ReactMarkdown>{m.content}</ReactMarkdown>
+              </div>
+            )}
           </div>
         ))}
         {loading && (
