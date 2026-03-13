@@ -18,12 +18,28 @@ async function callAI(body: object): Promise<any> {
   return res.json()
 }
 
-async function buildContext(): Promise<string> {
+function buildFilterQS(filters?: FilterState | null): string {
+  if (!filters) return ''
+  const qs = new URLSearchParams()
+  if (filters.ownerIds.length) qs.set('ownerIds', filters.ownerIds.join(','))
+  if (filters.tier1Only) qs.set('tier1Only', 'true')
+  if (filters.specialties.length) qs.set('specialties', filters.specialties.join(','))
+  if (filters.companyTypes.length) qs.set('companyTypes', filters.companyTypes.join(','))
+  if (filters.leadStatuses.length) qs.set('leadStatuses', filters.leadStatuses.join(','))
+  if (filters.dealStatuses.length) qs.set('dealStatuses', filters.dealStatuses.join(','))
+  if (!filters.includeRemoved) qs.set('includeRemoved', 'false')
+  if (filters.locationFilter !== 'all') qs.set('locationFilter', filters.locationFilter)
+  const str = qs.toString()
+  return str ? `&${str}` : ''
+}
+
+async function buildContext(filters?: FilterState | null): Promise<string> {
+  const fqs = buildFilterQS(filters)
   const [pipelineRes, statsRes, gpRes, actRes] = await Promise.all([
-    fetch('/api/dashboard/pipeline?isOpenOnly=false').then(r => r.json()).catch(() => ({})),
-    fetch('/api/dashboard/pipeline-stats').then(r => r.json()).catch(() => ({})),
-    fetch('/api/dashboard/gameplan').then(r => r.json()).catch(() => ({})),
-    fetch('/api/dashboard/activity').then(r => r.json()).catch(() => ({})),
+    fetch(`/api/dashboard/pipeline?isOpenOnly=false${fqs}`).then(r => r.json()).catch(() => ({})),
+    fetch(`/api/dashboard/pipeline-stats?_=1${fqs}`).then(r => r.json()).catch(() => ({})),
+    fetch(`/api/dashboard/gameplan?_=1${fqs}`).then(r => r.json()).catch(() => ({})),
+    fetch(`/api/dashboard/activity?_=1${fqs}`).then(r => r.json()).catch(() => ({})),
   ])
 
   const allDeals = pipelineRes.deals ?? []
@@ -141,15 +157,18 @@ const COLOR_MAP: Record<string, { border: string; badge: string; btn: string }> 
   emerald:{ border: 'border-emerald-100',badge: 'bg-emerald-50 text-emerald-600',btn: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
 }
 
-function BDStrategy() {
+function BDStrategy({ filters }: { filters: FilterState | null }) {
   const [content, setContent] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [ctx, setCtx] = useState<string | null>(null)
+  const [ctxFilters, setCtxFilters] = useState<FilterState | null>(null)
 
   const getCtx = async () => {
-    if (ctx) return ctx
-    const c = await buildContext()
+    // Invalidate cached context if filters changed
+    if (ctx && JSON.stringify(ctxFilters) === JSON.stringify(filters)) return ctx
+    const c = await buildContext(filters)
     setCtx(c)
+    setCtxFilters(filters)
     return c
   }
 
@@ -465,7 +484,7 @@ export default function FunnelPage() {
       <FilterBar onFilterChange={setFilters} showDateFilter={false} />
 
       {/* BD Strategy AI — always visible at top */}
-      <BDStrategy />
+      <BDStrategy filters={filters} />
 
       {data && (
         <div className="space-y-8">
