@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import { Card } from '@/components/ui/Card'
-import { AlertCircle, Gift, User, Users, ArrowRight, Clock, ChevronDown, ChevronUp, X, Phone, Mail, FileText, CalendarDays, Tablet, Bot } from 'lucide-react'
+import { AlertCircle, Gift, User, Users, ArrowRight, Clock, ChevronDown, ChevronUp, X, Phone, Mail, FileText, CalendarDays, Tablet } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
-// ─── NDA Strategy AI Chat ─────────────────────────────────────────────────────
+// ─── BD Strategy ──────────────────────────────────────────────────────────────
 
 async function callAI(body: object): Promise<any> {
   const res = await fetch('/api/ai/pipeline', {
@@ -17,155 +18,219 @@ async function callAI(body: object): Promise<any> {
   return res.json()
 }
 
-function NDAStrategyChat() {
-  const [msgs, setMsgs] = useState<{ role: string; content: string }[]>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [context, setContext] = useState<string | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
+async function buildContext(): Promise<string> {
+  const [pipelineRes, statsRes, gpRes, actRes] = await Promise.all([
+    fetch('/api/dashboard/pipeline?isOpenOnly=false').then(r => r.json()).catch(() => ({})),
+    fetch('/api/dashboard/pipeline-stats').then(r => r.json()).catch(() => ({})),
+    fetch('/api/dashboard/gameplan').then(r => r.json()).catch(() => ({})),
+    fetch('/api/dashboard/activity').then(r => r.json()).catch(() => ({})),
+  ])
 
-  // Load pipeline context once on mount
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/dashboard/pipeline?isOpenOnly=false').then(r => r.json()),
-      fetch('/api/dashboard/pipeline-stats').then(r => r.json()),
-      fetch('/api/dashboard/vintages').then(r => r.json()),
-    ]).then(([pipelineData, statsData, vintageData]) => {
-      const deals = pipelineData.deals ?? []
-      const actuals = statsData.actuals ?? {}
-      const vintages = vintageData.vintages ?? []
+  const allDeals = pipelineRes.deals ?? []
+  const actuals = statsRes.actuals ?? {}
+  const daysToDeadline = Math.floor((new Date('2026-09-07').getTime() - Date.now()) / 86400000)
 
-      const dealLines = deals.map((d: any) =>
-        `- ${d.dealName} | Stage: ${d.stage} | ${d.daysInStage ?? '?'}d in stage | EBITDA: $${((d.ebitda ?? 0) / 1000).toFixed(1)}M | DVMs: ${d.numDvms ?? '?'} | ${d.state ?? ''}`
-      ).join('\n')
+  const openDeals = allDeals.filter((d: any) => d.isOpen)
+  const closedNurture = allDeals.filter((d: any) => d.stage === 'Closed Nurture')
 
-      const vintageLines = vintages
-        .filter((v: any) => v.engaged > 0)
-        .map((v: any) => `  ${v.quarter}: ${v.engaged} engaged → ${v.ndas} NDAs (${v.ndaConv}% conv, avg ${v.avgDaysToNda ?? '?'}d) → ${v.lois} LOIs (${v.loiConv}% conv)`)
-        .join('\n')
+  const dealLines = openDeals.map((d: any) =>
+    `- ${d.dealName} | ${d.stage} | $${((d.ebitda ?? 0) / 1000).toFixed(2)}M EBITDA | ${d.numDvms ?? '?'} DVMs | ${d.state ?? ''}`
+  ).join('\n')
 
-      const ctx = `You are a strategic M&A advisor for AOSN, a veterinary specialty practice acquisition firm.
+  const closedLines = closedNurture.map((d: any) =>
+    `- ${d.dealName} | $${((d.ebitda ?? 0) / 1000).toFixed(2)}M EBITDA | ${d.specialty ?? '—'}`
+  ).join('\n')
 
-IMPORTANT MARKET CONTEXT:
-- Approximately 2/3 of AOSN's total addressable market has already been contacted and has responded in some capacity
-- This means cold outreach is largely exhausted — the focus must be on deepening existing relationships, re-engaging warm contacts, and converting engaged prospects to NDAs
-- Each deal has unique dynamics (owner personality, practice size, location, specialty, timeline) — recommendations must be deal-specific, not generic
-- NDA DEADLINE: September 7, 2026 (${Math.floor((new Date('2026-09-07').getTime() - Date.now()) / 86400000)} days away)
+  let universeSection = ''
+  if (gpRes.universe) {
+    const u = gpRes.universe
+    universeSection = `
+ADDRESSABLE UNIVERSE (${u.total} owner-contacts):
+- Interested: ${u.interested.count}
+- Fair Game: ${u.fairGame.count} (no disposition yet)
+- Not Now: ${u.notInterestedNow.count}
+- Not Interested: ${u.notInterestedAtAll.count}
 
-ANNUAL TARGETS: $18.9M EBITDA closed | 60 NDAs | 23 APAs
-
-YTD ACTUALS:
-- NDAs signed: ${actuals.ytdNDAs ?? 0}
-- LOIs signed: ${actuals.ytdLOIs ?? 0}
-- APAs signed: ${actuals.ytdAPAs ?? 0}
-- Outreach touches: ${actuals.ytdOutreach ?? 0}
-- Closed EBITDA: $${((actuals.closedEBITDA ?? 0) / 1000).toFixed(1)}M
-
-VINTAGE CONVERSION RATES (cohort by quarter of deal creation):
-${vintageLines}
-
-FULL PIPELINE (${deals.length} deals):
-${dealLines}
-
-Your role is to help the BD team be clever and strategic. Focus on:
-1. Which specific deals are closest to NDA and what's the right move to get them there
-2. Re-engagement strategies for deals that have gone quiet
-3. Timing and sequencing of outreach given the NDA deadline
-4. Deal-specific angles based on practice type, size, and owner situation
-Be direct, specific, and actionable. Reference deals by name.`
-
-      setContext(ctx)
-    }).catch(console.error)
-  }, [])
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [msgs, loading])
-
-  const send = async () => {
-    if (!input.trim() || !context) return
-    const userMsg = input.trim()
-    setInput('')
-    const newMsgs = [...msgs, { role: 'user', content: userMsg }]
-    setMsgs(newMsgs)
-    setLoading(true)
-    try {
-      const data = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 1200, system: context, messages: newMsgs })
-      setMsgs(m => [...m, { role: 'assistant', content: data.content?.find((b: any) => b.type === 'text')?.text || 'No response.' }])
-    } catch {
-      setMsgs(m => [...m, { role: 'assistant', content: 'Error contacting API.' }])
-    }
-    setLoading(false)
+TOP INTERESTED CONTACTS:
+${(u.interested.contacts as any[]).slice(0, 10).map((c: any) =>
+  `  ${c.name} | ${c.specialty ?? '—'} | ${c.ownerName}${c.dealStage ? ` | Deal: ${c.dealStage}` : ''}`
+).join('\n')}`
   }
 
-  const suggestions = [
-    'Which deals are closest to NDA right now?',
-    'Who has gone quiet that we should re-engage?',
-    'Given the deadline, what should we prioritize this week?',
-    'Which deals have the best NDA conversion signals?',
-  ]
+  let touchSection = ''
+  if (actRes.byOwner) {
+    const allContacts: { name: string; owner: string; touches: number; lastTouch: string | null }[] = []
+    for (const owner of actRes.byOwner as any[]) {
+      for (const fu of owner.followUps ?? []) {
+        allContacts.push({ name: fu.contactName, owner: owner.ownerName, touches: fu.touchCount, lastTouch: fu.lastTouch })
+      }
+    }
+    allContacts.sort((a, b) => b.touches - a.touches)
+    touchSection = `
+MOST-TOUCHED CONTACTS (top 20):
+${allContacts.slice(0, 20).map(c =>
+  `  ${c.name} | ${c.owner} | ${c.touches} touches | last: ${c.lastTouch ? new Date(c.lastTouch).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'unknown'}`
+).join('\n')}`
+  }
+
+  return `You are an M&A pipeline analyst and BD strategy advisor for AOSN. Today is ${new Date().toDateString()}.
+
+TARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach | NDA DEADLINE: Sep 7 (${daysToDeadline} days)
+ACTUALS YTD: ${actuals.ytdNDAs ?? 0} NDAs | ${actuals.ytdLOIs ?? 0} LOIs | ${actuals.ytdAPAs ?? 0} APAs | ${actuals.ytdOutreach ?? 0} outreach | $${((actuals.closedEBITDA ?? 0) / 1000).toFixed(1)}M closed
+
+OPEN DEALS (${openDeals.length}):
+${dealLines}
+
+CLOSED NURTURE DEALS (${closedNurture.length} re-engagement candidates):
+${closedLines}
+${universeSection}
+${touchSection}`
+}
+
+const BD_SECTIONS = [
+  {
+    key: 'topFunnel',
+    label: '🌱 Top of Funnel',
+    sublabel: 'Getting initial responses',
+    color: 'indigo',
+    prompt: `Using the addressable universe, outreach activity, and touch count data, generate a prioritized top-of-funnel BD strategy for this week. Focus on contacts who have NOT yet responded — Fair Game bucket and low-touch contacts.
+
+Include:
+1. Which specific Fair Game contacts to prioritize and why (specialty, EBITDA potential, touch count)
+2. Recommended outreach channel for each based on our channel hierarchy
+3. Re-engagement tier for contacts with 3+ touches and no response
+4. Any trigger-based opportunities
+
+Format with clear headers, a prioritized table, and specific action recommendations. Name names.`,
+  },
+  {
+    key: 'closedNurture',
+    label: '🔄 Closed Nurture',
+    sublabel: 'Re-engagement strategy',
+    color: 'amber',
+    prompt: `Using the Closed Nurture deals list, generate a re-engagement strategy for this week.
+
+Include:
+1. Top 5–8 Closed Nurture deals worth a re-touch ranked by EBITDA
+2. Recommended re-engagement angle for each (market update, referral, trigger event)
+3. What NOT to do — deals too cold or over-touched
+4. Any deals to permanently remove from active pipeline
+
+Format with a prioritized table and specific copy direction per deal. Reference the AOSN BD context on re-engagement tiers.`,
+  },
+  {
+    key: 'engagedNDA',
+    label: '📋 Engaged → NDA',
+    sublabel: 'Convert to signed NDA',
+    color: 'emerald',
+    prompt: `Using the open deals pipeline, focus on deals in "Engaged" stage that have NOT signed an NDA. Generate a conversion strategy for this week.
+
+Include:
+1. Each Engaged deal ranked by EBITDA with a specific recommended next action
+2. Blockers or red flags to address before the NDA ask
+3. Which deals are at risk of going cold this week
+4. Suggested NDA ask approach for the top 3 deals
+
+Also flag any Pre-LOI or Data Collection deals stalling that need a push. Format with a prioritized table and direct action steps.`,
+  },
+]
+
+const COLOR_MAP: Record<string, { border: string; badge: string; btn: string }> = {
+  indigo: { border: 'border-indigo-100', badge: 'bg-indigo-50 text-indigo-600', btn: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
+  amber:  { border: 'border-amber-100',  badge: 'bg-amber-50 text-amber-600',  btn: 'bg-amber-500 hover:bg-amber-600 text-white' },
+  emerald:{ border: 'border-emerald-100',badge: 'bg-emerald-50 text-emerald-600',btn: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
+}
+
+function BDStrategy() {
+  const [content, setContent] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState<Record<string, boolean>>({})
+  const [ctx, setCtx] = useState<string | null>(null)
+
+  const getCtx = async () => {
+    if (ctx) return ctx
+    const c = await buildContext()
+    setCtx(c)
+    return c
+  }
+
+  const generate = async (key: string, prompt: string) => {
+    setLoading(l => ({ ...l, [key]: true }))
+    try {
+      const context = await getCtx()
+      const data = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 1500, system: context, messages: [{ role: 'user', content: prompt }] })
+      setContent(c => ({ ...c, [key]: data.content?.find((b: any) => b.type === 'text')?.text || 'No response.' }))
+    } catch {
+      setContent(c => ({ ...c, [key]: 'Error generating. Please try again.' }))
+    }
+    setLoading(l => ({ ...l, [key]: false }))
+  }
+
+  const anyLoading = Object.values(loading).some(Boolean)
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
-        <div className="p-2 bg-indigo-50 rounded-lg">
-          <Bot className="w-5 h-5 text-indigo-600" />
-        </div>
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">NDA Strategy Assistant</h3>
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Full pipeline context · deal-specific recommendations</p>
+          <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">BD Strategy</h3>
+          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-0.5">AI-generated · live pipeline & universe context</p>
         </div>
-        <div className="ml-auto">
-          {context
-            ? <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Pipeline loaded</span>
-            : <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full animate-pulse">Loading context…</span>
-          }
-        </div>
-      </div>
-
-      <div className="h-80 overflow-y-auto p-4 space-y-3 bg-gray-50">
-        {msgs.length === 0 && (
-          <div className="space-y-2 pt-2">
-            <p className="text-xs text-gray-400 text-center mb-4">Ask anything about NDA strategy — the full pipeline is loaded as context.</p>
-            <div className="grid grid-cols-2 gap-2">
-              {suggestions.map(s => (
-                <button key={s} onClick={() => setInput(s)}
-                  className="text-left text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-600 hover:border-indigo-300 hover:text-indigo-700 transition-colors font-medium">
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {msgs.map((m, i) => (
-          <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            <div className={'text-sm rounded-xl px-3 py-2 max-w-xl leading-relaxed whitespace-pre-wrap ' +
-              (m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-800 shadow-sm')}>
-              {m.content}
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="text-sm bg-white border border-gray-200 text-gray-400 rounded-xl px-3 py-2 shadow-sm">Thinking…</div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      <div className="p-3 border-t border-gray-100 flex gap-2 bg-white">
-        <input
-          className="flex-1 bg-gray-50 border border-gray-200 text-gray-900 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 placeholder-gray-400"
-          placeholder={context ? 'Ask about NDA strategy, specific deals, re-engagement…' : 'Loading pipeline context…'}
-          disabled={!context}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && send()}
-        />
-        <button onClick={send} disabled={loading || !context}
+        <button
+          onClick={() => BD_SECTIONS.forEach(s => generate(s.key, s.prompt))}
+          disabled={anyLoading}
           className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 font-medium">
-          Send
+          {anyLoading ? '⏳ Generating…' : '✦ Generate All'}
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+        {BD_SECTIONS.map(s => {
+          const c = COLOR_MAP[s.color]
+          return (
+            <div key={s.key} className="flex flex-col">
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div>
+                  <div className="text-sm font-black text-gray-900">{s.label}</div>
+                  <div className="text-[10px] text-gray-400 font-medium mt-0.5">{s.sublabel}</div>
+                </div>
+                <button
+                  onClick={() => generate(s.key, s.prompt)}
+                  disabled={loading[s.key]}
+                  className={`text-xs px-3 py-1 rounded-lg font-bold disabled:opacity-50 ${c.btn}`}>
+                  {loading[s.key] ? '⏳' : 'Generate'}
+                </button>
+              </div>
+              <div className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: 560 }}>
+                {loading[s.key] && (
+                  <div className="space-y-2 pt-2">
+                    {[100, 85, 95, 70, 90, 80].map((w, i) => (
+                      <div key={i} className="h-2.5 bg-gray-100 rounded animate-pulse" style={{ width: `${w}%` }} />
+                    ))}
+                  </div>
+                )}
+                {!loading[s.key] && !content[s.key] && (
+                  <p className="text-xs text-gray-400 text-center pt-10">Click Generate to build this section</p>
+                )}
+                {!loading[s.key] && content[s.key] && (
+                  <div className="prose prose-sm max-w-none text-gray-800
+                    [&_h1]:text-gray-900 [&_h1]:font-black [&_h1]:text-sm [&_h1]:mt-3 [&_h1]:mb-1
+                    [&_h2]:text-gray-800 [&_h2]:font-bold [&_h2]:text-sm [&_h2]:mt-3 [&_h2]:mb-1 [&_h2]:border-b [&_h2]:border-gray-100 [&_h2]:pb-1
+                    [&_h3]:text-gray-700 [&_h3]:font-semibold [&_h3]:text-xs [&_h3]:mt-2 [&_h3]:mb-1
+                    [&_p]:text-gray-700 [&_p]:text-xs [&_p]:leading-relaxed [&_p]:my-1
+                    [&_strong]:text-gray-900 [&_strong]:font-bold
+                    [&_ul]:text-gray-700 [&_ul]:text-xs [&_ul]:my-1 [&_ul]:pl-4
+                    [&_ol]:text-gray-700 [&_ol]:text-xs [&_ol]:my-1 [&_ol]:pl-4
+                    [&_li]:my-0.5
+                    [&_hr]:border-gray-100 [&_hr]:my-2
+                    [&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_table]:my-2
+                    [&_th]:text-left [&_th]:text-gray-500 [&_th]:font-semibold [&_th]:px-2 [&_th]:py-1 [&_th]:border-b [&_th]:border-gray-200
+                    [&_td]:px-2 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-gray-100 [&_td]:align-top">
+                    <ReactMarkdown>{content[s.key]}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -399,8 +464,8 @@ export default function FunnelPage() {
 
       <FilterBar onFilterChange={setFilters} showDateFilter={false} />
 
-      {/* NDA Strategy AI — always visible at top */}
-      <NDAStrategyChat />
+      {/* BD Strategy AI — always visible at top */}
+      <BDStrategy />
 
       {data && (
         <div className="space-y-8">

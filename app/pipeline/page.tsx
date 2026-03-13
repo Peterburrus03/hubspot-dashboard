@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import ReactMarkdown from 'react-markdown'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer,
@@ -215,10 +214,11 @@ async function fetchAIContext(deals: DealItem[], actuals: PipelineActuals): Prom
     `- ${d.name} | ${d.crmStage} | ${d.dvms} DVMs | $${(d.ebitda / 1000).toFixed(2)}M EBITDA | ${daysInStage(d)}d in stage | ${isAtRisk(d) ? 'AT RISK' : 'ok'}`
   ).join('\n')
 
-  // Fetch universe + contact touch data in parallel
-  const [gpRes, actRes] = await Promise.all([
+  // Fetch universe, activity, and closed nurture deals in parallel
+  const [gpRes, actRes, allDealsRes] = await Promise.all([
     fetch('/api/dashboard/gameplan').then(r => r.json()).catch(() => null),
     fetch('/api/dashboard/activity').then(r => r.json()).catch(() => null),
+    fetch('/api/dashboard/pipeline?isOpenOnly=false').then(r => r.json()).catch(() => null),
   ])
 
   let universeSection = ''
@@ -266,6 +266,20 @@ ${allContacts.slice(0, 20).map(c =>
 ).join('\n')}`
   }
 
+  let closedNurtureSection = ''
+  if (allDealsRes?.deals) {
+    const closedNurture = (allDealsRes.deals as any[])
+      .filter((d: any) => d.stage === 'Closed Nurture')
+      .map((d: any) => {
+        const nm = d.dealName || ''
+        const name = nm.split('-(')[0].split('- (')[0].trim() || nm
+        return `- ${name} | ${d.specialty ?? '—'} | $${((d.ebitda ?? 0) / 1000).toFixed(2)}M EBITDA`
+      })
+    if (closedNurture.length > 0) {
+      closedNurtureSection = `\nCLOSED NURTURE DEALS (${closedNurture.length} total — re-engagement candidates):\n${closedNurture.join('\n')}`
+    }
+  }
+
   return `You are an M&A pipeline analyst and BD strategy advisor for AOSN. Today is ${TODAY.toDateString()}.
 
 TARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach | NDA DEADLINE: Sep 7 (${daysLeft} days)
@@ -275,7 +289,8 @@ PIPELINE: $${probWtd}M prob-wtd EBITDA | Gap to target: $${gap}M | At risk: ${at
 OPEN DEALS:
 ${dealLines}
 ${universeSection}
-${touchSection}`
+${touchSection}
+${closedNurtureSection}`
 }
 
 function lsGet(key: string): string | null {
@@ -980,89 +995,6 @@ function DealPipelineTable({ deals, onNotesChange }: { deals: DealItem[]; onNote
             )}
           </tbody>
         </table>
-      </div>
-    </div>
-  )
-}
-
-// ─── AIChat ───────────────────────────────────────────────────────────────────
-
-function AIChat({ deals, actuals }: { deals: DealItem[]; actuals: PipelineActuals }) {
-  const [msgs, setMsgs] = useState<{ role: string; content: string }[]>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const send = async () => {
-    if (!input.trim()) return
-    const userMsg = input.trim()
-    setInput('')
-    const newMsgs = [...msgs, { role: 'user', content: userMsg }]
-    setMsgs(newMsgs)
-    setLoading(true)
-    try {
-      const ctx = await fetchAIContext(deals, actuals)
-      const data = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 1000, system: ctx, messages: newMsgs })
-      setMsgs((m) => [...m, { role: 'assistant', content: data.content?.find((b: any) => b.type === 'text')?.text || 'No response.' }])
-    } catch {
-      setMsgs((m) => [...m, { role: 'assistant', content: 'Error contacting API.' }])
-    }
-    setLoading(false)
-  }
-
-  return (
-    <div className={card}>
-      <div className={`${cardPad} border-b border-zinc-700`}>
-        <h2 className={h2Cls}>AI Pipeline Analysis</h2>
-        <p className={`text-xs ${mutedCls} mt-0.5`}>Full pipeline context · gaps · risk · NDA deadline</p>
-      </div>
-      <div className="p-4 h-[520px] overflow-y-auto space-y-3 bg-zinc-950">
-        {msgs.length === 0 && (
-          <div className="text-xs text-zinc-600 text-center mt-20">
-            Try: "What's the EBITDA gap?" · "Which deals are at risk?" · "How many NDAs do we need per week?"
-          </div>
-        )}
-        {msgs.map((m, i) => (
-          <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            {m.role === 'user' ? (
-              <div className="text-sm rounded-xl px-3 py-2 max-w-lg bg-indigo-600 text-white">
-                {m.content}
-              </div>
-            ) : (
-              <div className="text-sm rounded-xl px-4 py-3 w-full bg-zinc-800 border border-zinc-700 text-zinc-200 prose prose-invert prose-sm max-w-none
-                [&_h1]:text-white [&_h1]:font-black [&_h1]:text-base [&_h1]:mt-4 [&_h1]:mb-2
-                [&_h2]:text-zinc-100 [&_h2]:font-bold [&_h2]:text-sm [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:border-zinc-700 [&_h2]:pb-1
-                [&_h3]:text-zinc-200 [&_h3]:font-semibold [&_h3]:text-sm [&_h3]:mt-3 [&_h3]:mb-1
-                [&_p]:text-zinc-300 [&_p]:leading-relaxed [&_p]:my-1
-                [&_strong]:text-white [&_strong]:font-bold
-                [&_ul]:text-zinc-300 [&_ul]:my-1 [&_ul]:pl-4
-                [&_ol]:text-zinc-300 [&_ol]:my-1 [&_ol]:pl-4
-                [&_li]:my-0.5
-                [&_hr]:border-zinc-700 [&_hr]:my-3
-                [&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_table]:my-2
-                [&_th]:text-left [&_th]:text-zinc-400 [&_th]:font-semibold [&_th]:px-2 [&_th]:py-1 [&_th]:border-b [&_th]:border-zinc-600
-                [&_td]:px-2 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-zinc-700/50 [&_td]:align-top
-                [&_code]:bg-zinc-900 [&_code]:px-1 [&_code]:rounded [&_code]:text-indigo-300 [&_code]:text-xs">
-                <ReactMarkdown>{m.content}</ReactMarkdown>
-              </div>
-            )}
-          </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="text-sm bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl px-3 py-2">Thinking…</div>
-          </div>
-        )}
-      </div>
-      <div className="p-3 border-t border-zinc-700 flex gap-2">
-        <input
-          className="flex-1 bg-zinc-800 border border-zinc-600 text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500 placeholder-zinc-600"
-          placeholder="Ask about the pipeline…" value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()} />
-        <button onClick={send} disabled={loading}
-          className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50">
-          Send
-        </button>
       </div>
     </div>
   )
