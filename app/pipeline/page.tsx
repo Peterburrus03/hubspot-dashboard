@@ -204,6 +204,79 @@ async function callAI(body: object): Promise<any> {
   return res.json()
 }
 
+async function fetchAIContext(deals: DealItem[], actuals: PipelineActuals): Promise<string> {
+  const probWtd = (deals.reduce((s, d) => s + d.ebitda * d.prob, 0) / 1000).toFixed(1)
+  const gap = ((TARGETS.totalEBITDA - deals.reduce((s, d) => s + d.ebitda * d.prob, 0)) / 1000).toFixed(1)
+  const daysLeft = Math.max(0, Math.floor((NDA_DEADLINE.getTime() - TODAY.getTime()) / 86400000))
+  const atRisk = deals.filter(isAtRisk).map((d) => d.name).join(', ') || 'None'
+
+  const dealLines = deals.map((d) =>
+    `- ${d.name} | ${d.crmStage} | ${d.dvms} DVMs | $${(d.ebitda / 1000).toFixed(2)}M EBITDA | ${daysInStage(d)}d in stage | ${isAtRisk(d) ? 'AT RISK' : 'ok'}`
+  ).join('\n')
+
+  // Fetch universe + contact touch data in parallel
+  const [gpRes, actRes] = await Promise.all([
+    fetch('/api/dashboard/gameplan').then(r => r.json()).catch(() => null),
+    fetch('/api/dashboard/activity').then(r => r.json()).catch(() => null),
+  ])
+
+  let universeSection = ''
+  if (gpRes?.universe) {
+    const u = gpRes.universe
+    universeSection = `
+ADDRESSABLE UNIVERSE (${u.total} owner-contacts):
+- Interested: ${u.interested.count} (actively pursuing)
+- Fair Game: ${u.fairGame.count} (assigned owner, no disposition)
+- Not Now: ${u.notInterestedNow.count} (nurture bucket)
+- Not Interested: ${u.notInterestedAtAll.count} (do not contact)
+
+TOP INTERESTED CONTACTS:
+${(u.interested.contacts as any[]).slice(0, 10).map((c: any) =>
+  `  ${c.name} | ${c.specialty ?? '—'} | ${c.ownerName}${c.dealStage ? ` | Deal: ${c.dealStage}` : ''}`
+).join('\n')}`
+  }
+
+  let touchSection = ''
+  if (actRes?.byOwner) {
+    // Flatten all follow-ups across owners, sort by touch count, take top 20
+    const allContacts: { name: string; owner: string; touches: number; lastTouch: string | null }[] = []
+    for (const owner of actRes.byOwner as any[]) {
+      for (const fu of owner.followUps ?? []) {
+        allContacts.push({
+          name: fu.contactName,
+          owner: owner.ownerName,
+          touches: fu.touchCount,
+          lastTouch: fu.lastTouch,
+        })
+      }
+    }
+    allContacts.sort((a, b) => b.touches - a.touches)
+    const ownerSummary = (actRes.byOwner as any[]).map((o: any) =>
+      `  ${o.ownerName}: ${o.emails} emails · ${o.calls} calls · ${o.meetings} meetings · ${o.tasks} sales activities`
+    ).join('\n')
+
+    touchSection = `
+OUTREACH ACTIVITY (current period):
+${ownerSummary}
+
+MOST-TOUCHED CONTACTS (top 20 by touch count):
+${allContacts.slice(0, 20).map(c =>
+  `  ${c.name} | ${c.owner} | ${c.touches} touches | last: ${c.lastTouch ? new Date(c.lastTouch).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'unknown'}`
+).join('\n')}`
+  }
+
+  return `You are an M&A pipeline analyst and BD strategy advisor for AOSN. Today is ${TODAY.toDateString()}.
+
+TARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach | NDA DEADLINE: Sep 7 (${daysLeft} days)
+ACTUALS YTD: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdAPAs} APAs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed
+PIPELINE: $${probWtd}M prob-wtd EBITDA | Gap to target: $${gap}M | At risk: ${atRisk}
+
+OPEN DEALS:
+${dealLines}
+${universeSection}
+${touchSection}`
+}
+
 function lsGet(key: string): string | null {
   try { return localStorage.getItem(key) } catch { return null }
 }
@@ -628,26 +701,23 @@ function TopPriorities({ deals, actuals }: { deals: DealItem[]; actuals: Pipelin
     if (loading) return
     setLoading(true)
     try {
-      const probWtd = (deals.reduce((s, d) => s + d.ebitda * d.prob, 0) / 1000).toFixed(1)
-      const gap = ((TARGETS.totalEBITDA - deals.reduce((s, d) => s + d.ebitda * d.prob, 0)) / 1000).toFixed(1)
-      const daysLeft = Math.max(0, Math.floor((NDA_DEADLINE.getTime() - TODAY.getTime()) / 86400000))
+      const ctx = await fetchAIContext(deals, actuals)
       const loiDeals = deals.filter((d) => ['LOI Signed/Diligence', 'LOI Extended'].includes(d.crmStage))
-      const atRisk = deals.filter(isAtRisk).map((d) => d.name).join(', ') || 'None'
 
-      // Also generate impact for manual priorities if any are filled
+      // Generate impact for manual priorities if any are filled
       const filledPriorities = priorities.filter((p) => p.text.trim())
       if (filledPriorities.length > 0) {
         const priorityList = priorities.map((p, i) => `${i + 1}. ${p.text.trim() || '(empty)'}`).join('\n')
-        const impactPrompt = `You are the M&A chief of staff for AOSN (Animal Outpatient Specialty Network). Today is ${TODAY.toDateString()}.\n\nTARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach\nACTUALS: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdAPAs} APAs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed\nPIPELINE: ${probWtd}M prob-wtd | Gap: ${gap}M | ${daysLeft} days to NDA deadline\nLOI DEALS: ${loiDeals.map((d) => `${d.name} ${(d.ebitda / 1000).toFixed(1)}M`).join('; ')}\nAT RISK: ${atRisk}\n\nThe team has set the following priorities for this week:\n${priorityList}\n\nFor each priority, generate a concise impact statement (max 10 words) grounded in the pipeline data above. Return ONLY a raw JSON array of exactly 5 objects with one field: "impact". No markdown, no explanation.`
-        const impactData = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: impactPrompt }] })
+        const impactPrompt = `The team has set the following priorities for this week:\n${priorityList}\n\nFor each priority, generate a concise impact statement (max 10 words) grounded in the pipeline and universe data provided. Return ONLY a raw JSON array of exactly 5 objects with one field: "impact". No markdown, no explanation.`
+        const impactData = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 300, system: ctx, messages: [{ role: 'user', content: impactPrompt }] })
         const impactRaw = impactData.content?.find((b: any) => b.type === 'text')?.text || '[]'
         const impactArr = JSON.parse(impactRaw.replace(/```json|```/g, '').trim())
         save(priorities.map((p, i) => ({ ...p, impact: impactArr[i]?.impact || p.impact })))
       }
 
       // Generate AI-suggested priorities + impact
-      const aiPrompt = `You are the M&A chief of staff for AOSN (Animal Outpatient Specialty Network). Today is ${TODAY.toDateString()}.\n\nTARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach\nACTUALS: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdAPAs} APAs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed\nPIPELINE: ${probWtd}M prob-wtd | Gap: ${gap}M | ${daysLeft} days to NDA deadline\nLOI DEALS: ${loiDeals.map((d) => `${d.name} ${(d.ebitda / 1000).toFixed(1)}M`).join('; ')}\nAT RISK: ${atRisk}\n\nBased on the pipeline data above, identify the 5 highest-impact priorities for this week. For each, write a short action-oriented priority (max 8 words) and a concise impact statement (max 10 words) grounded in specific $ amounts, deal counts, or metric gaps. Return ONLY a raw JSON array of exactly 5 objects with fields: "priority" and "impact". No markdown, no explanation.`
-      const aiData = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: aiPrompt }] })
+      const aiPrompt = `LOI DEALS: ${loiDeals.map((d) => `${d.name} $${(d.ebitda / 1000).toFixed(1)}M`).join('; ') || 'None'}\n\nBased on the full pipeline, universe, and outreach data provided, identify the 5 highest-impact priorities for this week. For each, write a short action-oriented priority (max 8 words) and a concise impact statement (max 10 words) grounded in specific contacts, touch counts, deal names, or metric gaps. Return ONLY a raw JSON array of exactly 5 objects with fields: "priority" and "impact". No markdown, no explanation.`
+      const aiData = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 500, system: ctx, messages: [{ role: 'user', content: aiPrompt }] })
       const aiRaw = aiData.content?.find((b: any) => b.type === 'text')?.text || '[]'
       const aiArr = JSON.parse(aiRaw.replace(/```json|```/g, '').trim())
       setAiRows(aiArr)
@@ -929,7 +999,7 @@ function AIChat({ deals, actuals }: { deals: DealItem[]; actuals: PipelineActual
     setMsgs(newMsgs)
     setLoading(true)
     try {
-      const ctx = `You are an M&A pipeline analyst for AOSN. Today is ${TODAY.toDateString()}. TARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach. NDA DEADLINE: Sep 7 (${Math.floor((NDA_DEADLINE.getTime() - TODAY.getTime()) / 86400000)} days). YTD: ${actuals.ytdNDAs} NDAs | ${actuals.ytdLOIs} LOIs | ${actuals.ytdOutreach} outreach | $${(actuals.closedEBITDA / 1000).toFixed(1)}M closed. PIPELINE: ${(deals.reduce((s, d) => s + d.ebitda * d.prob, 0) / 1000).toFixed(1)}M prob-wtd.\n${deals.map((d) => `- ${d.name} | ${d.crmStage} | ${d.dvms} DVMs | ${d.ebitda}K | ${daysInStage(d)}d | ${isAtRisk(d) ? 'AT RISK' : 'ok'}`).join('\n')}`
+      const ctx = await fetchAIContext(deals, actuals)
       const data = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 1000, system: ctx, messages: newMsgs })
       setMsgs((m) => [...m, { role: 'assistant', content: data.content?.find((b: any) => b.type === 'text')?.text || 'No response.' }])
     } catch {
