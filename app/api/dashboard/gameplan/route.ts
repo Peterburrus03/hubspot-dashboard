@@ -176,13 +176,16 @@ export async function GET(request: NextRequest) {
       fairGame:           allContacts.filter(c => !c.interestedResponseDate && !c.notInterestedNowResponseDate && !c.notInterestedAtAllResponseDate && c.ownerId != null),
     }
 
-    // Enrich fair game contacts with deal stage
-    const fairGameContactIds = universe.fairGame.map(c => c.contactId)
-    const fairGameDeals = await prisma.deal.findMany({
-      where: { contactId: { in: fairGameContactIds } },
+    // Enrich interested + fair game contacts with deal stage
+    const enrichedContactIds = [
+      ...universe.interested.map(c => c.contactId),
+      ...universe.fairGame.map(c => c.contactId),
+    ]
+    const enrichedDeals = await prisma.deal.findMany({
+      where: { contactId: { in: enrichedContactIds } },
       select: { contactId: true, stage: true },
     })
-    const dealStageByContact = new Map(fairGameDeals.map(d => [d.contactId, d.stage]))
+    const dealStageByContact = new Map(enrichedDeals.map(d => [d.contactId, d.stage]))
 
     const mapContacts = (list: typeof allContacts) => list.map(c => ({
       contactId: c.contactId,
@@ -191,7 +194,7 @@ export async function GET(request: NextRequest) {
       ownerName: ownerMap.get(c.ownerId ?? '') ?? 'Unassigned',
     }))
 
-    const fairGameContacts = universe.fairGame.map(c => ({
+    const enrichContacts = (list: typeof allContacts) => list.map(c => ({
       contactId: c.contactId,
       name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
       specialty: c.specialty,
@@ -200,12 +203,14 @@ export async function GET(request: NextRequest) {
       dealStage: dealStageByContact.get(c.contactId) ?? null,
     }))
 
+    const fairGameContacts = enrichContacts(universe.fairGame)
+
     return NextResponse.json({
       staleTier1s,
       actionableTriggers: actionableTriggers.slice(0, 20),
       universe: {
         total: allContacts.length,
-        interested:         { count: universe.interested.length,         contacts: mapContacts(universe.interested) },
+        interested:         { count: universe.interested.length,         contacts: enrichContacts(universe.interested) },
         fairGame:           { count: universe.fairGame.length,           contacts: fairGameContacts },
         notInterestedNow:   { count: universe.notInterestedNow.length,   contacts: mapContacts(universe.notInterestedNow) },
         notInterestedAtAll: { count: universe.notInterestedAtAll.length,  contacts: mapContacts(universe.notInterestedAtAll) },

@@ -982,7 +982,7 @@ function AIChat({ deals, actuals }: { deals: DealItem[]; actuals: PipelineActual
 
 interface SnapshotDeal { dealId: string; dealName: string | null; stage: string | null; ebitda: number | null; probability: number | null }
 
-function WeeklyChanges({ deals }: { deals: DealItem[] }) {
+function WeeklyChanges({ deals, closedWonIds }: { deals: DealItem[]; closedWonIds: Set<string> }) {
   const [snapshot, setSnapshot] = useState<{ snapshotAt: string | null; deals: SnapshotDeal[] }>({ snapshotAt: null, deals: [] })
   const [snapshotList, setSnapshotList] = useState<string[]>([])
   const [selectedAt, setSelectedAt] = useState<string>('')
@@ -1050,7 +1050,7 @@ function WeeklyChanges({ deals }: { deals: DealItem[] }) {
   const snapDate = snapshot.snapshotAt ? new Date(snapshot.snapshotAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
   const thisWeekLabel = TODAY.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
-  type DealChange = { type: 'new' | 'removed' | 'stage'; deal: DealItem | SnapshotDeal; prior?: SnapshotDeal; change: string }
+  type DealChange = { type: 'new' | 'removed' | 'stage' | 'closed_won'; deal: DealItem | SnapshotDeal; prior?: SnapshotDeal; change: string }
   const dealChanges: DealChange[] = []
   deals.forEach((curr) => {
     const prior = snapMap.get(curr.id)
@@ -1058,7 +1058,13 @@ function WeeklyChanges({ deals }: { deals: DealItem[] }) {
     else if (prior.stage !== curr.crmStage) { dealChanges.push({ type: 'stage', deal: curr, prior, change: `${STAGE_SHORT[prior.stage!] || prior.stage} → ${STAGE_SHORT[curr.crmStage] || curr.crmStage}` }) }
   })
   snapshot.deals.forEach((prior) => {
-    if (!currentMap.has(prior.dealId)) dealChanges.push({ type: 'removed', deal: prior, change: 'Removed from pipeline' })
+    if (!currentMap.has(prior.dealId)) {
+      if (closedWonIds.has(prior.dealId)) {
+        dealChanges.push({ type: 'closed_won', deal: prior, change: 'Closed Won 🎉' })
+      } else {
+        dealChanges.push({ type: 'removed', deal: prior, change: 'Removed from pipeline' })
+      }
+    }
   })
 
   const snapProbWtd = Math.round(snapshot.deals.reduce((s, d) => s + (d.ebitda ?? 0) * (d.probability ?? 0), 0))
@@ -1175,8 +1181,8 @@ function WeeklyChanges({ deals }: { deals: DealItem[] }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Prob-Wtd EBITDA', prior: `${(snapProbWtd / 1000).toFixed(1)}M`, current: `${(currProbWtd / 1000).toFixed(1)}M`, delta: ebitdaDelta / 1000, prefix: '$', suffix: 'M', desc: `vs $${(TARGETS.totalEBITDA / 1000).toFixed(1)}M target` },
-          { label: 'Active Deals', prior: String(snapshot.deals.length), current: String(deals.length), delta: deals.length - snapshot.deals.length, prefix: '', suffix: '', desc: `${dealChanges.filter(c => c.type === 'new').length} added · ${dealChanges.filter(c => c.type === 'removed').length} dropped` },
-          { label: 'Stage Changes', prior: '—', current: String(dealChanges.filter(c => c.type === 'stage').length), delta: dealChanges.filter(c => c.type === 'stage').length, prefix: '', suffix: '', desc: `${dealChanges.filter(c => c.type === 'new').length} new · ${dealChanges.filter(c => c.type === 'removed').length} removed` },
+          { label: 'Active Deals', prior: String(snapshot.deals.length), current: String(deals.length), delta: deals.length - snapshot.deals.length, prefix: '', suffix: '', desc: `${dealChanges.filter(c => c.type === 'new').length} added · ${dealChanges.filter(c => c.type === 'closed_won').length} closed · ${dealChanges.filter(c => c.type === 'removed').length} dropped` },
+          { label: 'Stage Changes', prior: '—', current: String(dealChanges.filter(c => c.type === 'stage').length), delta: dealChanges.filter(c => c.type === 'stage').length, prefix: '', suffix: '', desc: `${dealChanges.filter(c => c.type === 'new').length} new · ${dealChanges.filter(c => c.type === 'closed_won').length} closed · ${dealChanges.filter(c => c.type === 'removed').length} removed` },
         ].map((k) => (
           <div key={k.label} style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12, padding: '16px 20px' }}>
             <div style={{ color: '#71717a', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{k.label}</div>
@@ -1218,7 +1224,7 @@ function WeeklyChanges({ deals }: { deals: DealItem[] }) {
                   const ebitda = isItem ? (c.deal as DealItem).ebitda : ((c.deal as SnapshotDeal).ebitda ?? 0)
                   const currStage = isItem ? (c.deal as DealItem).crmStage : ((c.deal as SnapshotDeal).stage ?? '')
                   return (
-                    <tr key={i} style={{ borderTop: '1px solid #27272a', background: c.type === 'new' ? 'rgba(99,102,241,0.07)' : c.type === 'removed' ? 'rgba(248,113,113,0.07)' : 'transparent' }}>
+                    <tr key={i} style={{ borderTop: '1px solid #27272a', background: c.type === 'new' ? 'rgba(99,102,241,0.07)' : c.type === 'closed_won' ? 'rgba(52,211,153,0.07)' : c.type === 'removed' ? 'rgba(248,113,113,0.07)' : 'transparent' }}>
                       <td style={{ padding: '10px 16px' }}>
                         <div style={{ color: '#f4f4f5', fontSize: 12, fontWeight: 600, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
                         {doctor && <div style={{ color: '#71717a', fontSize: 11 }}>{doctor}</div>}
@@ -1228,8 +1234,11 @@ function WeeklyChanges({ deals }: { deals: DealItem[] }) {
                       </td>
                       <td style={{ padding: '10px 16px', color: '#f4f4f5', fontWeight: 700, fontSize: 13 }}>${(ebitda / 1000).toFixed(2)}M</td>
                       <td style={{ padding: '10px 16px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 99, padding: '3px 10px', background: c.type === 'new' ? 'rgba(99,102,241,0.2)' : c.type === 'removed' ? 'rgba(248,113,113,0.2)' : 'rgba(251,191,36,0.15)', color: c.type === 'new' ? '#818cf8' : c.type === 'removed' ? '#f87171' : '#fbbf24', border: `1px solid ${c.type === 'new' ? '#4f46e5' : c.type === 'removed' ? '#ef4444' : '#d97706'}` }}>
-                          {c.type === 'new' ? '🆕 New' : c.type === 'removed' ? '❌ Dropped' : '⬆ Stage Change'}
+                        <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 99, padding: '3px 10px',
+                          background: c.type === 'new' ? 'rgba(99,102,241,0.2)' : c.type === 'closed_won' ? 'rgba(52,211,153,0.2)' : c.type === 'removed' ? 'rgba(248,113,113,0.2)' : 'rgba(251,191,36,0.15)',
+                          color: c.type === 'new' ? '#818cf8' : c.type === 'closed_won' ? '#34d399' : c.type === 'removed' ? '#f87171' : '#fbbf24',
+                          border: `1px solid ${c.type === 'new' ? '#4f46e5' : c.type === 'closed_won' ? '#10b981' : c.type === 'removed' ? '#ef4444' : '#d97706'}` }}>
+                          {c.type === 'new' ? '🆕 New' : c.type === 'closed_won' ? '🎉 Closed Won' : c.type === 'removed' ? '❌ Dropped' : '⬆ Stage Change'}
                         </span>
                       </td>
                       <td style={{ padding: '10px 16px' }}>
@@ -1499,6 +1508,7 @@ function VintageAnalysis() {
 
 export default function PipelinePage() {
   const [deals, setDeals] = useState<DealItem[]>([])
+  const [closedWonIds, setClosedWonIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastSync, setLastSync] = useState<string | null>(null)
@@ -1518,8 +1528,12 @@ export default function PipelinePage() {
           body: JSON.stringify({ step: 'deals' }),
         })
       }
-      const res = await fetch('/api/dashboard/pipeline?isOpenOnly=true')
+      const [res, closedRes] = await Promise.all([
+        fetch('/api/dashboard/pipeline?isOpenOnly=true'),
+        fetch('/api/dashboard/pipeline?isOpenOnly=false'),
+      ])
       const data = await res.json()
+      const closedData = await closedRes.json()
       if (data.error) {
         setError(data.error)
       } else if (data.deals) {
@@ -1530,6 +1544,11 @@ export default function PipelinePage() {
           return d
         }))
         setLastSync(new Date().toLocaleTimeString())
+      }
+      if (closedData.deals) {
+        setClosedWonIds(new Set(
+          closedData.deals.filter((d: any) => d.stage === 'Closed Won').map((d: any) => d.dealId)
+        ))
       }
     } catch (e: any) {
       setError(e.message)
@@ -1618,7 +1637,7 @@ export default function PipelinePage() {
             {tab === 'pipeline' && (
               <DealPipelineTable deals={deals} onNotesChange={handleNotesChange} />
             )}
-            {tab === 'weekly' && <WeeklyChanges deals={deals} />}
+            {tab === 'weekly' && <WeeklyChanges deals={deals} closedWonIds={closedWonIds} />}
           </>
         )}
       </div>

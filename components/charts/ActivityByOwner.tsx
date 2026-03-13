@@ -74,7 +74,6 @@ export default function ActivityByOwner({ data = [], loading }: ActivityByOwnerP
       Emails: row.emails,
       Calls: row.calls,
       Meetings: row.meetings,
-      'Seq. Touches': row.sequenceTouches,
     }
     for (const cat of allCategories) {
       entry[cat] = row.taskCategories?.[cat] ?? 0
@@ -109,7 +108,6 @@ export default function ActivityByOwner({ data = [], loading }: ActivityByOwnerP
                 radius={i === allCategories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
               />
             ))}
-            <Bar dataKey="Seq. Touches" stackId="a" fill={BASE_COLORS.sequenceTouches} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </Card>
@@ -129,7 +127,6 @@ export default function ActivityByOwner({ data = [], loading }: ActivityByOwnerP
                 { label: 'Emails', value: row.emails, color: 'text-blue-600' },
                 { label: 'Calls', value: row.calls, color: 'text-green-600' },
                 { label: 'Meetings', value: row.meetings, color: 'text-orange-600' },
-                { label: 'Seq.', value: row.sequenceTouches, color: 'text-rose-600' },
               ].map(({ label, value, color }) => (
                 <div key={label}>
                   <div className={`text-lg font-bold ${color}`}>{value}</div>

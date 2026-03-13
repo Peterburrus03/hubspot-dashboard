@@ -23,7 +23,7 @@ interface ActivityTableProps {
   loading: boolean
 }
 
-type SortKey = 'ownerName' | 'emails' | 'calls' | 'notes' | 'meetings' | 'tasks' | 'sequenceTouches' | 'contactsReached' | 'total'
+type SortKey = 'ownerName' | 'emails' | 'calls' | 'notes' | 'meetings' | 'tasks' | 'contactsReached' | 'total'
 type SortDir = 'asc' | 'desc'
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
@@ -54,10 +54,12 @@ function stripHtml(html: string | null | undefined): string {
   return html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').trim()
 }
 
+
 function ContactModal({ contactId, contactName, ownerName, onClose }: {
   contactId: string; contactName: string; ownerName: string; onClose: () => void
 }) {
   const [engagements, setEngagements] = useState<any[]>([])
+
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState<number | null>(null)
 
@@ -68,7 +70,9 @@ function ContactModal({ contactId, contactName, ownerName, onClose }: {
     const qs = days ? `?contactId=${contactId}&days=${days}` : `?contactId=${contactId}`
     fetch(`/api/dashboard/contact${qs}`)
       .then(r => r.json())
-      .then(d => setEngagements(d.engagements ?? []))
+      .then(d => {
+        setEngagements(d.engagements ?? [])
+      })
       .finally(() => setLoading(false))
   }, [contactId, days])
 
@@ -109,7 +113,7 @@ function ContactModal({ contactId, contactName, ownerName, onClose }: {
               : e.type === 'IPAD_SHIPPED' ? `iPad Shipped${e.ipadGroup ? ` · ${e.ipadGroup}` : ''}`
               : `iPad Response${e.ipadResponseType ? ` · ${e.ipadResponseType}` : ''}`
               : e.type === 'TASK'
-              ? `Task${e.body ? ` — ${stripHtml(e.body)}` : ''}`
+              ? (e.taskCategory ?? 'Sales Activity')
               : e.emailSubject || e.callDisposition || TYPE_LABEL[e.type] || e.type
             return (
               <div key={e.engagementId} className="flex gap-3">
@@ -163,7 +167,7 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
           ? a.ownerName.localeCompare(b.ownerName)
           : b.ownerName.localeCompare(a.ownerName)
       }
-      const total = (row: typeof a) => row.emails + row.calls + row.meetings + row.tasks + row.sequenceTouches
+      const total = (row: typeof a) => row.emails + row.calls + row.meetings + row.tasks
       const aVal = sortKey === 'total' ? total(a) : (a as any)[sortKey]
       const bVal = sortKey === 'total' ? total(b) : (b as any)[sortKey]
       return sortDir === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number)
@@ -202,12 +206,12 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
     let csv = ''
     if (view === 'owner') {
       csv = [
-        'Team Member,Emails,Calls,Meetings,Sales Activity,Seq. Touches,Contacts Reached,Total Activity',
+        'Team Member,Emails,Calls,Meetings,Sales Activity,Contacts Reached,Total Activity',
         ...sortedData.map((r) =>
           [
             `"${r.ownerName}"`,
-            r.emails, r.calls, r.meetings, r.tasks, r.sequenceTouches, r.contactsReached,
-            r.emails + r.calls + r.meetings + r.sequenceTouches,
+            r.emails, r.calls, r.meetings, r.tasks, r.contactsReached,
+            r.emails + r.calls + r.meetings + r.tasks,
           ].join(',')
         ),
       ].join('\n')
@@ -292,7 +296,6 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
                       ['Calls', 'calls'],
                       ['Meetings', 'meetings'],
                       ['Sales Activity', 'tasks'],
-                      ['Seq. Touches', 'sequenceTouches'],
                       ['Contacts', 'contactsReached'],
                       ['Total', 'total'],
                     ] as [string, SortKey][]
@@ -310,7 +313,7 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
               </thead>
               <tbody>
                 {sortedData.map((row) => {
-                  const total = row.emails + row.calls + row.meetings + row.sequenceTouches
+                  const total = row.emails + row.calls + row.meetings + row.tasks
                   return (
                     <tr key={row.ownerId} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="py-2.5 px-3 font-medium text-gray-800">{row.ownerName}</td>
@@ -318,7 +321,6 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
                       <td className="py-2.5 px-3 text-green-600 font-medium">{row.calls}</td>
                       <td className="py-2.5 px-3 text-orange-600 font-medium">{row.meetings}</td>
                       <td className="py-2.5 px-3 text-gray-500">{row.tasks}</td>
-                      <td className="py-2.5 px-3 text-rose-600 font-medium">{row.sequenceTouches}</td>
                       <td className="py-2.5 px-3 text-gray-600">{row.contactsReached}</td>
                       <td className="py-2.5 px-3 font-bold text-gray-900">{total}</td>
                     </tr>
@@ -326,7 +328,7 @@ export default function ActivityTable({ data = [], loading }: ActivityTableProps
                 })}
                 {sortedData.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="py-6 text-center text-gray-400 text-sm">No results</td>
+                    <td colSpan={8} className="py-6 text-center text-gray-400 text-sm">No results</td>
                   </tr>
                 )}
               </tbody>

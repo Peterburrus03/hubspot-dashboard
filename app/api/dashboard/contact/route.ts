@@ -36,7 +36,11 @@ export async function GET(request: NextRequest) {
       }
     }),
     prisma.engagement.findMany({
-      where: { contactId, ...(sinceDate ? { timestamp: { gte: sinceDate } } : {}) },
+      where: {
+        contactId,
+        ...(sinceDate ? { timestamp: { gte: sinceDate } } : {}),
+        NOT: { type: 'TASK', taskStatus: { not: 'COMPLETED' } },
+      },
       orderBy: { timestamp: 'desc' },
       take: 100,
       select: {
@@ -91,18 +95,22 @@ export async function GET(request: NextRequest) {
     ...ipadEvents,
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-  // Group tasks by category — don't expose individual task records
-  const taskEvents = allEvents.filter(e => e.type === 'TASK')
+  // Annotate tasks with their category label, filter out notes
   const taskCategoryMap: Record<string, number> = {}
-  for (const t of taskEvents) {
-    const cat = getTaskCategory((t as any).body)
-    taskCategoryMap[cat] = (taskCategoryMap[cat] ?? 0) + 1
-  }
+  const timeline = allEvents
+    .filter(e => e.type !== 'NOTE')
+    .map(e => {
+      if (e.type === 'TASK') {
+        const cat = getTaskCategory((e as any).body)
+        taskCategoryMap[cat] = (taskCategoryMap[cat] ?? 0) + 1
+        return { ...e, taskCategory: cat }
+      }
+      return e
+    })
+
   const taskCategories = Object.entries(taskCategoryMap)
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
 
-  const nonTaskEvents = allEvents.filter(e => e.type !== 'TASK')
-
-  return NextResponse.json({ engagements: nonTaskEvents, taskCategories, ipad: contact })
+  return NextResponse.json({ engagements: timeline, taskCategories, ipad: contact })
 }
