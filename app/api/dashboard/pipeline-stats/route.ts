@@ -139,7 +139,7 @@ export async function GET() {
     })
 
     // Per-type breakdown for WTD / MTD / YTD / Last Week / QTD
-    type TypeBreakdown = { emails: number; calls: number; notes: number; meetings: number }
+    type TypeBreakdown = { emails: number; calls: number; meetings: number }
     async function typeBreakdown(gte: Date, lte: Date = now): Promise<TypeBreakdown> {
       const rows = await prisma.$queryRaw<{ type: string; cnt: bigint }[]>(Prisma.sql`
         SELECT type, COUNT(*) AS cnt
