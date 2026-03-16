@@ -212,7 +212,7 @@ async function fetchAIContext(deals: DealItem[], actuals: PipelineActuals): Prom
   const atRisk = deals.filter(isAtRisk).map((d) => d.name).join(', ') || 'None'
 
   const dealLines = deals.map((d) =>
-    `- ${d.name} | ${d.crmStage} | ${d.dvms} DVMs | $${(d.ebitda / 1000).toFixed(2)}M EBITDA | ${daysInStage(d)}d in stage | ${isAtRisk(d) ? 'AT RISK' : 'ok'}`
+    `- ${d.name}${d.doctor ? ` (${d.doctor})` : ''} | ${d.crmStage} | ${d.dvms} DVMs | $${(d.ebitda / 1000).toFixed(2)}M EBITDA | ${daysInStage(d)}d in stage | ${isAtRisk(d) ? 'AT RISK' : 'ok'}`
   ).join('\n')
 
   // Fetch universe, activity, and closed nurture deals in parallel
