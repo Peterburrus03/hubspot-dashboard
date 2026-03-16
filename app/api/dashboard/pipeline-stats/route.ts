@@ -42,24 +42,40 @@ export async function GET() {
     const qtdStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
     const historyStart = ytdStart
 
-    // Outreach = non-automated emails + calls + meetings + completed tasks (notes excluded)
-    const outreachWhere = (gte: Date, lte: Date = now) => ({
-      timestamp: { gte, lte },
-      OR: [
-        { type: 'CALL' },
-        { type: 'MEETING' },
-        { type: 'TASK', taskStatus: 'COMPLETED' },
-        { type: 'EMAIL', emailDirection: null },
-        { type: 'EMAIL', emailDirection: { not: 'AUTOMATED_EMAIL' } },
-      ],
-    })
+    // Restrict all outreach counts to Owner contacts only (matches activity tab)
+    const ownerContactIds = (await prisma.contact.findMany({
+      where: { professionalStatus: 'Owner' },
+      select: { contactId: true },
+    })).map(c => c.contactId)
+
+    // Outreach = deduplicated non-automated emails + calls + meetings + completed tasks
+    // Uses raw SQL for consistent email deduplication across all periods
+    async function countOutreach(gte: Date, lte: Date = now): Promise<number> {
+      const rows = await prisma.$queryRaw<{ cnt: bigint }[]>(Prisma.sql`
+        SELECT
+          COUNT(*) FILTER (
+            WHERE type IN ('CALL', 'MEETING')
+               OR (type = 'TASK' AND "taskStatus" = 'COMPLETED')
+          )
+          + COUNT(DISTINCT CASE
+              WHEN type = 'EMAIL' AND ("emailDirection" IS NULL OR "emailDirection" != 'AUTOMATED_EMAIL')
+              THEN "contactId" || '|' || timestamp::date
+            END)
+          AS cnt
+        FROM engagements
+        WHERE timestamp >= ${gte}
+          AND timestamp <= ${lte}
+          AND "contactId" = ANY(${ownerContactIds}::text[])
+      `)
+      return Number(rows[0]?.cnt ?? 0)
+    }
 
     const [ytdOutreach, mtdOutreach, wtdOutreach, lastWeekOutreach, qtdOutreach] = await Promise.all([
-      prisma.engagement.count({ where: outreachWhere(ytdStart) }),
-      prisma.engagement.count({ where: outreachWhere(mtdStart) }),
-      prisma.engagement.count({ where: outreachWhere(wtdStart) }),
-      prisma.engagement.count({ where: outreachWhere(lastWeekStart, lastWeekEnd) }),
-      prisma.engagement.count({ where: outreachWhere(qtdStart) }),
+      countOutreach(ytdStart),
+      countOutreach(mtdStart),
+      countOutreach(wtdStart),
+      countOutreach(lastWeekStart, lastWeekEnd),
+      countOutreach(qtdStart),
     ])
 
     // Deal milestone counts (AOSN pipeline only)
@@ -86,7 +102,7 @@ export async function GET() {
       prisma.deal.aggregate({ where: { ...dealBase, stage: 'Closed Won', closedDate: { gte: ytdStart }, dealId: { notIn: EXCLUDED_CLOSED_DEAL_IDS } }, _sum: { ebitda: true } }),
     ])
 
-    // Weekly outreach history — cap at now, dedupe emails by (contact, date), count only completed tasks
+    // Weekly outreach history — owner contacts only, dedupe emails by (contact, date)
     type WeekRow = { week_start: Date; outreach: bigint }
     const weeklyOutreach = await prisma.$queryRaw<WeekRow[]>(Prisma.sql`
       SELECT
@@ -104,6 +120,7 @@ export async function GET() {
       FROM engagements
       WHERE timestamp >= ${historyStart}
         AND timestamp <= ${now}
+        AND "contactId" = ANY(${ownerContactIds}::text[])
       GROUP BY week_start
       ORDER BY week_start
     `)
@@ -138,13 +155,14 @@ export async function GET() {
       }
     })
 
-    // Per-type breakdown for WTD / MTD / YTD / Last Week / QTD
+    // Per-type breakdown for WTD / MTD / YTD / Last Week / QTD — owner contacts, emails deduped
     type TypeBreakdown = { emails: number; calls: number; meetings: number }
     async function typeBreakdown(gte: Date, lte: Date = now): Promise<TypeBreakdown> {
       const rows = await prisma.$queryRaw<{ type: string; cnt: bigint }[]>(Prisma.sql`
-        SELECT type, COUNT(*) AS cnt
+        SELECT type, COUNT(DISTINCT CASE WHEN type = 'EMAIL' THEN "contactId" || '|' || timestamp::date ELSE engagementId::text END) AS cnt
         FROM engagements
         WHERE timestamp >= ${gte} AND timestamp <= ${lte}
+          AND "contactId" = ANY(${ownerContactIds}::text[])
           AND (
             type IN ('CALL','MEETING')
             OR (type = 'EMAIL' AND ("emailDirection" IS NULL OR "emailDirection" != 'AUTOMATED_EMAIL'))

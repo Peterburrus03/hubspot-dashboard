@@ -30,6 +30,7 @@ model Deal {
   dealCreatedAt             DateTime?
   initialOutreachDate       DateTime?
   qualifiedToBuyDate        DateTime?
+  engagedDate               DateTime?
   ndaSignedDate             DateTime?
   loiExtendedDate           DateTime?
   loiSignedDate             DateTime?

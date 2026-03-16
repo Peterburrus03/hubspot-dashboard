@@ -42,9 +42,17 @@ export async function GET() {
   try {
     const now = new Date()
 
+    const ownerContacts = await prisma.contact.findMany({
+      where: { professionalStatus: 'Owner' },
+      select: { contactId: true, tier1: true },
+    })
+    const ownerContactIds = new Set(ownerContacts.map(c => c.contactId))
+    const t1Ids = new Set(ownerContacts.filter(c => c.tier1).map(c => c.contactId))
+
     const engagements = await prisma.engagement.findMany({
       where: {
         timestamp: { gte: Q1_START, lte: now },
+        contactId: { in: [...ownerContactIds] },
         OR: [
           { type: 'CALL' },
           { type: 'MEETING' },
@@ -55,12 +63,6 @@ export async function GET() {
       },
       select: { type: true, timestamp: true, contactId: true, emailDirection: true, taskStatus: true },
     })
-
-    const tier1Contacts = await prisma.contact.findMany({
-      where: { tier1: true, professionalStatus: 'Owner' },
-      select: { contactId: true }
-    })
-    const t1Ids = new Set(tier1Contacts.map(c => c.contactId))
 
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     const weeklyActuals = Array(12).fill(0).map((_, i) => {

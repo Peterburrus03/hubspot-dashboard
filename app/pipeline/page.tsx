@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ReferenceLine, ResponsiveContainer,
+  ReferenceLine, ResponsiveContainer, Legend,
+  BarChart, Bar, Cell,
 } from 'recharts'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1327,7 +1328,7 @@ type VintageDeal = {
   dealName: string | null
   stage: string | null
   dealCreatedAt: string | null
-  qualifiedToBuyDate: string | null
+  engagedDate: string | null
   ndaSignedDate: string | null
   loiSignedDate: string | null
   integrationCompletionDate: string | null
@@ -1346,8 +1347,10 @@ type VintageRow = {
   avgDaysNdaToLoi: number | null
   apas: number
   apaConv: number
+  avgDaysLoiToApa: number | null
   closed: number
   closedConv: number
+  avgDaysApaToClose: number | null
   deals: VintageDeal[]
 }
 
@@ -1495,7 +1498,7 @@ function VintageAnalysis() {
                                     <td className="py-2 px-3">
                                       <span className={`px-1.5 py-0.5 rounded border text-[10px] font-black ${mc}`}>{d.milestone}</span>
                                     </td>
-                                    <td className="py-2 px-3 text-zinc-400">{d.qualifiedToBuyDate ?? '—'}</td>
+                                    <td className="py-2 px-3 text-zinc-400">{d.engagedDate ?? '—'}</td>
                                     <td className="py-2 px-3 text-zinc-400">{d.ndaSignedDate ?? '—'}</td>
                                     <td className="py-2 px-3 text-zinc-400">{d.loiSignedDate ?? '—'}</td>
                                     <td className="py-2 px-3 text-zinc-400">{d.integrationCompletionDate ?? '—'}</td>
@@ -1521,6 +1524,239 @@ function VintageAnalysis() {
           <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />Closed</span>
           <span className="text-xs text-zinc-600 ml-auto">Conv% = % of prior stage that advanced · Avg Days = time between milestones</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Velocity Explorer ────────────────────────────────────────────────────────
+
+const VELOCITY_STAGES = [
+  { key: 'avgDaysToNda',    label: 'Eng→NDA',    color: '#818cf8' }, // indigo-400
+  { key: 'avgDaysNdaToLoi', label: 'NDA→LOI',    color: '#a78bfa' }, // violet-400
+  { key: 'avgDaysLoiToApa', label: 'LOI→APA',    color: '#fbbf24' }, // amber-400
+  { key: 'avgDaysApaToClose', label: 'APA→Close', color: '#34d399' }, // emerald-400
+] as const
+
+type VelocityStageKey = typeof VELOCITY_STAGES[number]['key']
+
+function velAvg(vals: number[]): number | null {
+  const filtered = vals.filter((v) => v != null && !isNaN(v))
+  return filtered.length > 0 ? Math.round(filtered.reduce((a, b) => a + b, 0) / filtered.length) : null
+}
+
+function HeatmapView({ rows }: { rows: VintageRow[] }) {
+  const active = rows.filter((r) => r.engaged > 0)
+
+  // Baseline = avg across all active vintages for each stage
+  const baselines: Record<VelocityStageKey, number | null> = {} as any
+  for (const s of VELOCITY_STAGES) {
+    baselines[s.key] = velAvg(active.map((r) => r[s.key] as number).filter((v) => v != null))
+  }
+
+  function cellStyle(val: number | null, baseline: number | null): string {
+    if (val == null || baseline == null) return 'text-zinc-600'
+    const ratio = (baseline - val) / baseline // positive = faster
+    if (ratio > 0.15) return 'bg-emerald-900/60 text-emerald-300'
+    if (ratio > 0.05) return 'bg-emerald-900/30 text-emerald-400'
+    if (ratio < -0.15) return 'bg-red-900/60 text-red-300'
+    if (ratio < -0.05) return 'bg-red-900/30 text-red-400'
+    return 'bg-zinc-800/40 text-zinc-300'
+  }
+
+  function TrendArrow({ val, baseline }: { val: number | null; baseline: number | null }) {
+    if (val == null || baseline == null) return null
+    const ratio = (baseline - val) / baseline
+    if (ratio > 0.15) return <span className="ml-1 text-[10px] text-emerald-400">↓</span>
+    if (ratio < -0.15) return <span className="ml-1 text-[10px] text-red-400">↑</span>
+    return null
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-zinc-800">
+            <th className="text-left py-2 pr-6 text-xs font-black text-zinc-500 uppercase tracking-widest">Vintage</th>
+            {VELOCITY_STAGES.map((s) => (
+              <th key={s.key} className="text-center py-2 px-4 text-xs font-black text-zinc-500 uppercase tracking-widest">
+                {s.label}
+              </th>
+            ))}
+          </tr>
+          <tr className="border-b border-zinc-800/40">
+            <td className="py-1 pr-6 text-xs text-zinc-600 italic">Baseline</td>
+            {VELOCITY_STAGES.map((s) => (
+              <td key={s.key} className="py-1 px-4 text-center text-xs text-zinc-600">
+                {baselines[s.key] != null ? `${baselines[s.key]}d` : '—'}
+              </td>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {active.map((r) => (
+            <tr key={r.quarter} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+              <td className="py-2.5 pr-6 font-black text-white text-sm">{r.quarter}</td>
+              {VELOCITY_STAGES.map((s) => {
+                const val = r[s.key] as number | null
+                return (
+                  <td key={s.key} className={`py-2.5 px-4 text-center text-xs font-bold rounded ${cellStyle(val, baselines[s.key])}`}>
+                    {val != null ? (
+                      <>{val}d<TrendArrow val={val} baseline={baselines[s.key]} /></>
+                    ) : '—'}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-zinc-800 text-xs text-zinc-500">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-900/60 inline-block" />Faster than baseline (&gt;15%)</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-900/60 inline-block" />Slower than baseline (&gt;15%)</span>
+        <span className="text-zinc-600 ml-auto">↓ green = faster · ↑ red = slower</span>
+      </div>
+    </div>
+  )
+}
+
+function TrendLinesView({ rows }: { rows: VintageRow[] }) {
+  const active = rows.filter((r) => r.engaged > 0)
+  const data = active.map((r) => ({
+    quarter: r.quarter,
+    ...Object.fromEntries(VELOCITY_STAGES.map((s) => [s.label, r[s.key]])),
+  }))
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+        <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#71717a' }} />
+        <YAxis
+          tick={{ fontSize: 11, fill: '#71717a' }}
+          label={{ value: 'Avg Days', angle: -90, position: 'insideLeft', fill: '#52525b', fontSize: 11 }}
+        />
+        <Tooltip
+          contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6 }}
+          labelStyle={{ color: '#e4e4e7', fontWeight: 700 }}
+          itemStyle={{ color: '#a1a1aa' }}
+          formatter={(val: any) => val != null ? `${val}d` : '—'}
+        />
+        <Legend wrapperStyle={{ fontSize: 11, color: '#71717a' }} />
+        {VELOCITY_STAGES.map((s) => (
+          <Line
+            key={s.key}
+            type="monotone"
+            dataKey={s.label}
+            stroke={s.color}
+            strokeWidth={2}
+            dot={{ r: 3, fill: s.color }}
+            connectNulls
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
+
+function BreakdownView({ rows }: { rows: VintageRow[] }) {
+  const active = rows.filter((r) =>
+    r.engaged > 0 &&
+    VELOCITY_STAGES.some((s) => r[s.key] != null)
+  )
+
+  const data = active.map((r) => ({
+    quarter: r.quarter,
+    'Eng→NDA': r.avgDaysToNda ?? 0,
+    'NDA→LOI': r.avgDaysNdaToLoi ?? 0,
+    'LOI→APA': r.avgDaysLoiToApa ?? 0,
+    'APA→Close': r.avgDaysApaToClose ?? 0,
+  }))
+
+  const CustomTooltip = ({ active: a, payload, label }: any) => {
+    if (!a || !payload?.length) return null
+    const total = payload.reduce((sum: number, p: any) => sum + (p.value || 0), 0)
+    return (
+      <div className="bg-zinc-900 border border-zinc-700 rounded p-3 text-xs">
+        <p className="font-black text-white mb-1.5">{label}</p>
+        {payload.map((p: any) => p.value > 0 && (
+          <p key={p.dataKey} style={{ color: p.fill }}>{p.dataKey}: {p.value}d</p>
+        ))}
+        <p className="text-zinc-400 mt-1.5 border-t border-zinc-700 pt-1.5">Total: {total}d</p>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-zinc-500 mb-3">Stacked avg days per stage contributing to total cycle time</p>
+      <ResponsiveContainer width="100%" height={Math.max(180, active.length * 44)}>
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 40, left: 16, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 11, fill: '#71717a' }} unit="d" />
+          <YAxis type="category" dataKey="quarter" tick={{ fontSize: 11, fill: '#a1a1aa' }} width={60} />
+          <Tooltip content={<CustomTooltip />} />
+          {VELOCITY_STAGES.map((s) => (
+            <Bar key={s.label} dataKey={s.label} stackId="a" fill={s.color} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function VelocityExplorer() {
+  const [rows, setRows] = useState<VintageRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<'heatmap' | 'trends' | 'breakdown'>('heatmap')
+
+  useEffect(() => {
+    fetch('/api/dashboard/vintages')
+      .then((r) => r.json())
+      .then((d) => { if (d.vintages) setRows(d.vintages) })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const views = [
+    { key: 'heatmap' as const,   label: 'Stage Duration Heatmap' },
+    { key: 'trends' as const,    label: 'Velocity Trend Lines' },
+    { key: 'breakdown' as const, label: 'Days-to-Close Breakdown' },
+  ]
+
+  if (loading) return (
+    <div className={`${card} p-6`}>
+      <div className="h-4 w-48 bg-zinc-800 rounded animate-pulse mb-4" />
+      <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-8 bg-zinc-800 rounded animate-pulse" />)}</div>
+    </div>
+  )
+
+  return (
+    <div className={`${card} overflow-hidden`}>
+      <div className={cardPad}>
+        <div className="mb-5">
+          <h2 className={h2Cls}>Velocity Explorer</h2>
+          <p className={`text-xs ${mutedCls} mt-0.5`}>Pipeline cycle time analysis by vintage cohort — lower days = faster progression</p>
+        </div>
+
+        {/* Inner tab switcher */}
+        <div className="flex gap-1 mb-5 bg-zinc-900 rounded-lg p-1 w-fit">
+          {views.map((v) => (
+            <button
+              key={v.key}
+              onClick={() => setView(v.key)}
+              className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
+                view === v.key ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        {view === 'heatmap'    && <HeatmapView rows={rows} />}
+        {view === 'trends'     && <TrendLinesView rows={rows} />}
+        {view === 'breakdown'  && <BreakdownView rows={rows} />}
       </div>
     </div>
   )
@@ -1653,6 +1889,7 @@ export default function PipelinePage() {
                 <OutreachSection actuals={actuals} weeklyHistory={weeklyHistory} lastWeekStart={lastWeekStart} />
                 <PipelineWeightedTiming deals={deals} />
                 <VintageAnalysis />
+                <VelocityExplorer />
                 <TopPriorities deals={deals} actuals={actuals} />
               </>
             )}

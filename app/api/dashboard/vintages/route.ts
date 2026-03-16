@@ -28,7 +28,7 @@ export async function GET() {
       dealId: string
       dealName: string | null
       dealCreatedAt: Date | null
-      qualifiedToBuyDate: Date | null
+      engagedDate: Date | null
       ndaSignedDate: Date | null
       loiSignedDate: Date | null
       integrationCompletionDate: Date | null
@@ -41,7 +41,7 @@ export async function GET() {
         "dealId",
         "dealName",
         "dealCreatedAt",
-        "qualifiedToBuyDate",
+        COALESCE("engagedDate", "qualifiedToBuyDate") AS "engagedDate",
         "ndaSignedDate",
         "loiSignedDate",
         "integrationCompletionDate",
@@ -57,7 +57,7 @@ export async function GET() {
       dealName: string | null
       stage: string | null
       dealCreatedAt: string | null
-      qualifiedToBuyDate: string | null
+      engagedDate: string | null
       ndaSignedDate: string | null
       loiSignedDate: string | null
       integrationCompletionDate: string | null
@@ -73,6 +73,8 @@ export async function GET() {
       closed: number
       daysToNda: number[]
       daysNdaToLoi: number[]
+      daysLoiToApa: number[]
+      daysApaToClose: number[]
       deals: DealDetail[]
     }
 
@@ -81,12 +83,12 @@ export async function GET() {
     for (const deal of deals) {
       const key = getQuarterKey(deal.dealCreatedAt!)
       if (!cohorts.has(key)) {
-        cohorts.set(key, { engaged: 0, ndas: 0, lois: 0, apas: 0, closed: 0, daysToNda: [], daysNdaToLoi: [], deals: [] })
+        cohorts.set(key, { engaged: 0, ndas: 0, lois: 0, apas: 0, closed: 0, daysToNda: [], daysNdaToLoi: [], daysLoiToApa: [], daysApaToClose: [], deals: [] })
       }
       const c = cohorts.get(key)!
       c.engaged++
 
-      const engagedDate = deal.qualifiedToBuyDate
+      const engagedDate = deal.engagedDate
       let milestone = 'Engaged'
 
       if (deal.ndaSignedDate) {
@@ -103,9 +105,15 @@ export async function GET() {
           if (isApa) {
             c.apas++
             milestone = 'APA'
+            if (deal.integrationCompletionDate && deal.loiSignedDate) {
+              c.daysLoiToApa.push(daysBetween(deal.loiSignedDate, deal.integrationCompletionDate))
+            }
             if (deal.officialClosedDate) {
               c.closed++
               milestone = 'Closed'
+              if (deal.integrationCompletionDate) {
+                c.daysApaToClose.push(daysBetween(deal.integrationCompletionDate, deal.officialClosedDate))
+              }
             }
           }
         }
@@ -116,7 +124,7 @@ export async function GET() {
         dealName: deal.dealName,
         stage: deal.stage,
         dealCreatedAt: fmtDate(deal.dealCreatedAt),
-        qualifiedToBuyDate: fmtDate(deal.qualifiedToBuyDate),
+        engagedDate: fmtDate(deal.engagedDate),
         ndaSignedDate: fmtDate(deal.ndaSignedDate),
         loiSignedDate: fmtDate(deal.loiSignedDate),
         integrationCompletionDate: fmtDate(deal.integrationCompletionDate),
@@ -131,7 +139,7 @@ export async function GET() {
       for (const q of [1, 2, 3, 4]) allQuarters.push(`Q${q} ${year}`)
     }
 
-    const emptyC: Cohort = { engaged: 0, ndas: 0, lois: 0, apas: 0, closed: 0, daysToNda: [], daysNdaToLoi: [], deals: [] }
+    const emptyC: Cohort = { engaged: 0, ndas: 0, lois: 0, apas: 0, closed: 0, daysToNda: [], daysNdaToLoi: [], daysLoiToApa: [], daysApaToClose: [], deals: [] }
 
     const vintages = allQuarters.map((quarter) => {
       const c = cohorts.get(quarter) ?? emptyC
@@ -145,9 +153,11 @@ export async function GET() {
         loiConv: c.ndas > 0 ? Math.round((c.lois / c.ndas) * 100) : 0,
         avgDaysNdaToLoi: avg(c.daysNdaToLoi),
         apas: c.apas,
+        avgDaysLoiToApa: avg(c.daysLoiToApa),
         apaConv: c.lois > 0 ? Math.round((c.apas / c.lois) * 100) : 0,
         closed: c.closed,
         closedConv: c.apas > 0 ? Math.round((c.closed / c.apas) * 100) : 0,
+        avgDaysApaToClose: avg(c.daysApaToClose),
         deals: c.deals.sort((a, b) => (b.milestone > a.milestone ? 1 : -1)),
       }
     })

@@ -76,9 +76,9 @@ export default function FilterBar({ onFilterChange, showDateFilter = true }: Fil
   const lastWeekDates = getPresetDates('last_week')
   const [startDate, setStartDate] = useState(lastWeekDates.start)
   const [endDate, setEndDate] = useState(lastWeekDates.end)
-  const [selectedOwners, setSelectedOwners] = useState<string[]>(['1995098221', '83426466']) // Tracey & Max
+  const [selectedOwners, setSelectedOwners] = useState<string[]>(['1995098221', '83426466', '48828284']) // Tracey, Max & Steve
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([])
-  const [selectedCompanyTypes, setSelectedCompanyTypes] = useState<string[]>(['Private Practice'])
+  const [selectedCompanyTypes, setSelectedCompanyTypes] = useState<string[]>(['Private Practice', 'Private Hybrid Mobile'])
   const [selectedLeadStatuses, setSelectedLeadStatuses] = useState<string[]>(['NEW', 'OPEN', 'CONNECTED', 'IN_PROGRESS', 'OPEN_DEAL', 'Closed and Nurturing'])
   const [selectedDealStatuses, setSelectedDealStatuses] = useState<string[]>(['Closed LOST', 'Closed PASS', 'Closed Won'])
 
@@ -368,9 +368,9 @@ export default function FilterBar({ onFilterChange, showDateFilter = true }: Fil
 
         <button
           onClick={() => {
-            setSelectedOwners(['1995098221', '83426466']) // Tracey & Max
+            setSelectedOwners(['1995098221', '83426466', '48828284']) // Tracey, Max & Steve
             setSelectedSpecialties([])
-            setSelectedCompanyTypes(['Private Practice'])
+            setSelectedCompanyTypes(['Private Practice', 'Private Hybrid Mobile'])
             setSelectedLeadStatuses(['NEW', 'OPEN', 'CONNECTED', 'IN_PROGRESS', 'OPEN_DEAL', 'Closed and Nurturing'])
             setSelectedDealStatuses(['Closed LOST', 'Closed PASS', 'Closed Won'])
             setTier1Only(false)
