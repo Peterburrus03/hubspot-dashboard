@@ -159,7 +159,7 @@ export async function GET() {
     type TypeBreakdown = { emails: number; calls: number; meetings: number }
     async function typeBreakdown(gte: Date, lte: Date = now): Promise<TypeBreakdown> {
       const rows = await prisma.$queryRaw<{ type: string; cnt: bigint }[]>(Prisma.sql`
-        SELECT type, COUNT(DISTINCT CASE WHEN type = 'EMAIL' THEN "contactId" || '|' || timestamp::date ELSE engagementId::text END) AS cnt
+        SELECT type, COUNT(DISTINCT CASE WHEN type = 'EMAIL' THEN "contactId" || '|' || timestamp::date ELSE "engagementId"::text END) AS cnt
         FROM engagements
         WHERE timestamp >= ${gte} AND timestamp <= ${lte}
           AND "contactId" = ANY(${ownerContactIds}::text[])
