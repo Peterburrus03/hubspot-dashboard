@@ -79,7 +79,7 @@ export default function OverviewPage() {
         </Card>
 
         <Card>
-          <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm mb-6">Weekly Performance Variance</h3>
+          <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm mb-6">Variance to Plan</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={realWeeks.slice(0, currentWeekIdx + 1)}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
