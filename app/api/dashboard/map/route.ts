@@ -110,6 +110,23 @@ export async function GET(request: NextRequest) {
       if (key) csvByName.set(key, row)
     }
 
+    // Load verified manual mappings (from reviewed fuzzy match Excel)
+    type ManualMapping = {
+      hubspotName: string; csvName: string
+      latitude: number; longitude: number
+      clinic: string | null; city: string | null; state: string | null
+    }
+    let manualMappings: ManualMapping[] = []
+    try {
+      const mappingsPath = join(process.cwd(), 'name_mappings.json')
+      manualMappings = JSON.parse(readFileSync(mappingsPath, 'utf-8'))
+    } catch { /* file may not exist yet */ }
+
+    const manualByName = new Map<string, ManualMapping>()
+    for (const m of manualMappings) {
+      manualByName.set(normalizeName(m.hubspotName), m)
+    }
+
     // Cross-reference contacts with CSV
     const matched: any[] = []
     const unmatched: any[] = []
@@ -146,7 +163,20 @@ export async function GET(request: NextRequest) {
           practiceTag: csvRow.Final_tag || null,
         })
       } else {
-        unmatched.push(base)
+        // Fall back to manually verified mappings
+        const manual = manualByName.get(key)
+        if (manual) {
+          matched.push({
+            ...base,
+            latitude: manual.latitude,
+            longitude: manual.longitude,
+            clinic: manual.clinic,
+            market: null,
+            practiceTag: null,
+          })
+        } else {
+          unmatched.push(base)
+        }
       }
     }
 

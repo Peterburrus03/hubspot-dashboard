@@ -1,6 +1,7 @@
 'use client'
 
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { useEffect } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 export type AdgLocation = {
@@ -31,27 +32,40 @@ export type MapContact = {
 }
 
 const DISPOSITION_COLORS: Record<string, string> = {
-  interested: '#16a34a',
-  fairGame: '#0284c7',
-  notNow: '#d97706',
+  interested:    '#16a34a',
+  fairGame:      '#0284c7',
+  notNow:        '#d97706',
   notInterested: '#dc2626',
 }
 
 const DISPOSITION_LABELS: Record<string, string> = {
-  interested: 'Interested',
-  fairGame: 'Fair Game',
-  notNow: 'Not Now',
+  interested:    'Interested',
+  fairGame:      'Fair Game',
+  notNow:        'Not Now',
   notInterested: 'Not Interested',
+}
+
+// Child component — uses useMap() which only works inside MapContainer
+function MapController({ flyTo }: { flyTo: { lat: number; lng: number } | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (flyTo) map.flyTo([flyTo.lat, flyTo.lng], 13, { duration: 1.2 })
+  }, [flyTo, map])
+  return null
 }
 
 export default function LeafletMap({
   contacts,
   adgLocations = [],
   showAdg = true,
+  flyTo = null,
+  onContactClick,
 }: {
   contacts: MapContact[]
   adgLocations?: AdgLocation[]
   showAdg?: boolean
+  flyTo?: { lat: number; lng: number } | null
+  onContactClick?: (contact: MapContact) => void
 }) {
   return (
     <MapContainer
@@ -64,6 +78,8 @@ export default function LeafletMap({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+
+      <MapController flyTo={flyTo} />
 
       {/* ADG / AOSN locations layer */}
       {showAdg && adgLocations.map((loc, i) => (
@@ -92,6 +108,7 @@ export default function LeafletMap({
         </CircleMarker>
       ))}
 
+      {/* Prospect contacts layer */}
       {contacts.map(c => (
         <CircleMarker
           key={c.contactId}
@@ -104,8 +121,11 @@ export default function LeafletMap({
             opacity: 1,
             fillOpacity: 0.85,
           }}
+          eventHandlers={{
+            click: () => onContactClick?.(c),
+          }}
         >
-          <Popup maxWidth={240}>
+          <Popup maxWidth={220}>
             <div style={{ fontFamily: 'inherit', fontSize: 12 }}>
               <div style={{ fontWeight: 700, color: '#111827', marginBottom: 2 }}>
                 {c.tier1 && <span style={{ color: '#ca8a04' }}>★ </span>}
@@ -113,16 +133,25 @@ export default function LeafletMap({
               </div>
               <div style={{ color: '#6b7280', marginBottom: 2 }}>{c.specialty ?? '—'}</div>
               {c.clinic && <div style={{ color: '#6b7280', marginBottom: 2 }}>{c.clinic}</div>}
-              <div style={{ marginBottom: 2 }}>
+              <div style={{ marginBottom: 4 }}>
                 <span style={{ color: DISPOSITION_COLORS[c.disposition], fontWeight: 700 }}>
                   {DISPOSITION_LABELS[c.disposition]}
                 </span>
               </div>
-              {c.leadStatus && (
-                <div style={{ color: '#6b7280', marginBottom: 2 }}>Status: {c.leadStatus}</div>
-              )}
               <div style={{ color: '#9ca3af', fontSize: 11 }}>{c.ownerName}</div>
-              {c.market && <div style={{ color: '#9ca3af', fontSize: 10, marginTop: 2 }}>{c.market}</div>}
+              {onContactClick && (
+                <button
+                  onClick={() => onContactClick(c)}
+                  style={{
+                    marginTop: 8, width: '100%', padding: '4px 0',
+                    background: '#2563eb', color: 'white', border: 'none',
+                    borderRadius: 6, fontSize: 11, fontWeight: 700,
+                    cursor: 'pointer', letterSpacing: '0.05em',
+                  }}
+                >
+                  VIEW OUTREACH HISTORY
+                </button>
+              )}
             </div>
           </Popup>
         </CircleMarker>
@@ -130,4 +159,3 @@ export default function LeafletMap({
     </MapContainer>
   )
 }
-

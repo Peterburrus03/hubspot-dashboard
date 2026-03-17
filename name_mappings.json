@@ -1,0 +1,1397 @@
+[
+  {
+    "hubspotName": "David Crouch",
+    "csvName": "David T. Crouch",
+    "latitude": 35.481657,
+    "longitude": -82.526163,
+    "clinic": "Western Carolina Veterinary Surgery",
+    "city": null,
+    "state": "NC"
+  },
+  {
+    "hubspotName": "Joseph Glennon",
+    "csvName": "Joseph C. Glennon",
+    "latitude": 42.888254,
+    "longitude": -74.077438,
+    "clinic": "Veterinary Specialties Referral Center",
+    "city": null,
+    "state": "NY"
+  },
+  {
+    "hubspotName": "Paul Bookbinder",
+    "csvName": "Paul F. Bookbinder",
+    "latitude": 43.075021,
+    "longitude": -75.714633,
+    "clinic": "Upstate Veterinary Surgical Center",
+    "city": null,
+    "state": "NY"
+  },
+  {
+    "hubspotName": "Eric Hoots",
+    "csvName": "Eric A. Hoots",
+    "latitude": 47.219132,
+    "longitude": -122.53665,
+    "clinic": "Veterinary Surgical Center",
+    "city": null,
+    "state": "WA"
+  },
+  {
+    "hubspotName": "Judith Feldsien",
+    "csvName": "Judith D. Feldsien",
+    "latitude": 44.745833,
+    "longitude": -93.380566,
+    "clinic": "Synergy Veterinary Specialists PLLC",
+    "city": null,
+    "state": "MN"
+  },
+  {
+    "hubspotName": "Joshua Elliott",
+    "csvName": "Joshua M. Elliott",
+    "latitude": 45.531763,
+    "longitude": -122.553433,
+    "clinic": "Sunstone Veterinary Specialists",
+    "city": "Portland",
+    "state": "OR"
+  },
+  {
+    "hubspotName": "Dewey Carpenter",
+    "csvName": "Dewey H. Carpenter, Jr.",
+    "latitude": 26.460198,
+    "longitude": -80.124768,
+    "clinic": "Sawgrass Vetterinary Cardiology",
+    "city": "0",
+    "state": null
+  },
+  {
+    "hubspotName": "M. A. Salisbury",
+    "csvName": "M. Salisbury",
+    "latitude": 27.299307,
+    "longitude": -82.475432,
+    "clinic": "Animal Eye Care, Inc.",
+    "city": "Sarasota",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Jin Jung",
+    "csvName": "Jin W Jung",
+    "latitude": 40.719953,
+    "longitude": -74.009577,
+    "clinic": "Tribeca Veterinary Dentistry & Oral Surgery",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "James Harrison",
+    "csvName": "James W. Harrison",
+    "latitude": 40.112741,
+    "longitude": -83.086579,
+    "clinic": "Bone, Joint & Spine Clinic",
+    "city": null,
+    "state": "OH"
+  },
+  {
+    "hubspotName": "Lindsay Boozer-Holland",
+    "csvName": "Allison Lindsay Boozer-Holland",
+    "latitude": 33.96724,
+    "longitude": -84.53498,
+    "clinic": "Cobb Veterinary Internal Medicine",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Steven Petersen",
+    "csvName": "Steven W. Petersen",
+    "latitude": 45.675809,
+    "longitude": -121.54398,
+    "clinic": "Veterinary Surgery & Sports Med of the Gorge",
+    "city": "Hood River",
+    "state": "OR"
+  },
+  {
+    "hubspotName": "Alexander Werner",
+    "csvName": "Alexander Resnick",
+    "latitude": 34.154366,
+    "longitude": -118.805112,
+    "clinic": "Animal Dermatology Center",
+    "city": "Westlake Village",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Mel Milosevic",
+    "csvName": "Milivoj Milosevic",
+    "latitude": 47.622989,
+    "longitude": -122.330218,
+    "clinic": "Dermatology Center for Animals",
+    "city": "Lacey",
+    "state": "WA"
+  },
+  {
+    "hubspotName": "TERESE DEMANUELLE",
+    "csvName": "Terese De Manuelle",
+    "latitude": 45.486872,
+    "longitude": -122.773333,
+    "clinic": "NW Animal Allergy & Dermatology",
+    "city": "Beaverton",
+    "state": "OR"
+  },
+  {
+    "hubspotName": "Jessica Leeman-Goepp",
+    "csvName": "Jessica Joy Leeman-Goepp",
+    "latitude": 35.058298,
+    "longitude": -85.135922,
+    "clinic": "Wellspring Veterinary Care",
+    "city": null,
+    "state": "TN"
+  },
+  {
+    "hubspotName": "Julie Pembleton-Corbett",
+    "csvName": "Julie R. Pembleton-Corbett",
+    "latitude": 29.601644,
+    "longitude": -82.408775,
+    "clinic": "Institute of Veterinary Specialists",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "David Bostwick",
+    "csvName": "David R. Bostwick",
+    "latitude": 46.852637,
+    "longitude": -114.039148,
+    "clinic": "Missoula Veterinary Specialty Clinic",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Joyce Obradovich",
+    "csvName": "Joyce E. Obradovich",
+    "latitude": 42.348368,
+    "longitude": -83.486955,
+    "clinic": "Animal Cancer and Imaging Center",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Patricia  Luttgen",
+    "csvName": "Patricia J. Luttgen",
+    "latitude": 39.65358,
+    "longitude": -105.085358,
+    "clinic": "Neurological Center for Animals",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Curtis Dewey",
+    "csvName": "Curtis W. Dewey",
+    "latitude": 42.47804,
+    "longitude": -76.383213,
+    "clinic": "Elemental Pet Vets",
+    "city": null,
+    "state": "NY"
+  },
+  {
+    "hubspotName": "Grace Brown",
+    "csvName": "Grace K Brown",
+    "latitude": 46.980383,
+    "longitude": -91.745536,
+    "clinic": "Lake County Veterinary Clinics",
+    "city": "Two Harbors",
+    "state": "MN"
+  },
+  {
+    "hubspotName": "Joseph Impellizeri",
+    "csvName": "Joseph A. Impellizeri",
+    "latitude": 0,
+    "longitude": 0,
+    "clinic": "Veterinary Oncology Services",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Robert Baratt",
+    "csvName": "Robert M Baratt",
+    "latitude": 41.478974,
+    "longitude": -72.262313,
+    "clinic": "Salem Valley Veterinary Clinic",
+    "city": "Salem",
+    "state": "CT"
+  },
+  {
+    "hubspotName": "Steven Honzelka",
+    "csvName": "Steven R Honzelka",
+    "latitude": 43.193708,
+    "longitude": -88.121465,
+    "clinic": "Veterinary Dental Specialists of Wisconsin",
+    "city": "Germantown",
+    "state": "WI"
+  },
+  {
+    "hubspotName": "Nancy Park- Dorner",
+    "csvName": "Nancy Park-Dorner",
+    "latitude": 34.06202,
+    "longitude": -118.34232,
+    "clinic": "Integrative Ophthalmology for Pets",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Chris Carter",
+    "csvName": "Chris M. Carter",
+    "latitude": 38.235878,
+    "longitude": -122.624348,
+    "clinic": "Whiskers Animal Dentistry and Oral Surgery",
+    "city": "Petaluma",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Robert Swinger",
+    "csvName": "Rob Swinger",
+    "latitude": 28.674708,
+    "longitude": -81.341365,
+    "clinic": "Elite Veterinary Specialists",
+    "city": "Casselberry",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Melissa Guillory",
+    "csvName": "Melissa A Guillory",
+    "latitude": 45.676753,
+    "longitude": -111.187189,
+    "clinic": "Montana Pet Dentistry & Oral Surgery",
+    "city": "Bozeman",
+    "state": "MT"
+  },
+  {
+    "hubspotName": "Stephen Van Lue",
+    "csvName": "Stephen J. Van Lue",
+    "latitude": 28.70364,
+    "longitude": -81.259258,
+    "clinic": "Van Lue Veterinary Surgical, LLC",
+    "city": "Winter Springs",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "John Woolridge",
+    "csvName": "John D. Wooldridge",
+    "latitude": 45.447428,
+    "longitude": -122.641392,
+    "clinic": "Veterinary Cancer & Surgery Specialists",
+    "city": null,
+    "state": "OR"
+  },
+  {
+    "hubspotName": "Stephen Hanson",
+    "csvName": "Stephen M. Hanson",
+    "latitude": 33.706514,
+    "longitude": -117.806338,
+    "clinic": "Veterinary Neurology Center",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Kathleen Collins",
+    "csvName": "Kathleen E. Collins",
+    "latitude": 43.13946,
+    "longitude": -77.749542,
+    "clinic": "Veterinary Surgical Services, PLLC",
+    "city": null,
+    "state": "NY"
+  },
+  {
+    "hubspotName": "Claude Gendreau",
+    "csvName": "Claude L. Gendreau",
+    "latitude": 41.523397,
+    "longitude": -87.47393,
+    "clinic": "Veterinary Orthopedic Center",
+    "city": null,
+    "state": "IN"
+  },
+  {
+    "hubspotName": "Peter Trevor",
+    "csvName": "Peter B. Trevor",
+    "latitude": 37.667276,
+    "longitude": -77.679591,
+    "clinic": "Veterinary Referral and Critical Care",
+    "city": null,
+    "state": "VA"
+  },
+  {
+    "hubspotName": "Paul McCarthy",
+    "csvName": "Paul E. McCarthy",
+    "latitude": 42.119118,
+    "longitude": -72.060845,
+    "clinic": "Veterinary Specialty Center of Sturbridge",
+    "city": null,
+    "state": "MA"
+  },
+  {
+    "hubspotName": "Jay Erne",
+    "csvName": "Jay B. Erne",
+    "latitude": 29.836152,
+    "longitude": -81.321714,
+    "clinic": "Veterinary Orthopaedic and Mobility Center",
+    "city": null,
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Sharon Huston",
+    "csvName": "Sharon M. Huston",
+    "latitude": 32.758663,
+    "longitude": -117.184446,
+    "clinic": "San Diego Veterinary Cardiology",
+    "city": "0",
+    "state": null
+  },
+  {
+    "hubspotName": "Robert Prosek",
+    "csvName": "Robert Prošek Prosek",
+    "latitude": 25.475622,
+    "longitude": -80.475575,
+    "clinic": "Florida Veterinary Cardiology",
+    "city": "0",
+    "state": null
+  },
+  {
+    "hubspotName": "Julia Blackmore",
+    "csvName": "Julia A. Blackmore",
+    "latitude": 27.177233,
+    "longitude": -80.25217,
+    "clinic": "Veterinary Neurology of South Florida",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Jay McDonnell",
+    "csvName": "Jay J McDonnell",
+    "latitude": 39.478227,
+    "longitude": -76.644597,
+    "clinic": "Vet Neuro of the Chesapeake",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Fred Wininger",
+    "csvName": "Fred Alan Wininger",
+    "latitude": 38.667678,
+    "longitude": -90.441068,
+    "clinic": "3D Veterinary Printing LLC",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Eva Sikorska",
+    "csvName": "Eva K. Sikorska",
+    "latitude": 40.523284,
+    "longitude": -80.075214,
+    "clinic": "Pittsburgh Veterinary Cardiology",
+    "city": "0",
+    "state": null
+  },
+  {
+    "hubspotName": "Brian Maran",
+    "csvName": "Brian Andrew Maran",
+    "latitude": 47.881327,
+    "longitude": -122.242237,
+    "clinic": "Olympic Veterinary Cardiology",
+    "city": "0",
+    "state": null
+  },
+  {
+    "hubspotName": "Carrie Jurney",
+    "csvName": "Carrie H. Jurney",
+    "latitude": 37.772686,
+    "longitude": -122.415485,
+    "clinic": "Jurney Veterinary Neurology",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Erin Romansik",
+    "csvName": "Erin Michael Romansik",
+    "latitude": 42.522675,
+    "longitude": -71.433651,
+    "clinic": "Animal Cancer Care Specialists",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Krystal Harris",
+    "csvName": "Krystal L. Harris",
+    "latitude": 30.357435,
+    "longitude": -97.996039,
+    "clinic": "Harris Veterinary Oncology",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Alicia Webb Milum",
+    "csvName": "Alicia Milum",
+    "latitude": 36.046921,
+    "longitude": -95.905056,
+    "clinic": "Redbud Animal Dermatology and Allergy Specialist",
+    "city": "Tulsa",
+    "state": "OK"
+  },
+  {
+    "hubspotName": "Brian Beale",
+    "csvName": "Karin Beale",
+    "latitude": 29.785196,
+    "longitude": -95.481588,
+    "clinic": "Gulf Coast Veterinary Specialists",
+    "city": "Houston",
+    "state": "TX"
+  },
+  {
+    "hubspotName": "Larry Kimberlin",
+    "csvName": "Larry W Kimberlin",
+    "latitude": 33.087085,
+    "longitude": -96.109497,
+    "clinic": "Northeast Texas Veterinary Dental Center",
+    "city": "Greenville",
+    "state": "TX"
+  },
+  {
+    "hubspotName": "David Russell",
+    "csvName": "David S. Russell",
+    "latitude": 36.115404,
+    "longitude": -95.92303,
+    "clinic": "Veterinary Dental Center of Tulsa",
+    "city": "Tulsa",
+    "state": "OK"
+  },
+  {
+    "hubspotName": "Alice Sievers",
+    "csvName": "Alice M Sievers",
+    "latitude": 45.615257,
+    "longitude": -122.505238,
+    "clinic": "Pet Dental Specialists",
+    "city": "Vancouver",
+    "state": "WA"
+  },
+  {
+    "hubspotName": "Brett Beckman",
+    "csvName": "Brett W Beckman",
+    "latitude": 28.754474,
+    "longitude": -81.339118,
+    "clinic": "Orlando Veterinary Dentistry",
+    "city": "Lake Mary (Orlando)",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Heather Duncan",
+    "csvName": "Heather L Duncan",
+    "latitude": 35.133822,
+    "longitude": -80.942713,
+    "clinic": "CROWN Veterinary Dental Specialists",
+    "city": "Charlotte",
+    "state": "NC"
+  },
+  {
+    "hubspotName": "Mary Buelow",
+    "csvName": "Mary E Buelow",
+    "latitude": 39.109145,
+    "longitude": -77.540154,
+    "clinic": "Animal Dentistry & Oral Surgery, Inc.",
+    "city": "Leesburg",
+    "state": "VA"
+  },
+  {
+    "hubspotName": "Amy Fulton Scanlan",
+    "csvName": "Amy J Fulton Scanlan",
+    "latitude": 38.24073,
+    "longitude": -122.633453,
+    "clinic": "North Bay Veterinary Dentistry",
+    "city": "Petaluma",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Patrick Vall",
+    "csvName": "Patrick R Vall",
+    "latitude": 38.908247,
+    "longitude": -104.818378,
+    "clinic": "Animal Dental Care and Oral Surgery",
+    "city": "Colorado Springs",
+    "state": "CO"
+  },
+  {
+    "hubspotName": "David Hansen",
+    "csvName": "David E Hansen",
+    "latitude": 42.924838,
+    "longitude": -78.774593,
+    "clinic": "Animal Dental Center of Western New York",
+    "city": "Buffalo",
+    "state": "NY"
+  },
+  {
+    "hubspotName": "Brook Niemiec",
+    "csvName": "Brook A. Niemiec",
+    "latitude": 32.83823,
+    "longitude": -117.128744,
+    "clinic": "Southern California Veterinary Dental Specialties",
+    "city": "San Diego",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Stephen Galloway",
+    "csvName": "Stephen S. Galloway",
+    "latitude": 35.23033,
+    "longitude": -89.490548,
+    "clinic": "Animal Dental Care Specialists",
+    "city": "Somerville",
+    "state": "TN"
+  },
+  {
+    "hubspotName": "Kipp Wingo",
+    "csvName": "Kipp J Wingo",
+    "latitude": 33.799893,
+    "longitude": -112.127875,
+    "clinic": "Carefree Dental & Oral Surgery for Animals",
+    "city": "Phoenix",
+    "state": "AZ"
+  },
+  {
+    "hubspotName": "Carlos Rice",
+    "csvName": "Carlos A Rice",
+    "latitude": 39.962808,
+    "longitude": -74.894861,
+    "clinic": "Veterinary Dentistry Specialists",
+    "city": "Mt. Laurel",
+    "state": "NJ"
+  },
+  {
+    "hubspotName": "Donald Otten",
+    "csvName": "Donald R Otten",
+    "latitude": 45.405476,
+    "longitude": -122.746942,
+    "clinic": "Oregon Veterinary Dental Specialists",
+    "city": "Lake Oswego",
+    "state": "OR"
+  },
+  {
+    "hubspotName": "Glenn Brigden",
+    "csvName": "Glenn M. Brigden",
+    "latitude": 33.114513,
+    "longitude": -117.270978,
+    "clinic": "Pacific Coast Veterinary Dentistry and Oral Surgery, Inc.",
+    "city": "Carlsbad",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Elizabeth Marie Curto",
+    "csvName": "Elizabeth Curto",
+    "latitude": 36.579565,
+    "longitude": -121.817889,
+    "clinic": "Veterinary Eye Clinic Monterey Bay",
+    "city": "Monterey",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Allison Snow",
+    "csvName": "Allison L Snow",
+    "latitude": 34.321257,
+    "longitude": -84.059952,
+    "clinic": "Georgia Veterinary Dentistry & Oral Surgery",
+    "city": "CUMMING",
+    "state": "GA"
+  },
+  {
+    "hubspotName": "Amalia Zacher",
+    "csvName": "Amalia M Zacher",
+    "latitude": 37.236536,
+    "longitude": -121.800868,
+    "clinic": "Best Friends Animal Dentistry",
+    "city": "San Jose",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Scott Forney",
+    "csvName": "Scott D. Forney",
+    "latitude": 36.14394,
+    "longitude": -115.277739,
+    "clinic": "Animal Cardiology Specialists of Nevada",
+    "city": "0",
+    "state": null
+  },
+  {
+    "hubspotName": "Jim Farese",
+    "csvName": "James Farese",
+    "latitude": 37.953453,
+    "longitude": -122.548529,
+    "clinic": "North Bay Veterinary Surgical Services PO Box",
+    "city": null,
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Gideon Daniel",
+    "csvName": "Gideon N. Daniel",
+    "latitude": 28.549966,
+    "longitude": -81.492087,
+    "clinic": "Advanced Veterinary Care Orlando",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Joseph Prostredny",
+    "csvName": "Joseph M. Prostredny",
+    "latitude": 38.995978,
+    "longitude": -76.538438,
+    "clinic": "Chesapeake Veterinary Surgical Specialists",
+    "city": null,
+    "state": "MD"
+  },
+  {
+    "hubspotName": "Anita Stampley",
+    "csvName": "Anita R. Stampley",
+    "latitude": 33.951348,
+    "longitude": -83.43064,
+    "clinic": "Athens Veterinary Surgery Center",
+    "city": "Athens",
+    "state": "GA"
+  },
+  {
+    "hubspotName": "Daniel Degner",
+    "csvName": "Daniel A. Degner",
+    "latitude": 42.97471,
+    "longitude": -83.773728,
+    "clinic": "Animal Surgical Center of Michigan",
+    "city": null,
+    "state": "MI"
+  },
+  {
+    "hubspotName": "Jeffrey Mitchell",
+    "csvName": "Jeffrey W. Mitchell",
+    "latitude": 47.737,
+    "longitude": -122.312463,
+    "clinic": "Animal Surgical & Orthopedic Center",
+    "city": "Worthington",
+    "state": "WA"
+  },
+  {
+    "hubspotName": "Forrest Cummings",
+    "csvName": "Forrest O. Cummings",
+    "latitude": 38.244522,
+    "longitude": -85.563357,
+    "clinic": "Fairmount Veterinary Specialists",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "David Edinger",
+    "csvName": "David T. Edinger",
+    "latitude": 43.031731,
+    "longitude": -89.526844,
+    "clinic": "Edinger Surgical Options",
+    "city": null,
+    "state": "WI"
+  },
+  {
+    "hubspotName": "Kevin Drygas",
+    "csvName": "Kevin A. Drygas",
+    "latitude": 30.458166,
+    "longitude": -84.234843,
+    "clinic": "Capital Veterinary Specialists",
+    "city": null,
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Peter Vogel",
+    "csvName": "Peter L. Vogel",
+    "latitude": 33.853827,
+    "longitude": -117.815819,
+    "clinic": "Medical Director Animal Orthopedic Center",
+    "city": null,
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Wayne Waguespack",
+    "csvName": "Richard Wayne Waguespack",
+    "latitude": 32.565743,
+    "longitude": -84.94903,
+    "clinic": "Southeastern Veterinary Specialty Center",
+    "city": null,
+    "state": "GA"
+  },
+  {
+    "hubspotName": "Douglas Huber",
+    "csvName": "Douglas J. Huber",
+    "latitude": 33.742169,
+    "longitude": -116.305417,
+    "clinic": "Desert Veterinary Specialists",
+    "city": null,
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Ralph Millard",
+    "csvName": "Ralph P. Millard",
+    "latitude": 38.933654,
+    "longitude": -94.635073,
+    "clinic": "Phoenix Veterinary Surgical Specialists",
+    "city": null,
+    "state": "KS"
+  },
+  {
+    "hubspotName": "Lee Breshears",
+    "csvName": "Lee A. Breshears",
+    "latitude": 39.586751,
+    "longitude": -104.878163,
+    "clinic": "Spry Companions: Veterinary Orthopedic Specialists",
+    "city": null,
+    "state": "CO"
+  },
+  {
+    "hubspotName": "Mark Peterson",
+    "csvName": "Mark E Peterson",
+    "latitude": 40.794725,
+    "longitude": -73.963742,
+    "clinic": "Animal Endocrine Clinic",
+    "city": null,
+    "state": null
+  },
+  {
+    "hubspotName": "Edward Silverman",
+    "csvName": "Edward B. Silverman",
+    "latitude": 31.855966,
+    "longitude": -106.542265,
+    "clinic": "Sun City Veterinary Surgery Center",
+    "city": null,
+    "state": "TX"
+  },
+  {
+    "hubspotName": "Robert Martin",
+    "csvName": "Robert A. Martin",
+    "latitude": 31.232761,
+    "longitude": -85.435216,
+    "clinic": "Southern Regional Veterinary Specialists",
+    "city": null,
+    "state": "AL"
+  },
+  {
+    "hubspotName": "Robert Kaderly",
+    "csvName": "Robert E. Kaderly",
+    "latitude": 26.429886,
+    "longitude": -81.801395,
+    "clinic": "Specialists in Veterinary Surgery",
+    "city": null,
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Jonathan Suber",
+    "csvName": "Jonathan T. Suber",
+    "latitude": 33.991063,
+    "longitude": -80.980475,
+    "clinic": "Capital Animal Hospital",
+    "city": null,
+    "state": "SC"
+  },
+  {
+    "hubspotName": "Derek Burney",
+    "csvName": "Bernhard Mark MD (nearest match)",
+    "latitude": 32.7106,
+    "longitude": -97.4065,
+    "clinic": "Bernhard Mark MD (nearest match)",
+    "city": "Fort Worth",
+    "state": "TX"
+  },
+  {
+    "hubspotName": "Zeev Schwartz",
+    "csvName": "Veterinary Surgery Specialists",
+    "latitude": 39.7885,
+    "longitude": -74.9124,
+    "clinic": "Veterinary Surgery Specialists",
+    "city": "Berlin",
+    "state": "NJ"
+  },
+  {
+    "hubspotName": "Barbra Easton",
+    "csvName": "David and Ilene Flaum Eye Institute",
+    "latitude": 43.1227,
+    "longitude": -77.6244,
+    "clinic": "David and Ilene Flaum Eye Institute",
+    "city": "Rochester",
+    "state": "NY"
+  },
+  {
+    "hubspotName": "Stephanie Holloway",
+    "csvName": "Veterinary Dental Specialties & Oral Surgery",
+    "latitude": 30.165,
+    "longitude": -81.7135,
+    "clinic": "Veterinary Dental Specialties & Oral Surgery",
+    "city": "Orange Park",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Laura Harvey",
+    "csvName": "Luminis Health Neurology Annapolis",
+    "latitude": 38.9897,
+    "longitude": -76.5366,
+    "clinic": "Luminis Health Neurology Annapolis",
+    "city": "Annapolis",
+    "state": "MD"
+  },
+  {
+    "hubspotName": "Danielle Dugat",
+    "csvName": "Veterinary Specialty Center of Stillwater",
+    "latitude": 36.1184,
+    "longitude": -97.1172,
+    "clinic": "Veterinary Specialty Center of Stillwater",
+    "city": "Stillwater",
+    "state": "OK"
+  },
+  {
+    "hubspotName": "Corrie Barker",
+    "csvName": "Oconee Primary Care",
+    "latitude": 33.886,
+    "longitude": -83.4544,
+    "clinic": "Oconee Primary Care",
+    "city": "Watkinsville",
+    "state": "GA"
+  },
+  {
+    "hubspotName": "William Henry",
+    "csvName": "New England Baptist Outpatient Care Center",
+    "latitude": 42.2252,
+    "longitude": -71.1716,
+    "clinic": "New England Baptist Outpatient Care Center",
+    "city": "Dedham",
+    "state": "MA"
+  },
+  {
+    "hubspotName": "Matt Raske",
+    "csvName": "Hospital For Veterinary Surgery",
+    "latitude": 40.7754,
+    "longitude": -73.9847,
+    "clinic": "Hospital For Veterinary Surgery",
+    "city": "New York",
+    "state": "NY"
+  },
+  {
+    "hubspotName": "Stephen Mehler",
+    "csvName": "Main Line Health Devon",
+    "latitude": 40.0475,
+    "longitude": -75.418,
+    "clinic": "Main Line Health Devon",
+    "city": "Devon",
+    "state": "PA"
+  },
+  {
+    "hubspotName": "Dustin Devine",
+    "csvName": "New Beginnings Recovery Center (city centroid)",
+    "latitude": 39.6134,
+    "longitude": -105.0166,
+    "clinic": "New Beginnings Recovery Center (city centroid)",
+    "city": "Littleton",
+    "state": "CO"
+  },
+  {
+    "hubspotName": "Rebecca Rittenberg",
+    "csvName": "Charleston Veterinary Internal Medicine",
+    "latitude": 32.8636,
+    "longitude": -80.0155,
+    "clinic": "Charleston Veterinary Internal Medicine",
+    "city": "N Charleston",
+    "state": "SC"
+  },
+  {
+    "hubspotName": "Melissa Eisenschenk",
+    "csvName": "Pet Dermatology Clinic",
+    "latitude": 45.0702,
+    "longitude": -93.403,
+    "clinic": "Pet Dermatology Clinic",
+    "city": "Maple Grove",
+    "state": "MN"
+  },
+  {
+    "hubspotName": "Stephanie Correa",
+    "csvName": "Florida Cancer Specialists & Research Institute",
+    "latitude": 28.5305,
+    "longitude": -81.3793,
+    "clinic": "Florida Cancer Specialists & Research Institute",
+    "city": "Orlando",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Justin Harper",
+    "csvName": "My Personal Physician Boerne",
+    "latitude": 29.7814,
+    "longitude": -98.7275,
+    "clinic": "My Personal Physician Boerne",
+    "city": "Boerne",
+    "state": "TX"
+  },
+  {
+    "hubspotName": "Andrew Sams",
+    "csvName": "Sams Clinic Veterinary",
+    "latitude": 37.8953,
+    "longitude": -122.5333,
+    "clinic": "Sams Clinic Veterinary",
+    "city": "Mill Valley",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Michael Wong",
+    "csvName": "First Choice Neurology - Jupiter",
+    "latitude": 26.8915,
+    "longitude": -80.1053,
+    "clinic": "First Choice Neurology - Jupiter",
+    "city": "Jupiter",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Michelle Morgan",
+    "csvName": "UCHealth - Margaret M. Moore MD",
+    "latitude": 38.8398,
+    "longitude": -104.7994,
+    "clinic": "UCHealth - Margaret M. Moore MD",
+    "city": "Colorado Springs",
+    "state": "CO"
+  },
+  {
+    "hubspotName": "Katy Burton",
+    "csvName": "Dr. Robert Burton",
+    "latitude": 35.9056,
+    "longitude": -84.0196,
+    "clinic": "Dr. Robert Burton",
+    "city": "Knoxville",
+    "state": "TN"
+  },
+  {
+    "hubspotName": "Brian Marchione",
+    "csvName": "OcuVet",
+    "latitude": 34.0463,
+    "longitude": -118.4499,
+    "clinic": "OcuVet",
+    "city": "Los Angeles",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Tammy (White) Renteria",
+    "csvName": "Inland Northwest Veterinary Dentistry & Oral Surgery",
+    "latitude": 47.701,
+    "longitude": -116.7755,
+    "clinic": "Inland Northwest Veterinary Dentistry & Oral Surgery",
+    "city": "Coeur d'Alene",
+    "state": "ID"
+  },
+  {
+    "hubspotName": "Stanley Kim",
+    "csvName": "Shirley J Kim MD",
+    "latitude": 29.5893,
+    "longitude": -82.4383,
+    "clinic": "Shirley J Kim MD",
+    "city": "Gainesville",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Adam Moeser",
+    "csvName": "Wisconsin Veterinary Neurology & Surgical Center",
+    "latitude": 43.2215,
+    "longitude": -88.0046,
+    "clinic": "Wisconsin Veterinary Neurology & Surgical Center",
+    "city": "Mequon",
+    "state": "WI"
+  },
+  {
+    "hubspotName": "Kathryn Doerr",
+    "csvName": "Derrow Dermatology Associates",
+    "latitude": 28.6137,
+    "longitude": -81.3645,
+    "clinic": "Derrow Dermatology Associates",
+    "city": "Maitland",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Erin Ribka (Niemiec)",
+    "csvName": "Animal Hospital & Dental Clinic",
+    "latitude": 36.8118,
+    "longitude": -119.792,
+    "clinic": "Animal Hospital & Dental Clinic",
+    "city": "Fresno",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Don Beebe",
+    "csvName": "Belleview Family Dentistry",
+    "latitude": 39.6232,
+    "longitude": -104.8938,
+    "clinic": "Belleview Family Dentistry",
+    "city": "Greenwood Village",
+    "state": "CO"
+  },
+  {
+    "hubspotName": "John Kirsch",
+    "csvName": "Coastal Veterinary Surgical Specialists",
+    "latitude": 27.1322,
+    "longitude": -82.455,
+    "clinic": "Coastal Veterinary Surgical Specialists",
+    "city": "Nokomis",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Elizabeth McNiel",
+    "csvName": "El Dorado Internal & Family Medicine",
+    "latitude": 32.2294,
+    "longitude": -110.8742,
+    "clinic": "El Dorado Internal & Family Medicine",
+    "city": "Tucson",
+    "state": "AZ"
+  },
+  {
+    "hubspotName": "William Brown",
+    "csvName": "Corewell Health Beaumont - Cardiology Novi",
+    "latitude": 42.4691,
+    "longitude": -83.4364,
+    "clinic": "Corewell Health Beaumont - Cardiology Novi",
+    "city": "Novi",
+    "state": "MI"
+  },
+  {
+    "hubspotName": "Ryan Birks",
+    "csvName": "Veterinary Orthopedic Surgery Center",
+    "latitude": 38.824,
+    "longitude": -90.8599,
+    "clinic": "Veterinary Orthopedic Surgery Center",
+    "city": "Wentzville",
+    "state": "MO"
+  },
+  {
+    "hubspotName": "Kristy Broaddus",
+    "csvName": "Veterinary Specialists of Hanover",
+    "latitude": 37.6232,
+    "longitude": -77.3092,
+    "clinic": "Veterinary Specialists of Hanover",
+    "city": "Mechanicsville",
+    "state": "VA"
+  },
+  {
+    "hubspotName": "Whit Church",
+    "csvName": "Gilbert Cardiology",
+    "latitude": 33.2852,
+    "longitude": -111.7482,
+    "clinic": "Gilbert Cardiology",
+    "city": "Gilbert",
+    "state": "AZ"
+  },
+  {
+    "hubspotName": "SeungWoo Jung",
+    "csvName": "Echo Vet Cardio",
+    "latitude": 33.708,
+    "longitude": -117.8066,
+    "clinic": "Echo Vet Cardio",
+    "city": "Tustin",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Tacy Rupp",
+    "csvName": "Veterinary Cardiopulmonary Care Center",
+    "latitude": 26.228,
+    "longitude": -80.104,
+    "clinic": "Veterinary Cardiopulmonary Care Center",
+    "city": "Pompano Beach",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Jason King",
+    "csvName": "Live Oak Veterinary Neurology",
+    "latitude": 32.0118,
+    "longitude": -81.1075,
+    "clinic": "Live Oak Veterinary Neurology",
+    "city": "Savannah",
+    "state": "GA"
+  },
+  {
+    "hubspotName": "Andrew Abbo",
+    "csvName": "Veterinary Cancer Specialists of New England",
+    "latitude": 41.7469,
+    "longitude": -70.6119,
+    "clinic": "Veterinary Cancer Specialists of New England",
+    "city": "Buzzards Bay",
+    "state": "MA"
+  },
+  {
+    "hubspotName": "Anson Tsugawa",
+    "csvName": "Dog and Cat Dentist, Inc.",
+    "latitude": 34.1718,
+    "longitude": -118.5704,
+    "clinic": "Dog and Cat Dentist, Inc.",
+    "city": "Woodland Hills",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Kristin Bannon",
+    "csvName": "Veterinary Dentistry & Oral Surgery of NM",
+    "latitude": 35.1509,
+    "longitude": -106.5937,
+    "clinic": "Veterinary Dentistry & Oral Surgery of NM",
+    "city": "Albuquerque",
+    "state": "NM"
+  },
+  {
+    "hubspotName": "Jana Korsch-Dismuke",
+    "csvName": "Dr. Jana Korsch-Dismukes",
+    "latitude": 33.3559,
+    "longitude": -86.8427,
+    "clinic": "Dr. Jana Korsch-Dismukes",
+    "city": "Hoover",
+    "state": "AL"
+  },
+  {
+    "hubspotName": "Eric Davis",
+    "csvName": "Pediatric Dentistry & Family Orthodontics",
+    "latitude": 43.0424,
+    "longitude": -76.0181,
+    "clinic": "Pediatric Dentistry & Family Orthodontics",
+    "city": "Fayetteville",
+    "state": "NY"
+  },
+  {
+    "hubspotName": "Thomas Morrisison",
+    "csvName": "Thomas 'Ben' Morrison MD",
+    "latitude": 34.4208,
+    "longitude": -119.6982,
+    "clinic": "Thomas 'Ben' Morrison MD",
+    "city": "St. Louis",
+    "state": "MO"
+  },
+  {
+    "hubspotName": "Wesley Cook",
+    "csvName": "William Joel Cook MD",
+    "latitude": 32.8177,
+    "longitude": -79.8404,
+    "clinic": "William Joel Cook MD",
+    "city": "Mt Pleasant",
+    "state": "SC"
+  },
+  {
+    "hubspotName": "Michael Bauer",
+    "csvName": "Bauer Michael MD",
+    "latitude": 38.8395,
+    "longitude": -104.8255,
+    "clinic": "Bauer Michael MD",
+    "city": "Castle Rock",
+    "state": "CO"
+  },
+  {
+    "hubspotName": "Kimberly Loyd",
+    "csvName": "SSM Health DePaul Hospital",
+    "latitude": 38.7511,
+    "longitude": -90.434,
+    "clinic": "SSM Health DePaul Hospital",
+    "city": "Bridgeton",
+    "state": "MO"
+  },
+  {
+    "hubspotName": "Michaela Gruenheid",
+    "csvName": "United Vision Pet Partners",
+    "latitude": 39.9844,
+    "longitude": -75.3981,
+    "clinic": "United Vision Pet Partners",
+    "city": "Newtown Square",
+    "state": "PA"
+  },
+  {
+    "hubspotName": "Paul Berdoulay",
+    "csvName": "Paul Berdoulay DVM DACVIM",
+    "latitude": 36.8283,
+    "longitude": -76.1685,
+    "clinic": "Paul Berdoulay DVM DACVIM",
+    "city": "Virginia Beach",
+    "state": "VA"
+  },
+  {
+    "hubspotName": "Seth Bleakley",
+    "csvName": "CARE Animal Surgery Center",
+    "latitude": 33.6085,
+    "longitude": -112.2007,
+    "clinic": "CARE Animal Surgery Center",
+    "city": "Glendale",
+    "state": "AZ"
+  },
+  {
+    "hubspotName": "Douglas Kern",
+    "csvName": "Dr. Douglas Kern",
+    "latitude": 43.8582,
+    "longitude": -70.4544,
+    "clinic": "Dr. Douglas Kern",
+    "city": "Windham",
+    "state": "ME"
+  },
+  {
+    "hubspotName": "John Davies",
+    "csvName": "City centroid",
+    "latitude": 42.2737,
+    "longitude": -122.8179,
+    "clinic": "City centroid",
+    "city": "Phoenix",
+    "state": "OR"
+  },
+  {
+    "hubspotName": "Roy Barnes",
+    "csvName": "C Ryan Barnes MD",
+    "latitude": 37.6301,
+    "longitude": -77.3797,
+    "clinic": "C Ryan Barnes MD",
+    "city": "Mechanicsville",
+    "state": "VA"
+  },
+  {
+    "hubspotName": "Daniel Linden",
+    "csvName": "Baptist Primary Care - Yulee",
+    "latitude": 30.6255,
+    "longitude": -81.548,
+    "clinic": "Baptist Primary Care - Yulee",
+    "city": "Yulee",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Jason Reeder",
+    "csvName": "Northwest Primary Care - West Linn",
+    "latitude": 45.3463,
+    "longitude": -122.6537,
+    "clinic": "Northwest Primary Care - West Linn",
+    "city": "West Linn",
+    "state": "OR"
+  },
+  {
+    "hubspotName": "Callie Winders",
+    "csvName": "Blackford Vet Surgery Referral",
+    "latitude": 35.9459,
+    "longitude": -84.1214,
+    "clinic": "Blackford Vet Surgery Referral",
+    "city": "Knoxville",
+    "state": "TN"
+  },
+  {
+    "hubspotName": "Alejandro Aguirre",
+    "csvName": "Internal Medicine AZ / Geriatric Specialties of AZ",
+    "latitude": 33.4909,
+    "longitude": -111.9178,
+    "clinic": "Internal Medicine AZ / Geriatric Specialties of AZ",
+    "city": "Scottsdale",
+    "state": "AZ"
+  },
+  {
+    "hubspotName": "Danielle Rondeau",
+    "csvName": "Maine Veterinary Internal Medicine",
+    "latitude": 43.4937,
+    "longitude": -70.454,
+    "clinic": "Maine Veterinary Internal Medicine",
+    "city": "Biddeford",
+    "state": "ME"
+  },
+  {
+    "hubspotName": "Adam Ginman",
+    "csvName": "Northwest Internal Medicine",
+    "latitude": 47.7162,
+    "longitude": -116.9254,
+    "clinic": "Northwest Internal Medicine",
+    "city": "Post Falls",
+    "state": "ID"
+  },
+  {
+    "hubspotName": "Howard Fischer",
+    "csvName": "Howard Fishbein MD (nearby - Irvine)",
+    "latitude": 33.6684,
+    "longitude": -117.7645,
+    "clinic": "Howard Fishbein MD (nearby - Irvine)",
+    "city": "Irvine",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Dena Lodato",
+    "csvName": "Amy D. Lado PA-C (city centroid)",
+    "latitude": 30.005,
+    "longitude": -90.2193,
+    "clinic": "Amy D. Lado PA-C (city centroid)",
+    "city": "Metairie",
+    "state": "LA"
+  },
+  {
+    "hubspotName": "Honor Walesby",
+    "csvName": "Maryland Veterinary Surgical Services",
+    "latitude": 39.2692,
+    "longitude": -76.7327,
+    "clinic": "Maryland Veterinary Surgical Services",
+    "city": "Catonsville",
+    "state": "MD"
+  },
+  {
+    "hubspotName": "Mary Bergh",
+    "csvName": "Mary J. McCoy MD",
+    "latitude": 42.9514,
+    "longitude": -88,
+    "clinic": "Mary J. McCoy MD",
+    "city": "Greenfield",
+    "state": "WI"
+  },
+  {
+    "hubspotName": "Shane Andrews",
+    "csvName": "Christopher Ray Andrew NP",
+    "latitude": 37.0968,
+    "longitude": -113.554,
+    "clinic": "Christopher Ray Andrew NP",
+    "city": "St. George",
+    "state": "UT"
+  },
+  {
+    "hubspotName": "David Hutcheson",
+    "csvName": "Desert Hills Podiatric Associates",
+    "latitude": 32.2643,
+    "longitude": -110.8902,
+    "clinic": "Desert Hills Podiatric Associates",
+    "city": "Tucson",
+    "state": "AZ"
+  },
+  {
+    "hubspotName": "Greg Griffin",
+    "csvName": "City centroid",
+    "latitude": 38.7895,
+    "longitude": -77.1872,
+    "clinic": "City centroid",
+    "city": "Springfield",
+    "state": "VA"
+  },
+  {
+    "hubspotName": "Dale Smith",
+    "csvName": "Aaron H. Smith MD",
+    "latitude": 40.6285,
+    "longitude": -111.8346,
+    "clinic": "Aaron H. Smith MD",
+    "city": "Cottonwood Heights",
+    "state": "UT"
+  },
+  {
+    "hubspotName": "Rebecca Stevens",
+    "csvName": "Adult Primary Care - South Burlington (UVM)",
+    "latitude": 44.4534,
+    "longitude": -73.1678,
+    "clinic": "Adult Primary Care - South Burlington (UVM)",
+    "city": "South Burlington",
+    "state": "VT"
+  },
+  {
+    "hubspotName": "Emmett Atwood",
+    "csvName": "Brentwood East Family Medicine",
+    "latitude": 35.9982,
+    "longitude": -86.6896,
+    "clinic": "Brentwood East Family Medicine",
+    "city": "Brentwood",
+    "state": "TN"
+  },
+  {
+    "hubspotName": "Merrianne Burtch",
+    "csvName": "City centroid",
+    "latitude": 36.9769,
+    "longitude": -121.9019,
+    "clinic": "City centroid",
+    "city": "Aptos",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Jana Korsch - Dismukes",
+    "csvName": "Jana Korsch-Dismukes",
+    "latitude": 33.355555,
+    "longitude": -86.843068,
+    "clinic": "Dr. Jana Korsch-Dismukes",
+    "city": "Birmingham",
+    "state": "AL"
+  }
+]
