@@ -284,7 +284,7 @@ function BDStrategy({ filters }: { filters: FilterState | null }) {
       const data = await callAI({
         skill: key,
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        max_tokens: 4000,
         system: context,
         messages: [{ role: 'user', content: prompt }],
       })
