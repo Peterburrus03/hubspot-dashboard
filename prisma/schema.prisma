@@ -270,6 +270,18 @@ model DealSnapshot {
   @@map("deal_snapshots")
 }
 
+model AiFeedback {
+  id          String   @id @default(uuid())
+  skill       String   // 'topFunnel', 'closedNurture', 'engagedNDA'
+  contactName String?
+  feedback    String   @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([skill])
+  @@index([createdAt])
+  @@map("ai_feedback")
+}
+
 model CacheMetadata {
   id           String   @id @default(uuid())
   cacheKey     String   @unique

@@ -103,68 +103,172 @@ ${universeSection}
 ${touchSection}`
 }
 
+const JSON_FORMAT = `
+Return ONLY valid JSON — no markdown, no code fences, no explanation outside the JSON. Use this exact structure:
+{
+  "overview": "2-3 sentence strategic summary",
+  "recommendations": [
+    {
+      "contactName": "Full Name",
+      "specialty": "Specialty",
+      "tier": "Tier 1 or Tier 2",
+      "action": "Specific recommended next action (1-2 sentences)",
+      "channel": "Email | Peer-to-Peer | LinkedIn | FedEx | Mail | Phone | Conference",
+      "rationale": "Why this contact, why this week (2-3 sentences)",
+      "urgency": "high | medium | low"
+    }
+  ]
+}`
+
 const BD_SECTIONS = [
   {
     key: 'topFunnel',
     label: '🌱 Top of Funnel',
     sublabel: 'Getting initial responses',
     color: 'indigo',
-    prompt: `Using the addressable universe, outreach activity, and touch count data, generate a prioritized top-of-funnel BD strategy for this week. Focus on contacts who have NOT yet responded — Fair Game bucket and low-touch contacts.
-
-Include:
-1. Which specific Fair Game contacts to prioritize and why (specialty, EBITDA potential, touch count)
-2. Recommended outreach channel for each based on our channel hierarchy
-3. Re-engagement tier for contacts with 3+ touches and no response
-4. Any trigger-based opportunities
-
-Format with clear headers, a prioritized table, and specific action recommendations. Name names.`,
+    accentColor: '#4f46e5',
+    prompt: `Using the addressable universe, outreach activity, and touch count data, generate a prioritized top-of-funnel BD strategy for this week. Focus on contacts who have NOT yet responded — Fair Game bucket and low-touch contacts. Prioritize by specialty EBITDA potential and Tier. Include 6-8 specific contacts with names.
+${JSON_FORMAT}`,
   },
   {
     key: 'closedNurture',
     label: '🔄 Closed Nurture',
     sublabel: 'Re-engagement strategy',
     color: 'amber',
-    prompt: `Using the Closed Nurture deals list, generate a re-engagement strategy for this week.
-
-Include:
-1. Top 5–8 Closed Nurture deals worth a re-touch ranked by EBITDA
-2. Recommended re-engagement angle for each (market update, referral, trigger event)
-3. What NOT to do — deals too cold or over-touched
-4. Any deals to permanently remove from active pipeline
-
-Format with a prioritized table and specific copy direction per deal. Reference the AOSN BD context on re-engagement tiers.`,
+    accentColor: '#d97706',
+    prompt: `Using the Closed Nurture deals list, generate a re-engagement strategy for this week. Rank by EBITDA. For each, recommend the specific re-engagement angle (market update, referral, trigger event) and flag deals that are too cold or over-touched. Include 5-8 specific deals.
+${JSON_FORMAT}`,
   },
   {
     key: 'engagedNDA',
     label: '📋 Engaged → NDA',
     sublabel: 'Convert to signed NDA',
     color: 'emerald',
-    prompt: `Using the open deals pipeline, focus on deals in "Engaged" stage that have NOT signed an NDA. Generate a conversion strategy for this week.
-
-Include:
-1. Each Engaged deal ranked by EBITDA with a specific recommended next action
-2. Blockers or red flags to address before the NDA ask
-3. Which deals are at risk of going cold this week
-4. Suggested NDA ask approach for the top 3 deals
-
-Also flag any Pre-LOI or Data Collection deals stalling that need a push. Format with a prioritized table and direct action steps.`,
+    accentColor: '#059669',
+    prompt: `Using the open deals pipeline, focus on Engaged stage deals that have NOT signed an NDA. Rank by EBITDA. For each deal recommend the specific next action to advance to NDA. Flag deals at risk of going cold and any Pre-LOI/Data Collection deals stalling.
+${JSON_FORMAT}`,
   },
 ]
 
-const COLOR_MAP: Record<string, { border: string; badge: string; btn: string }> = {
-  indigo: { border: 'border-indigo-100', badge: 'bg-indigo-50 text-indigo-600', btn: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
-  amber:  { border: 'border-amber-100',  badge: 'bg-amber-50 text-amber-600',  btn: 'bg-amber-500 hover:bg-amber-600 text-white' },
-  emerald:{ border: 'border-emerald-100',badge: 'bg-emerald-50 text-emerald-600',btn: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
+const URGENCY_STYLES: Record<string, string> = {
+  high:   'bg-rose-50 text-rose-700 border-rose-100',
+  medium: 'bg-amber-50 text-amber-700 border-amber-100',
+  low:    'bg-gray-50 text-gray-500 border-gray-100',
+}
+const CHANNEL_STYLES: Record<string, string> = {
+  'Email':          'bg-sky-50 text-sky-700',
+  'Peer-to-Peer':   'bg-emerald-50 text-emerald-700',
+  'LinkedIn':       'bg-blue-50 text-blue-700',
+  'FedEx':          'bg-purple-50 text-purple-700',
+  'Mail':           'bg-violet-50 text-violet-700',
+  'Phone':          'bg-teal-50 text-teal-700',
+  'Conference':     'bg-orange-50 text-orange-700',
+}
+
+type Recommendation = {
+  contactName: string
+  specialty: string
+  tier: string
+  action: string
+  channel: string
+  rationale: string
+  urgency: string
+}
+type SkillResult = { overview: string; recommendations: Recommendation[] }
+
+function FeedbackBox({ skillKey, contactName }: { skillKey: string; contactName: string }) {
+  const [text, setText] = useState('')
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+
+  async function submit() {
+    if (!text.trim()) return
+    setStatus('saving')
+    await fetch('/api/ai/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skill: skillKey, contactName, feedback: text.trim() }),
+    })
+    setStatus('saved')
+    setText('')
+    setTimeout(() => setStatus('idle'), 2500)
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-100">
+      <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Feedback for model</div>
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="e.g. Already contacted this week · Wrong specialty · Great suggestion, worked"
+        className="w-full text-xs text-gray-700 placeholder-gray-300 border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
+        rows={2}
+      />
+      <button
+        onClick={submit}
+        disabled={!text.trim() || status === 'saving'}
+        className="mt-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-40
+          bg-gray-100 text-gray-600 hover:bg-gray-200"
+      >
+        {status === 'saving' ? 'Saving…' : status === 'saved' ? '✓ Saved' : 'Submit Feedback'}
+      </button>
+    </div>
+  )
+}
+
+function RecommendationCard({ rec, skillKey, accentColor }: { rec: Recommendation; skillKey: string; accentColor: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const channelStyle = CHANNEL_STYLES[rec.channel] ?? 'bg-gray-50 text-gray-600'
+  const urgencyStyle = URGENCY_STYLES[rec.urgency] ?? URGENCY_STYLES.low
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-2">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-sm font-black text-gray-900">{rec.contactName}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
+            {rec.specialty}{rec.tier ? ` · ${rec.tier}` : ''}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${urgencyStyle}`}>
+            {rec.urgency}
+          </span>
+        </div>
+      </div>
+
+      {/* Action */}
+      <div className="flex items-start gap-2">
+        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md flex-shrink-0 ${channelStyle}`}>
+          {rec.channel}
+        </span>
+        <p className="text-xs text-gray-700 leading-relaxed">{rec.action}</p>
+      </div>
+
+      {/* Rationale — expandable */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors"
+      >
+        {expanded ? '▲ Hide rationale' : '▼ Why this contact?'}
+      </button>
+      {expanded && (
+        <p className="text-xs text-gray-500 leading-relaxed bg-gray-50 rounded-lg p-2">{rec.rationale}</p>
+      )}
+
+      <FeedbackBox skillKey={skillKey} contactName={rec.contactName} />
+    </div>
+  )
 }
 
 function BDStrategy({ filters }: { filters: FilterState | null }) {
-  const [content, setContent] = useState<Record<string, string>>({})
+  const [results, setResults] = useState<Record<string, SkillResult>>({})
+  const [rawErrors, setRawErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [ctx, setCtx] = useState<string | null>(null)
   const [ctxFilters, setCtxFilters] = useState<FilterState | null>(null)
 
   const getCtx = async () => {
-    // Invalidate cached context if filters changed
     if (ctx && JSON.stringify(ctxFilters) === JSON.stringify(filters)) return ctx
     const c = await buildContext(filters)
     setCtx(c)
@@ -174,12 +278,27 @@ function BDStrategy({ filters }: { filters: FilterState | null }) {
 
   const generate = async (key: string, prompt: string) => {
     setLoading(l => ({ ...l, [key]: true }))
+    setRawErrors(e => ({ ...e, [key]: '' }))
     try {
       const context = await getCtx()
-      const data = await callAI({ model: 'claude-sonnet-4-6', max_tokens: 1500, system: context, messages: [{ role: 'user', content: prompt }] })
-      setContent(c => ({ ...c, [key]: data.content?.find((b: any) => b.type === 'text')?.text || 'No response.' }))
+      const data = await callAI({
+        skill: key,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        system: context,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      const text = data.content?.find((b: any) => b.type === 'text')?.text ?? ''
+      try {
+        // Strip any accidental markdown fences
+        const clean = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
+        const parsed: SkillResult = JSON.parse(clean)
+        setResults(r => ({ ...r, [key]: parsed }))
+      } catch {
+        setRawErrors(e => ({ ...e, [key]: text }))
+      }
     } catch {
-      setContent(c => ({ ...c, [key]: 'Error generating. Please try again.' }))
+      setRawErrors(e => ({ ...e, [key]: 'Error generating. Please try again.' }))
     }
     setLoading(l => ({ ...l, [key]: false }))
   }
@@ -191,21 +310,26 @@ function BDStrategy({ filters }: { filters: FilterState | null }) {
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
           <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">BD Strategy</h3>
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-0.5">AI-generated · live pipeline & universe context</p>
+          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-0.5">
+            AI-generated · live pipeline context · feedback loop active
+          </p>
         </div>
         <button
           onClick={() => BD_SECTIONS.forEach(s => generate(s.key, s.prompt))}
           disabled={anyLoading}
-          className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 font-medium">
+          className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 font-medium"
+        >
           {anyLoading ? '⏳ Generating…' : '✦ Generate All'}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
         {BD_SECTIONS.map(s => {
-          const c = COLOR_MAP[s.color]
+          const result = results[s.key]
+          const error = rawErrors[s.key]
           return (
             <div key={s.key} className="flex flex-col">
+              {/* Section header */}
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div>
                   <div className="text-sm font-black text-gray-900">{s.label}</div>
@@ -214,36 +338,54 @@ function BDStrategy({ filters }: { filters: FilterState | null }) {
                 <button
                   onClick={() => generate(s.key, s.prompt)}
                   disabled={loading[s.key]}
-                  className={`text-xs px-3 py-1 rounded-lg font-bold disabled:opacity-50 ${c.btn}`}>
+                  className="text-xs px-3 py-1 rounded-lg font-bold disabled:opacity-50 text-white"
+                  style={{ backgroundColor: s.accentColor }}
+                >
                   {loading[s.key] ? '⏳' : 'Generate'}
                 </button>
               </div>
-              <div className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: 560 }}>
+
+              {/* Content */}
+              <div className="p-4 flex-1 overflow-y-auto space-y-3" style={{ maxHeight: 640 }}>
                 {loading[s.key] && (
-                  <div className="space-y-2 pt-2">
-                    {[100, 85, 95, 70, 90, 80].map((w, i) => (
-                      <div key={i} className="h-2.5 bg-gray-100 rounded animate-pulse" style={{ width: `${w}%` }} />
+                  <div className="space-y-3 pt-2">
+                    {[1,2,3].map(i => (
+                      <div key={i} className="border border-gray-100 rounded-xl p-4 space-y-2 animate-pulse">
+                        <div className="h-3 bg-gray-100 rounded w-1/2" />
+                        <div className="h-2.5 bg-gray-100 rounded w-3/4" />
+                        <div className="h-2.5 bg-gray-100 rounded w-full" />
+                      </div>
                     ))}
                   </div>
                 )}
-                {!loading[s.key] && !content[s.key] && (
+
+                {!loading[s.key] && !result && !error && (
                   <p className="text-xs text-gray-400 text-center pt-10">Click Generate to build this section</p>
                 )}
-                {!loading[s.key] && content[s.key] && (
-                  <div className="prose prose-sm max-w-none text-gray-800
-                    [&_h1]:text-gray-900 [&_h1]:font-black [&_h1]:text-sm [&_h1]:mt-3 [&_h1]:mb-1
-                    [&_h2]:text-gray-800 [&_h2]:font-bold [&_h2]:text-sm [&_h2]:mt-3 [&_h2]:mb-1 [&_h2]:border-b [&_h2]:border-gray-100 [&_h2]:pb-1
-                    [&_h3]:text-gray-700 [&_h3]:font-semibold [&_h3]:text-xs [&_h3]:mt-2 [&_h3]:mb-1
-                    [&_p]:text-gray-700 [&_p]:text-xs [&_p]:leading-relaxed [&_p]:my-1
-                    [&_strong]:text-gray-900 [&_strong]:font-bold
-                    [&_ul]:text-gray-700 [&_ul]:text-xs [&_ul]:my-1 [&_ul]:pl-4
-                    [&_ol]:text-gray-700 [&_ol]:text-xs [&_ol]:my-1 [&_ol]:pl-4
-                    [&_li]:my-0.5
-                    [&_hr]:border-gray-100 [&_hr]:my-2
-                    [&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_table]:my-2
-                    [&_th]:text-left [&_th]:text-gray-500 [&_th]:font-semibold [&_th]:px-2 [&_th]:py-1 [&_th]:border-b [&_th]:border-gray-200
-                    [&_td]:px-2 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-gray-100 [&_td]:align-top">
-                    <ReactMarkdown>{content[s.key]}</ReactMarkdown>
+
+                {/* Structured cards */}
+                {!loading[s.key] && result && (
+                  <>
+                    {result.overview && (
+                      <p className="text-xs text-gray-600 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        {result.overview}
+                      </p>
+                    )}
+                    {result.recommendations?.map((rec, i) => (
+                      <RecommendationCard
+                        key={i}
+                        rec={rec}
+                        skillKey={s.key}
+                        accentColor={s.accentColor}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {/* Fallback if JSON parsing failed */}
+                {!loading[s.key] && error && (
+                  <div className="prose prose-sm max-w-none text-gray-800 text-xs">
+                    <ReactMarkdown>{error}</ReactMarkdown>
                   </div>
                 )}
               </div>
