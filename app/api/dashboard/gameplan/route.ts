@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
 
     const [latestEngagements, engagementCounts] = await Promise.all([
       prisma.engagement.findMany({
-        where: { contactId: { in: allColumnIds } },
+        where: { contactId: { in: allColumnIds }, timestamp: { lte: new Date() } },
         orderBy: { timestamp: 'desc' },
         distinct: ['contactId'],
       }),
