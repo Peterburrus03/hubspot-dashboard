@@ -111,16 +111,17 @@ function transformEngagement(
 
 async function searchEngagements(
   objectType: EngagementObjectType,
-  sinceDateMs?: number
+  sinceDateMs?: number,
+  untilDateMs?: number
 ): Promise<any[]> {
   const client = getClient()
   const properties = PROPERTIES_MAP[objectType]
   const allResults: any[] = []
 
-  const filterGroups =
-    sinceDateMs
-      ? [{ filters: [{ propertyName: 'hs_timestamp', operator: 'GTE', value: String(sinceDateMs) }] }]
-      : []
+  const filters: any[] = []
+  if (sinceDateMs) filters.push({ propertyName: 'hs_timestamp', operator: 'GTE', value: String(sinceDateMs) })
+  if (untilDateMs) filters.push({ propertyName: 'hs_timestamp', operator: 'LT', value: String(untilDateMs) })
+  const filterGroups = filters.length > 0 ? [{ filters }] : []
 
   let after: string | undefined
 
@@ -155,8 +156,10 @@ async function fetchContactAssociations(
   ids: string[]
 ): Promise<Map<string, string>> {
   const client = getClient()
-  const map = new Map<string, string>()
   const batchSize = 100
+
+  // Collect all raw associations first
+  const rawAssociations = new Map<string, string[]>() // engagementId → [contactId, ...]
 
   for (let i = 0; i < ids.length; i += batchSize) {
     const batch = ids.slice(i, i + batchSize)
@@ -173,13 +176,31 @@ async function fetchContactAssociations(
 
       for (const result of data.results || []) {
         if (result.to?.length > 0) {
-          map.set(String(result.from.id), String(result.to[0].toObjectId))
+          rawAssociations.set(
+            String(result.from.id),
+            result.to.map((t: any) => String(t.toObjectId))
+          )
         }
       }
     } catch (err: any) {
       if (err?.status === 404) continue
       console.error(`Association fetch error for ${objectType}:`, err?.message)
     }
+  }
+
+  // Collect all unique candidate contactIds and check which exist in our DB
+  const allCandidateIds = Array.from(new Set(Array.from(rawAssociations.values()).flat()))
+  const knownContacts = await prisma.contact.findMany({
+    where: { contactId: { in: allCandidateIds } },
+    select: { contactId: true },
+  })
+  const knownContactIds = new Set(knownContacts.map((c) => c.contactId))
+
+  // For each engagement, prefer a contact that exists in our DB over to[0]
+  const map = new Map<string, string>()
+  for (const [engagementId, candidates] of rawAssociations) {
+    const preferred = candidates.find((id) => knownContactIds.has(id))
+    map.set(engagementId, preferred ?? candidates[0])
   }
 
   return map
@@ -242,30 +263,43 @@ async function upsertEngagements(records: EngagementRecord[]): Promise<void> {
 
 export async function syncEngagementType(
   objectType: EngagementObjectType,
-  sinceDateMs?: number
+  sinceDateMs?: number,
+  windowDays = 90
 ): Promise<number> {
-  console.log(`Syncing ${objectType}${sinceDateMs ? ` since ${new Date(sinceDateMs).toISOString()}` : ' (all)'}…`)
+  const now = Date.now()
+  const start = sinceDateMs ?? now - windowDays * 24 * 60 * 60 * 1000
 
-  const items = await searchEngagements(objectType, sinceDateMs)
-  if (items.length === 0) return 0
+  // Break into 90-day windows to stay under HubSpot's search pagination cap
+  const MS_PER_WINDOW = windowDays * 24 * 60 * 60 * 1000
+  const windows: Array<{ from: number; to: number }> = []
+  for (let from = start; from < now; from += MS_PER_WINDOW) {
+    windows.push({ from, to: Math.min(from + MS_PER_WINDOW, now) })
+  }
 
-  const ids = items.map((i) => String(i.id))
-  const assocMap = await fetchContactAssociations(objectType, ids)
+  let total = 0
+  for (const { from, to } of windows) {
+    console.log(`Syncing ${objectType} ${new Date(from).toISOString()} → ${new Date(to).toISOString()}…`)
+    const items = await searchEngagements(objectType, from, to)
+    if (items.length === 0) continue
 
-  const records = items.map((item) =>
-    transformEngagement(item, objectType, assocMap.get(String(item.id)))
-  )
-
-  await upsertEngagements(records)
+    const ids = items.map((i) => String(i.id))
+    const assocMap = await fetchContactAssociations(objectType, ids)
+    const records = items.map((item) =>
+      transformEngagement(item, objectType, assocMap.get(String(item.id)))
+    )
+    await upsertEngagements(records)
+    total += records.length
+    console.log(`  → ${records.length} ${objectType} (window total: ${total})`)
+  }
 
   await prisma.cacheMetadata.upsert({
     where: { cacheKey: `engagements_${objectType}` },
-    update: { lastRefresh: new Date(), recordCount: records.length, status: 'success', errorMessage: null },
-    create: { cacheKey: `engagements_${objectType}`, lastRefresh: new Date(), recordCount: records.length, status: 'success' },
+    update: { lastRefresh: new Date(), recordCount: total, status: 'success', errorMessage: null },
+    create: { cacheKey: `engagements_${objectType}`, lastRefresh: new Date(), recordCount: total, status: 'success' },
   })
 
-  console.log(`Synced ${records.length} ${objectType}`)
-  return records.length
+  console.log(`Synced ${total} ${objectType} total`)
+  return total
 }
 
 export async function syncAllEngagements(sinceDateMs?: number): Promise<Record<string, number>> {

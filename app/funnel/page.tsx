@@ -583,6 +583,21 @@ export default function FunnelPage() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<any>(null)
   const [selectedContact, setSelectedContact] = useState<UniverseContact | null>(null)
+  const [colSort, setColSort] = useState<Record<'staleTier1s' | 'openLeads' | 'closedNurture', 'asc' | 'desc'>>({
+    staleTier1s: 'asc', openLeads: 'asc', closedNurture: 'asc',
+  })
+
+  const sortedList = (list: any[], dir: 'asc' | 'desc') =>
+    [...list].sort((a, b) => {
+      if (!a.lastActivity && !b.lastActivity) return 0
+      if (!a.lastActivity) return dir === 'asc' ? -1 : 1
+      if (!b.lastActivity) return dir === 'asc' ? 1 : -1
+      const diff = new Date(a.lastActivity).getTime() - new Date(b.lastActivity).getTime()
+      return dir === 'asc' ? diff : -diff
+    })
+
+  const toggleSort = (col: 'staleTier1s' | 'openLeads' | 'closedNurture') =>
+    setColSort(prev => ({ ...prev, [col]: prev[col] === 'asc' ? 'desc' : 'asc' }))
 
   const fetchData = useCallback(async (f: FilterState) => {
     setLoading(true)
@@ -682,60 +697,190 @@ export default function FunnelPage() {
             </div>
           </section>
 
-          {/* Stale Tier 1 + Action Triggers side by side */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          {/* Tier 1 recency columns */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
-          {/* Stale Tier 1 Targets */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-3 px-1">
-              <div className="p-2 bg-rose-100 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-rose-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Stale Tier 1 Targets</h3>
-                <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">No outreach in over 4 weeks</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {data.staleTier1s.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
-                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">All Tier 1 Targets are up to date!</p>
-                </div>
-              ) : data.staleTier1s.map((c: any) => (
-                <button
-                  key={c.contactId}
-                  onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
-                  className="w-full bg-white border-2 border-rose-50 rounded-xl p-4 shadow-sm hover:border-rose-200 hover:shadow-md transition-all flex items-center justify-between text-left cursor-pointer"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center flex-shrink-0">
-                      <User className="w-5 h-5 text-rose-400" />
+          {/* Open Deal Tier 1 */}
+          {(() => {
+            const col = 'staleTier1s'
+            const dir = colSort[col]
+            const list = sortedList(data.staleTier1s, dir)
+            return (
+              <section className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-rose-100 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-rose-600" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900">{c.name}</h4>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
-                          <User className="w-3 h-3" />{c.ownerName}
-                        </span>
-                        {c.specialty && (
-                          <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>
-                        )}
-                        {c.status && (
-                          <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>
-                        )}
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-rose-400 uppercase">
-                          <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Open Deal</h3>
+                        <span className="text-xs font-black text-rose-500 bg-rose-50 rounded-full px-2 py-0.5">{list.length}</span>
                       </div>
+                      <button onClick={() => toggleSort(col)} className="flex items-center gap-1 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-700">
+                        {dir === 'asc' ? <><ChevronUp className="w-3 h-3" />Oldest First</> : <><ChevronDown className="w-3 h-3" />Newest First</>}
+                      </button>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                </button>
-              ))}
-            </div>
-          </section>
+                </div>
+                <div className="space-y-3">
+                  {list.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
+                      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">All clear!</p>
+                    </div>
+                  ) : list.map((c: any) => (
+                    <button
+                      key={c.contactId}
+                      onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                      className={`relative w-full bg-white border-2 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between text-left cursor-pointer ${c.tier1 ? 'border-amber-300 bg-amber-50/40' : 'border-rose-50 hover:border-rose-200'}`}
+                    >
+                      <span className="absolute top-3 right-3 text-[10px] font-black text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{c.outreachCount}</span>
+                      <div className="flex items-center gap-4 pr-8">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${c.tier1 ? 'bg-amber-100' : 'bg-rose-50'}`}>
+                          <User className={`w-5 h-5 ${c.tier1 ? 'text-amber-500' : 'text-rose-400'}`} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900">{c.name}</h4>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
+                              <User className="w-3 h-3" />{c.ownerName}
+                            </span>
+                            {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
+                            {c.status && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>}
+                            {c.dealStatus && <span className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-bold">{c.dealStatus}</span>}
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-rose-400 uppercase">
+                              <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )
+          })()}
 
-          {/* Action Triggers */}
+          {/* Open Lead */}
+          {(() => {
+            const col = 'openLeads'
+            const dir = colSort[col]
+            const list = sortedList(data.openLeads, dir)
+            return (
+              <section className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-sky-100 rounded-lg">
+                      <User className="w-5 h-5 text-sky-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Initial Outreach</h3>
+                        <span className="text-xs font-black text-sky-500 bg-sky-50 rounded-full px-2 py-0.5">{list.length}</span>
+                      </div>
+                      <button onClick={() => toggleSort(col)} className="flex items-center gap-1 text-[10px] font-black text-sky-500 uppercase tracking-widest hover:text-sky-700">
+                        {dir === 'asc' ? <><ChevronUp className="w-3 h-3" />Oldest First</> : <><ChevronDown className="w-3 h-3" />Newest First</>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {list.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
+                      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No open leads.</p>
+                    </div>
+                  ) : list.map((c: any) => (
+                    <button
+                      key={c.contactId}
+                      onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                      className={`relative w-full bg-white border-2 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between text-left cursor-pointer ${c.tier1 ? 'border-amber-300 bg-amber-50/40' : 'border-sky-50 hover:border-sky-200'}`}
+                    >
+                      <span className="absolute top-3 right-3 text-[10px] font-black text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{c.outreachCount}</span>
+                      <div className="flex items-center gap-4 pr-8">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${c.tier1 ? 'bg-amber-100' : 'bg-sky-50'}`}>
+                          <User className={`w-5 h-5 ${c.tier1 ? 'text-amber-500' : 'text-sky-400'}`} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900">{c.name}</h4>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
+                              <User className="w-3 h-3" />{c.ownerName}
+                            </span>
+                            {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
+                            {c.status && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>}
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-sky-400 uppercase">
+                              <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )
+          })()}
+
+          {/* Closed & Nurture */}
+          {(() => {
+            const col = 'closedNurture'
+            const dir = colSort[col]
+            const list = sortedList(data.closedNurture, dir)
+            return (
+              <section className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-100 rounded-lg">
+                      <Clock className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Closed & Nurture</h3>
+                        <span className="text-xs font-black text-emerald-500 bg-emerald-50 rounded-full px-2 py-0.5">{list.length}</span>
+                      </div>
+                      <button onClick={() => toggleSort(col)} className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-700">
+                        {dir === 'asc' ? <><ChevronUp className="w-3 h-3" />Oldest First</> : <><ChevronDown className="w-3 h-3" />Newest First</>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {list.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
+                      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No contacts in nurture.</p>
+                    </div>
+                  ) : list.map((c: any) => (
+                    <button
+                      key={c.contactId}
+                      onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                      className={`relative w-full bg-white border-2 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between text-left cursor-pointer ${c.tier1 ? 'border-amber-300 bg-amber-50/40' : 'border-emerald-50 hover:border-emerald-200'}`}
+                    >
+                      <span className="absolute top-3 right-3 text-[10px] font-black text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{c.outreachCount}</span>
+                      <div className="flex items-center gap-4 pr-8">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${c.tier1 ? 'bg-amber-100' : 'bg-emerald-50'}`}>
+                          <User className={`w-5 h-5 ${c.tier1 ? 'text-amber-500' : 'text-emerald-400'}`} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900">{c.name}</h4>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
+                              <User className="w-3 h-3" />{c.ownerName}
+                            </span>
+                            {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 uppercase">
+                              <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )
+          })()}
+
+          {/* Action Triggers — commented out, preserved for future use
           <section className="space-y-4">
             <div className="flex items-center gap-3 px-1">
               <div className="p-2 bg-amber-100 rounded-lg">
@@ -746,48 +891,11 @@ export default function FunnelPage() {
                 <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Follow up on recent gifts/events</p>
               </div>
             </div>
-            <div className="space-y-3">
-              {data.actionableTriggers.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
-                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No recent follow-up triggers detected.</p>
-                </div>
-              ) : data.actionableTriggers.map((t: any, i: number) => {
-                const covered = !!t.coveredByTask
-                return (
-                  <div key={i} className={`bg-white border rounded-xl p-4 shadow-sm transition-all ${covered ? 'border-emerald-100 opacity-60' : 'border-gray-200 hover:shadow-md'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase rounded-full">{t.trigger}</span>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">{t.activityType}</span>
-                        {covered && (
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-full">
-                            Task due {format(new Date(t.coveredByTask.dueDate), 'MMM d')}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] font-black text-gray-900 uppercase">{format(new Date(t.timestamp), 'MMM d')}</span>
-                    </div>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h4 className="font-bold text-gray-900">{t.contactName}</h4>
-                        {t.body && <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{stripHtml(t.body)}</p>}
-                      </div>
-                      {!covered && (
-                        <button
-                          onClick={() => setSelectedContact({ contactId: t.contactId, name: t.contactName, specialty: null, ownerName: t.ownerName })}
-                          className="mt-1 shrink-0 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            ...
           </section>
+          */}
 
-          </div>{/* end 2-col grid */}
+          </div>{/* end 3-col grid */}
         </div>
       )}
     </div>

@@ -38,6 +38,16 @@ export async function GET(request: NextRequest) {
       dealContactIdExclude = matchingContacts.map(c => c.contactId).filter(Boolean) as string[]
     }
 
+    // Always exclude contacts whose actual deal stage is terminally closed
+    const TERMINAL_DEAL_STAGES = ['Closed Won', 'Closed Lost', 'Closed LOST', 'Closed PASS']
+    const closedDealRows = await prisma.deal.findMany({
+      where: { stage: { in: TERMINAL_DEAL_STAGES } },
+      select: { contactId: true },
+    })
+    const closedDealContactIds = Array.from(new Set(
+      closedDealRows.map(d => d.contactId).filter(Boolean) as string[]
+    ))
+
     const baseWhere: any = {
       ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
       ...(tier1Only ? { tier1: true } : {}),
@@ -50,31 +60,74 @@ export async function GET(request: NextRequest) {
       ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
     }
 
-    const tier1Contacts = await prisma.contact.findMany({
-      where: { ...baseWhere, tier1: true }
-    })
+    // Base where without lead status restriction — used for fixed status columns
+    const columnExcludeIds = Array.from(new Set([
+      ...(dealContactIdExclude ?? []),
+      ...closedDealContactIds,
+    ]))
+    const baseWhereNoStatus: any = {
+      ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
+      ...(specialties.length > 0 ? { specialty: { in: specialties } } : {}),
+      professionalStatus: 'Owner',
+      ...companyTypeFilter,
+      ...locationWhere,
+      ...(columnExcludeIds.length > 0 ? { NOT: { contactId: { in: columnExcludeIds } } } : {}),
+      ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
+    }
 
+    const HIDDEN_STATUSES = ['UNSUBSCRIBED', 'UNQUALIFIED', 'Disqualified']
+    const OPEN_LEAD_STATUSES = ['OPEN', 'NEW', 'CONNECTED']
+    const CLOSED_NURTURE_STATUSES = ['Closed and Nurturing']
 
     const owners = await prisma.owner.findMany()
     const ownerMap = new Map(owners.map(o => [o.ownerId, `${o.firstName} ${o.lastName}`]))
 
-    const contactIds = tier1Contacts.map(c => c.contactId)
-    const latestEngagements = await prisma.engagement.findMany({
-      where: { contactId: { in: contactIds } },
-      orderBy: { timestamp: 'desc' },
-      distinct: ['contactId']
-    })
+    // Fetch each column's contacts independently so status columns always show all contacts
+    const [tier1Contacts, openLeadContacts, closedNurtureContacts] = await Promise.all([
+      prisma.contact.findMany({
+        where: { ...baseWhereNoStatus, leadStatus: 'OPEN_DEAL' },
+      }),
+      prisma.contact.findMany({
+        where: { ...baseWhereNoStatus, leadStatus: { in: OPEN_LEAD_STATUSES } },
+      }),
+      prisma.contact.findMany({
+        where: { ...baseWhereNoStatus, leadStatus: { in: CLOSED_NURTURE_STATUSES } },
+      }),
+    ])
+
+    const allColumnIds = Array.from(new Set([
+      ...tier1Contacts.map(c => c.contactId),
+      ...openLeadContacts.map(c => c.contactId),
+      ...closedNurtureContacts.map(c => c.contactId),
+    ]))
+
+    const [latestEngagements, engagementCounts] = await Promise.all([
+      prisma.engagement.findMany({
+        where: { contactId: { in: allColumnIds } },
+        orderBy: { timestamp: 'desc' },
+        distinct: ['contactId'],
+      }),
+      prisma.engagement.groupBy({
+        by: ['contactId'],
+        where: { contactId: { in: allColumnIds } },
+        _count: { _all: true },
+      }),
+    ])
 
     const engagementMap = new Map(latestEngagements.map(e => [e.contactId, e]))
+    const countMap = new Map(engagementCounts.map(e => [e.contactId, e._count._all]))
 
-    const fourWeeksAgo = subDays(new Date(), 28)
-    const staleTier1s = tier1Contacts.map(c => {
+    const sortByLastActivity = <T extends { lastActivity?: Date }>(arr: T[]): T[] =>
+      arr.sort((a, b) => {
+        if (!a.lastActivity) return -1
+        if (!b.lastActivity) return 1
+        return a.lastActivity.getTime() - b.lastActivity.getTime()
+      })
+
+    const buildEntry = (c: any) => {
       const lastEng = engagementMap.get(c.contactId)
-      // Fall back to iPad shipment date if no engagement on record
       const ipadDate = c.ipadShipmentDate ?? c.ipadCoverShipDate ?? null
       const lastDate = lastEng?.timestamp ?? ipadDate ?? undefined
-      const isStale = !lastDate || lastDate < fourWeeksAgo
-
       return {
         contactId: c.contactId,
         name: `${c.firstName} ${c.lastName}`,
@@ -82,13 +135,15 @@ export async function GET(request: NextRequest) {
         ownerName: ownerMap.get(c.ownerId ?? '') ?? 'Unassigned',
         lastActivity: lastDate,
         status: c.leadStatus,
-        isStale
+        tier1: c.tier1 ?? false,
+        dealStatus: c.dealStatus ?? null,
+        outreachCount: (countMap.get(c.contactId) ?? 0) + (c.ipadShipmentDate ? 1 : 0) + (c.ipadCoverShipDate ? 1 : 0),
       }
-    }).filter(c => c.isStale).sort((a, b) => {
-      if (!a.lastActivity) return -1
-      if (!b.lastActivity) return 1
-      return a.lastActivity.getTime() - b.lastActivity.getTime()
-    })
+    }
+
+    const staleTier1s = sortByLastActivity(tier1Contacts.map(buildEntry))
+    const openLeads = sortByLastActivity(openLeadContacts.map(buildEntry))
+    const closedNurture = sortByLastActivity(closedNurtureContacts.map(buildEntry))
 
     const twoWeeksAgo = subDays(new Date(), 14)
     const triggerWords = ['gift', 'lunch', 'card', 'ipad', 'visit', 'dinner', 'coffee']
@@ -207,6 +262,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       staleTier1s,
+      openLeads,
+      closedNurture,
       actionableTriggers: actionableTriggers.slice(0, 20),
       universe: {
         total: allContacts.length,
