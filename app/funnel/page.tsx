@@ -35,11 +35,12 @@ function buildFilterQS(filters?: FilterState | null): string {
 
 async function buildContext(filters?: FilterState | null): Promise<string> {
   const fqs = buildFilterQS(filters)
-  const [pipelineRes, statsRes, gpRes, actRes] = await Promise.all([
+  const [pipelineRes, statsRes, gpRes, actRes, feedbackRes] = await Promise.all([
     fetch(`/api/dashboard/pipeline?isOpenOnly=false${fqs}`).then(r => r.json()).catch(() => ({})),
     fetch(`/api/dashboard/pipeline-stats?_=1${fqs}`).then(r => r.json()).catch(() => ({})),
     fetch(`/api/dashboard/gameplan?_=1${fqs}`).then(r => r.json()).catch(() => ({})),
     fetch(`/api/dashboard/activity?_=1${fqs}`).then(r => r.json()).catch(() => ({})),
+    fetch(`/api/ai/feedback`).then(r => r.json()).catch(() => ([])),
   ])
 
   const allDeals = pipelineRes.deals ?? []
@@ -89,6 +90,23 @@ ${allContacts.slice(0, 20).map(c =>
 ).join('\n')}`
   }
 
+  let feedbackSection = ''
+  const feedbackRecords: { skill: string; contactName: string | null; feedback: string; createdAt: string }[] =
+    Array.isArray(feedbackRes) ? feedbackRes : []
+  if (feedbackRecords.length > 0) {
+    const byContact: Record<string, string[]> = {}
+    for (const r of feedbackRecords) {
+      const key = r.contactName?.trim() || '(general)'
+      if (!byContact[key]) byContact[key] = []
+      byContact[key].push(r.feedback)
+    }
+    feedbackSection = `
+HUMAN FEEDBACK ON PAST RECOMMENDATIONS (incorporate this into your suggestions — avoid repeating flagged contacts, respect corrections):
+${Object.entries(byContact).map(([name, notes]) =>
+  `  ${name}:\n${notes.map(n => `    - ${n}`).join('\n')}`
+).join('\n')}`
+  }
+
   return `You are an M&A pipeline analyst and BD strategy advisor for AOSN. Today is ${new Date().toDateString()}.
 
 TARGETS: $18.9M EBITDA | 60 NDAs | 23 APAs | 1,820 outreach | NDA DEADLINE: Sep 7 (${daysToDeadline} days)
@@ -100,7 +118,8 @@ ${dealLines}
 CLOSED NURTURE DEALS (${closedNurture.length} re-engagement candidates):
 ${closedLines}
 ${universeSection}
-${touchSection}`
+${touchSection}
+${feedbackSection}`
 }
 
 const JSON_FORMAT = `

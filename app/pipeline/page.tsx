@@ -90,8 +90,8 @@ const CRM_STAGE_ORDER = [
   'Data Collection (including NDA)',
   'Pre-LOI Analysis',
   'Presented to Growth Committee',
-  'LOI Signed/Diligence',
   'LOI Extended',
+  'LOI Signed/Diligence',
   'APA Signed',
   'Closed',
 ]
