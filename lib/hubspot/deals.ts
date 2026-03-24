@@ -123,11 +123,11 @@ async function fetchDealContactAssociations(ids: string[]): Promise<Map<string, 
 function transformDeal(hubspotDeal: HubSpotDeal, stageMap: Map<string, string>, companyId?: string, contactId?: string): Deal {
   const props = hubspotDeal.properties
   const stageId = props.dealstage
-  const stageLabel = stageId ? (stageMap.get(stageId) || stageId) : undefined
+  const stageLabel = stageId ? (stageMap.get(stageId) || stageId)?.trim() : undefined
   // hs_date_entered_* is often null on manually-managed deals.
   // Fall back to milestone dates that mark when a deal likely entered its current stage,
   // then to deal createdAt as a last resort.
-  const stageLabel2 = stageId ? (stageMap.get(stageId) || stageId) : undefined
+  const stageLabel2 = stageId ? (stageMap.get(stageId) || stageId)?.trim() : undefined
   const hsDateEntered = stageId ? parseHubSpotDate(props[`hs_date_entered_${stageId}`]) : undefined
   const stageEnteredDate = hsDateEntered ?? (() => {
     switch (stageLabel2) {

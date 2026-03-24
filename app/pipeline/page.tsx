@@ -166,7 +166,7 @@ function transformDeal(raw: any): DealItem {
     specialty: raw.specialty || '',
     dvms: raw.numDvms ?? 0,
     ebitda: Math.round(raw.ebitda ?? raw.revenue ?? 0),  // already in $K
-    crmStage: raw.stage || 'Engaged',
+    crmStage: (raw.stage || 'Engaged').trim(),
     stageEnteredDate: raw.stageEnteredDate ? new Date(raw.stageEnteredDate).toISOString().split('T')[0] : '',
     prob: raw.probability ?? 0.1,  // already 0–1
     nextSteps: raw.nextStep || '',

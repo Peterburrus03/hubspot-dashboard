@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { subDays } from 'date-fns'
+import { subDays, subMonths } from 'date-fns'
 
 const CANADIAN_PROVINCES = ['AB', 'ON', 'NB', 'MB', 'BC', 'QC', 'SK', 'PE', 'NL', 'NS',
                              'ab', 'on', 'nb', 'mb', 'bc', 'qc', 'sk', 'pe', 'nl', 'ns']
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const locationFilter = searchParams.get('locationFilter') ?? 'all'
 
     const includeRemoved = searchParams.get('includeRemoved') !== 'false'
+    const sixMonthsAgo = subMonths(new Date(), 6)
 
     // Company type filter — now on the Contact object directly
     const companyTypeFilter = companyTypes.length > 0 ? { practiceType: { in: companyTypes } } : {}
@@ -143,7 +144,17 @@ export async function GET(request: NextRequest) {
 
     const staleTier1s = sortByLastActivity(tier1Contacts.map(buildEntry))
     const openLeads = sortByLastActivity(openLeadContacts.map(buildEntry))
-    const closedNurture = sortByLastActivity(closedNurtureContacts.map(buildEntry))
+    const closedNurture = sortByLastActivity(
+      closedNurtureContacts
+        .filter(c => {
+          const hasDisposition = c.notInterestedNowResponseDate != null || c.notInterestedAtAllResponseDate != null
+          if (!hasDisposition) return true
+          const lastEng = engagementMap.get(c.contactId)
+          const lastTouch = lastEng?.timestamp ?? c.ipadShipmentDate ?? c.ipadCoverShipDate ?? null
+          return !lastTouch || new Date(lastTouch) < sixMonthsAgo
+        })
+        .map(buildEntry)
+    )
 
     const twoWeeksAgo = subDays(new Date(), 14)
     const triggerWords = ['gift', 'lunch', 'card', 'ipad', 'visit', 'dinner', 'coffee']
