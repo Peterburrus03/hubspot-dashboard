@@ -652,9 +652,20 @@ export default function FunnelPage() {
       {selectedContact && <ContactModal contact={selectedContact} onClose={() => setSelectedContact(null)} />}
 
       {/* Header */}
-      <div>
-        <h2 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">BD Game Plan</h2>
-        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-1">Strategic Priorities & Follow-up Triggers</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">BD Game Plan</h2>
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-1">Strategic Priorities & Follow-up Triggers</p>
+        </div>
+        {filters && (
+          <a
+            href={`/api/export/gameplan${buildFilterQS(filters).replace(/^&/, '?')}`}
+            download
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors"
+          >
+            ↓ Export Excel
+          </a>
+        )}
       </div>
 
       <FilterBar onFilterChange={setFilters} showDateFilter={false} />
