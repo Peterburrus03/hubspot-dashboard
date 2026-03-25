@@ -87,38 +87,56 @@ export async function GET(request: NextRequest) {
 
     const allIds = labelledContacts.map(({ contact }) => contact.contactId)
 
-    // Fetch per-contact, per-type engagement counts in one query
-    const engagementCounts = await prisma.engagement.groupBy({
-      by: ['contactId', 'type'],
-      where: { contactId: { in: allIds } },
-      _count: { _all: true },
-    })
+    const START_OF_2026 = new Date('2026-01-01T00:00:00.000Z')
 
-    // Fetch latest engagement per contact for last activity date
-    const latestEngagements = await prisma.engagement.findMany({
-      where: { contactId: { in: allIds }, timestamp: { lte: new Date() } },
-      orderBy: { timestamp: 'desc' },
-      distinct: ['contactId'],
-      select: { contactId: true, timestamp: true },
-    })
+    // Fetch per-contact, per-type counts split by pre/post 2026 + latest activity, in parallel
+    const [pre2026Counts, ytdCounts, latestEngagements] = await Promise.all([
+      prisma.engagement.groupBy({
+        by: ['contactId', 'type'],
+        where: { contactId: { in: allIds }, timestamp: { lt: START_OF_2026 } },
+        _count: { _all: true },
+      }),
+      prisma.engagement.groupBy({
+        by: ['contactId', 'type'],
+        where: { contactId: { in: allIds }, timestamp: { gte: START_OF_2026 } },
+        _count: { _all: true },
+      }),
+      prisma.engagement.findMany({
+        where: { contactId: { in: allIds }, timestamp: { lte: new Date() } },
+        orderBy: { timestamp: 'desc' },
+        distinct: ['contactId'],
+        select: { contactId: true, timestamp: true },
+      }),
+    ])
     const lastActivityMap = new Map(latestEngagements.map(e => [e.contactId, e.timestamp]))
 
-    // Build a nested map: contactId -> type -> count
-    const countByContactType = new Map<string, Record<string, number>>()
-    for (const row of engagementCounts) {
-      if (!row.contactId) continue
-      if (!countByContactType.has(row.contactId)) countByContactType.set(row.contactId, {})
-      countByContactType.get(row.contactId)![row.type] = row._count._all
+    // Build nested maps: contactId -> type -> count (one per period)
+    const buildCountMap = (rows: { contactId: string | null; type: string; _count: { _all: number } }[]) => {
+      const map = new Map<string, Record<string, number>>()
+      for (const row of rows) {
+        if (!row.contactId) continue
+        if (!map.has(row.contactId)) map.set(row.contactId, {})
+        map.get(row.contactId)![row.type] = row._count._all
+      }
+      return map
     }
+    const pre2026Map = buildCountMap(pre2026Counts)
+    const ytdMap = buildCountMap(ytdCounts)
 
     const fmt = (d: Date | null | undefined) =>
       d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
 
     const rows = labelledContacts.map(({ contact: c, column }) => {
-      const typeCounts = countByContactType.get(c.contactId) ?? {}
-      const totalEngagements = Object.values(typeCounts).reduce((s, n) => s + n, 0)
+      const pre = pre2026Map.get(c.contactId) ?? {}
+      const ytd = ytdMap.get(c.contactId) ?? {}
+      const allCounts = { ...pre }
+      for (const [k, v] of Object.entries(ytd)) allCounts[k] = (allCounts[k] ?? 0) + v
+      const totalEngagements = Object.values(allCounts).reduce((s, n) => s + n, 0)
       const ipadTouch = (c.ipadShipmentDate ? 1 : 0) + (c.ipadCoverShipDate ? 1 : 0)
       const lastActivity = lastActivityMap.get(c.contactId) ?? c.ipadShipmentDate ?? c.ipadCoverShipDate ?? null
+
+      const emails = (t: Record<string, number>) =>
+        (t['EMAIL'] ?? 0) + (t['INCOMING_EMAIL'] ?? 0) + (t['AUTOMATED_EMAIL'] ?? 0)
 
       return {
         'Name': `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
@@ -133,11 +151,16 @@ export async function GET(request: NextRequest) {
         'Deal Status': c.dealStatus ?? '',
         'Last Activity': fmt(lastActivity),
         'Total Outreach': totalEngagements + ipadTouch,
-        'Emails': (typeCounts['EMAIL'] ?? 0) + (typeCounts['INCOMING_EMAIL'] ?? 0) + (typeCounts['AUTOMATED_EMAIL'] ?? 0),
-        'Calls': typeCounts['CALL'] ?? 0,
-        'Meetings': typeCounts['MEETING'] ?? 0,
-        'Notes': typeCounts['NOTE'] ?? 0,
-        'Tasks': typeCounts['TASK'] ?? 0,
+        'Emails (Pre-2026)': emails(pre),
+        'Emails (2026+)': emails(ytd),
+        'Calls (Pre-2026)': pre['CALL'] ?? 0,
+        'Calls (2026+)': ytd['CALL'] ?? 0,
+        'Meetings (Pre-2026)': pre['MEETING'] ?? 0,
+        'Meetings (2026+)': ytd['MEETING'] ?? 0,
+        'Notes (Pre-2026)': pre['NOTE'] ?? 0,
+        'Notes (2026+)': ytd['NOTE'] ?? 0,
+        'Tasks (Pre-2026)': pre['TASK'] ?? 0,
+        'Tasks (2026+)': ytd['TASK'] ?? 0,
         'iPad Shipped': c.ipadShipmentDate ? fmt(c.ipadShipmentDate) : '',
         'iPad Cover Shipped': c.ipadCoverShipDate ? fmt(c.ipadCoverShipDate) : '',
         'iPad Response': c.ipadResponse ? (c.ipadResponseType ?? 'Yes') : '',
