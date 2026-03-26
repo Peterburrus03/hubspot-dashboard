@@ -98,14 +98,22 @@ export async function GET(request: NextRequest) {
       pipelineDealRows.map(d => d.contactId).filter(Boolean) as string[]
     ))
 
+    // Open Deal column excludes both terminally-closed deals AND active pipeline contacts
+    const openDealExcludeIds = Array.from(new Set([...columnExcludeIds, ...pipelineContactIds]))
+    const baseWhereOpenDeal: any = {
+      ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
+      ...(specialties.length > 0 ? { specialty: { in: specialties } } : {}),
+      professionalStatus: 'Owner',
+      ...companyTypeFilter,
+      ...locationWhere,
+      ...(openDealExcludeIds.length > 0 ? { NOT: { contactId: { in: openDealExcludeIds } } } : {}),
+      ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
+    }
+
     // Fetch each column's contacts independently so status columns always show all contacts
     const [tier1Contacts, openLeadContacts, closedNurtureContacts] = await Promise.all([
       prisma.contact.findMany({
-        where: {
-          ...baseWhereNoStatus,
-          leadStatus: 'OPEN_DEAL',
-          ...(pipelineContactIds.length > 0 ? { NOT: { contactId: { in: pipelineContactIds } } } : {}),
-        },
+        where: { ...baseWhereOpenDeal, leadStatus: 'OPEN_DEAL' },
       }),
       prisma.contact.findMany({
         where: { ...baseWhereNoStatus, leadStatus: { in: OPEN_LEAD_STATUSES } },
