@@ -597,6 +597,154 @@ function UniverseBucket({ count, label, sublabel, colorClass, borderClass, conta
   )
 }
 
+// ─── Per-contact AI recommendation ────────────────────────────────────────────
+
+type ContactRec = { channel: string; action: string; rationale: string; urgency: string }
+
+function ContactAIRec({ contact, column }: {
+  contact: { contactId: string; name: string; specialty: string | null; ownerName: string; status: string; outreachCount: number; lastActivity?: string }
+  column: string
+}) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [rec, setRec] = useState<ContactRec | null>(null)
+  const [showRationale, setShowRationale] = useState(false)
+
+  async function generate(e: React.MouseEvent) {
+    e.stopPropagation()
+    setStatus('loading')
+    try {
+      const histData = await fetch(`/api/dashboard/contact?contactId=${contact.contactId}`).then(r => r.json())
+      const engagements: any[] = histData.engagements ?? []
+
+      const historyLines = engagements.slice(0, 20).map((e: any) => {
+        const date = new Date(e.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        const label = e.emailSubject || e.callDisposition || e.type
+        const snippet = e.body ? ` — ${e.body.replace(/<[^>]+>/g, '').trim().slice(0, 80)}` : ''
+        return `- ${date}: ${label}${snippet}`
+      }).join('\n') || 'No prior outreach on record.'
+
+      const system = `You are a BD advisor for AOSN, an M&A firm that acquires veterinary practices.
+Recommend the single best next touch point for this specific contact based on their history.
+Return ONLY valid JSON with no markdown: { "channel": "Email|Call|LinkedIn|Peer-to-Peer|FedEx|Mail|Phone|Conference", "action": "specific 1-2 sentence next step", "rationale": "2-3 sentence why now and why this channel", "urgency": "high|medium|low" }`
+
+      const userMsg = `Contact: ${contact.name}
+Specialty: ${contact.specialty ?? 'Unknown'}
+Owner: ${contact.ownerName}
+Lead Status: ${contact.status}
+Funnel Column: ${column}
+Total Touches: ${contact.outreachCount}
+Last Activity: ${contact.lastActivity ? new Date(contact.lastActivity).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never contacted'}
+
+Outreach History (most recent first):
+${historyLines}`
+
+      const data = await callAI({
+        skill: 'contactRec',
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 400,
+        system,
+        messages: [{ role: 'user', content: userMsg }],
+      })
+      const text = data.content?.find((b: any) => b.type === 'text')?.text ?? ''
+      const parsed: ContactRec = JSON.parse(text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim())
+      setRec(parsed)
+      setStatus('done')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  const urgencyStyle = { high: 'bg-rose-50 text-rose-600', medium: 'bg-amber-50 text-amber-600', low: 'bg-gray-50 text-gray-500' }
+  const channelStyle = CHANNEL_STYLES[rec?.channel ?? ''] ?? 'bg-gray-50 text-gray-600'
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-100" onClick={e => e.stopPropagation()}>
+      {status === 'idle' && (
+        <button
+          onClick={generate}
+          className="w-full text-[10px] font-black uppercase tracking-widest py-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+        >
+          ✦ Generate Next Touch
+        </button>
+      )}
+      {status === 'loading' && (
+        <p className="text-center text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse py-1.5">Generating…</p>
+      )}
+      {status === 'error' && (
+        <p className="text-center text-[10px] font-black uppercase text-red-400 py-1">Error — <button onClick={generate} className="underline">retry</button></p>
+      )}
+      {status === 'done' && rec && (
+        <div className="space-y-2">
+          <div className="flex items-start gap-2">
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md flex-shrink-0 ${channelStyle}`}>{rec.channel}</span>
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 ${urgencyStyle[rec.urgency as keyof typeof urgencyStyle] ?? urgencyStyle.low}`}>{rec.urgency}</span>
+          </div>
+          <p className="text-xs text-gray-700 leading-relaxed">{rec.action}</p>
+          <button
+            onClick={e => { e.stopPropagation(); setShowRationale(r => !r) }}
+            className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            {showRationale ? '▲ Hide' : '▼ Why?'}
+          </button>
+          {showRationale && (
+            <p className="text-xs text-gray-500 leading-relaxed bg-gray-50 rounded-lg p-2">{rec.rationale}</p>
+          )}
+          <button
+            onClick={e => { e.stopPropagation(); setRec(null); setStatus('idle') }}
+            className="text-[10px] text-gray-300 hover:text-gray-500 transition-colors"
+          >
+            ↺ Regenerate
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+type ColumnContact = {
+  contactId: string; name: string; specialty: string | null; ownerName: string
+  status: string; tier1: boolean; dealStatus: string | null; outreachCount: number; lastActivity?: string
+}
+
+function ContactCard({ c, column, accentColor, onOpen }: {
+  c: ColumnContact
+  column: string
+  accentColor: { border: string; bg: string; icon: string; text: string; avatar: string }
+  onOpen: (c: ColumnContact) => void
+}) {
+  return (
+    <div className={`relative w-full bg-white border-2 rounded-xl shadow-sm hover:shadow-md transition-all text-left ${c.tier1 ? 'border-amber-300 bg-amber-50/40' : accentColor.border}`}>
+      {/* Clickable header opens drawer */}
+      <div className="p-4 cursor-pointer" onClick={() => onOpen(c)}>
+        <span className="absolute top-3 right-3 text-[10px] font-black text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{c.outreachCount}</span>
+        <div className="flex items-center gap-4 pr-8">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${c.tier1 ? 'bg-amber-100' : accentColor.avatar}`}>
+            <User className={`w-5 h-5 ${c.tier1 ? 'text-amber-500' : accentColor.icon}`} />
+          </div>
+          <div>
+            <h4 className="font-bold text-gray-900">{c.name}</h4>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
+                <User className="w-3 h-3" />{c.ownerName}
+              </span>
+              {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
+              {c.status && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>}
+              {c.dealStatus && <span className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-bold">{c.dealStatus}</span>}
+              <span className={`flex items-center gap-1 text-[10px] font-bold uppercase ${accentColor.text}`}>
+                <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* AI recommendation sits below, non-clickable for drawer */}
+      <div className="px-4 pb-4">
+        <ContactAIRec contact={c} column={column} />
+      </div>
+    </div>
+  )
+}
+
 export default function FunnelPage() {
   const [filters, setFilters] = useState<FilterState | null>(null)
   const [loading, setLoading] = useState(false)
@@ -759,32 +907,13 @@ export default function FunnelPage() {
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">All clear!</p>
                     </div>
                   ) : list.map((c: any) => (
-                    <button
+                    <ContactCard
                       key={c.contactId}
-                      onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
-                      className={`relative w-full bg-white border-2 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between text-left cursor-pointer ${c.tier1 ? 'border-amber-300 bg-amber-50/40' : 'border-rose-50 hover:border-rose-200'}`}
-                    >
-                      <span className="absolute top-3 right-3 text-[10px] font-black text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{c.outreachCount}</span>
-                      <div className="flex items-center gap-4 pr-8">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${c.tier1 ? 'bg-amber-100' : 'bg-rose-50'}`}>
-                          <User className={`w-5 h-5 ${c.tier1 ? 'text-amber-500' : 'text-rose-400'}`} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900">{c.name}</h4>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
-                              <User className="w-3 h-3" />{c.ownerName}
-                            </span>
-                            {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
-                            {c.status && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>}
-                            {c.dealStatus && <span className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-bold">{c.dealStatus}</span>}
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-rose-400 uppercase">
-                              <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
+                      c={c}
+                      column="Open Deal"
+                      accentColor={{ border: 'border-rose-50 hover:border-rose-200', bg: '', avatar: 'bg-rose-50', icon: 'text-rose-400', text: 'text-rose-400' }}
+                      onOpen={c => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                    />
                   ))}
                 </div>
               </section>
@@ -820,31 +949,13 @@ export default function FunnelPage() {
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No open leads.</p>
                     </div>
                   ) : list.map((c: any) => (
-                    <button
+                    <ContactCard
                       key={c.contactId}
-                      onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
-                      className={`relative w-full bg-white border-2 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between text-left cursor-pointer ${c.tier1 ? 'border-amber-300 bg-amber-50/40' : 'border-sky-50 hover:border-sky-200'}`}
-                    >
-                      <span className="absolute top-3 right-3 text-[10px] font-black text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{c.outreachCount}</span>
-                      <div className="flex items-center gap-4 pr-8">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${c.tier1 ? 'bg-amber-100' : 'bg-sky-50'}`}>
-                          <User className={`w-5 h-5 ${c.tier1 ? 'text-amber-500' : 'text-sky-400'}`} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900">{c.name}</h4>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
-                              <User className="w-3 h-3" />{c.ownerName}
-                            </span>
-                            {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
-                            {c.status && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>}
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-sky-400 uppercase">
-                              <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
+                      c={c}
+                      column="Initial Outreach"
+                      accentColor={{ border: 'border-sky-50 hover:border-sky-200', bg: '', avatar: 'bg-sky-50', icon: 'text-sky-400', text: 'text-sky-400' }}
+                      onOpen={c => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                    />
                   ))}
                 </div>
               </section>
@@ -880,30 +991,13 @@ export default function FunnelPage() {
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No contacts in nurture.</p>
                     </div>
                   ) : list.map((c: any) => (
-                    <button
+                    <ContactCard
                       key={c.contactId}
-                      onClick={() => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
-                      className={`relative w-full bg-white border-2 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between text-left cursor-pointer ${c.tier1 ? 'border-amber-300 bg-amber-50/40' : 'border-emerald-50 hover:border-emerald-200'}`}
-                    >
-                      <span className="absolute top-3 right-3 text-[10px] font-black text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{c.outreachCount}</span>
-                      <div className="flex items-center gap-4 pr-8">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${c.tier1 ? 'bg-amber-100' : 'bg-emerald-50'}`}>
-                          <User className={`w-5 h-5 ${c.tier1 ? 'text-amber-500' : 'text-emerald-400'}`} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900">{c.name}</h4>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
-                              <User className="w-3 h-3" />{c.ownerName}
-                            </span>
-                            {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 uppercase">
-                              <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
+                      c={c}
+                      column="Closed & Nurture"
+                      accentColor={{ border: 'border-emerald-50 hover:border-emerald-200', bg: '', avatar: 'bg-emerald-50', icon: 'text-emerald-400', text: 'text-emerald-400' }}
+                      onOpen={c => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                    />
                   ))}
                 </div>
               </section>
