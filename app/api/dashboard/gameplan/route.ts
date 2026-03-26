@@ -79,14 +79,33 @@ export async function GET(request: NextRequest) {
     const HIDDEN_STATUSES = ['UNSUBSCRIBED', 'UNQUALIFIED', 'Disqualified']
     const OPEN_LEAD_STATUSES = ['OPEN', 'NEW', 'CONNECTED']
     const CLOSED_NURTURE_STATUSES = ['Closed and Nurturing']
+    const ACTIVE_PIPELINE_STAGES = [
+      'Data Collection (including NDA)',
+      'LOI Extended',
+      'LOI Signed/Diligence',
+      'Pre-LOI Analysis',
+    ]
 
     const owners = await prisma.owner.findMany()
     const ownerMap = new Map(owners.map(o => [o.ownerId, `${o.firstName} ${o.lastName}`]))
 
+    // Contacts with an active pipeline deal — excluded from Open Deal column
+    const pipelineDealRows = await prisma.deal.findMany({
+      where: { stage: { in: ACTIVE_PIPELINE_STAGES } },
+      select: { contactId: true },
+    })
+    const pipelineContactIds = Array.from(new Set(
+      pipelineDealRows.map(d => d.contactId).filter(Boolean) as string[]
+    ))
+
     // Fetch each column's contacts independently so status columns always show all contacts
     const [tier1Contacts, openLeadContacts, closedNurtureContacts] = await Promise.all([
       prisma.contact.findMany({
-        where: { ...baseWhereNoStatus, leadStatus: 'OPEN_DEAL' },
+        where: {
+          ...baseWhereNoStatus,
+          leadStatus: 'OPEN_DEAL',
+          ...(pipelineContactIds.length > 0 ? { NOT: { contactId: { in: pipelineContactIds } } } : {}),
+        },
       }),
       prisma.contact.findMany({
         where: { ...baseWhereNoStatus, leadStatus: { in: OPEN_LEAD_STATUSES } },
@@ -234,6 +253,17 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // In-pipeline contacts for the universe card (enriched with deal stage)
+    const inPipelineContacts = await prisma.contact.findMany({
+      where: { ...baseWhere, contactId: { in: pipelineContactIds } },
+      select: { contactId: true, firstName: true, lastName: true, specialty: true, ownerId: true, leadStatus: true },
+    })
+    const inPipelineDeals = await prisma.deal.findMany({
+      where: { contactId: { in: pipelineContactIds }, stage: { in: ACTIVE_PIPELINE_STAGES } },
+      select: { contactId: true, stage: true },
+    })
+    const pipelineDealStageMap = new Map(inPipelineDeals.map(d => [d.contactId, d.stage]))
+
     const universe = {
       interested:         allContacts.filter(c => c.interestedResponseDate != null),
       notInterestedNow:   allContacts.filter(c => !c.interestedResponseDate && c.notInterestedNowResponseDate != null),
@@ -282,6 +312,16 @@ export async function GET(request: NextRequest) {
         fairGame:           { count: universe.fairGame.length,           contacts: fairGameContacts },
         notInterestedNow:   { count: universe.notInterestedNow.length,   contacts: mapContacts(universe.notInterestedNow) },
         notInterestedAtAll: { count: universe.notInterestedAtAll.length,  contacts: mapContacts(universe.notInterestedAtAll) },
+        inPipeline: {
+          count: inPipelineContacts.length,
+          contacts: inPipelineContacts.map(c => ({
+            contactId: c.contactId,
+            name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
+            specialty: c.specialty,
+            ownerName: ownerMap.get(c.ownerId ?? '') ?? 'Unassigned',
+            dealStage: pipelineDealStageMap.get(c.contactId) ?? null,
+          })),
+        },
       }
     })
   } catch (error: any) {

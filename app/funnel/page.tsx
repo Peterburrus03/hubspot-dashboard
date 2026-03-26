@@ -835,7 +835,7 @@ export default function FunnelPage() {
                 <p className="text-[10px] font-black text-violet-500 uppercase tracking-widest">{data.universe.total} contacts · owners only</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
               <UniverseBucket
                 count={data.universe.interested.count}
                 label="Interested"
@@ -870,6 +870,15 @@ export default function FunnelPage() {
                 colorClass="text-rose-600"
                 borderClass="border-rose-100"
                 contacts={data.universe.notInterestedAtAll.contacts}
+                onSelectContact={setSelectedContact}
+              />
+              <UniverseBucket
+                count={data.universe.inPipeline.count}
+                label="In Pipeline"
+                sublabel="NDA · LOI · Pre-LOI"
+                colorClass="text-violet-600"
+                borderClass="border-violet-100"
+                contacts={data.universe.inPipeline.contacts}
                 onSelectContact={setSelectedContact}
               />
             </div>
