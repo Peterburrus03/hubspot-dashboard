@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Legend,
-  BarChart, Bar, Cell,
+  BarChart, Bar, Cell, LabelList,
 } from 'recharts'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1336,6 +1336,255 @@ type VintageDeal = {
   milestone: string
 }
 
+// ─── APA sub-phase types ──────────────────────────────────────────────────
+
+type ApaTurn = {
+  turnNumber: number
+  date: string
+  direction: 'us_to_seller' | 'seller_to_us'
+  delayParty: 'internal' | 'seller' | 'counsel' | 'thirdparty' | null
+  daysToRespond: number | null
+}
+
+type ApaPhase = {
+  key: string
+  label: string
+  date: string | null
+  daysFromPrev: number | null
+  party: 'internal' | 'seller' | 'counsel' | 'thirdparty' | 'unattributed'
+}
+
+type PreLoiStage = {
+  label: string
+  days: number | null
+  party: 'internal' | 'seller' | 'unattributed'
+}
+
+type ApaDealDetail = {
+  dealName: string
+  closedDate: string
+  preLoiStages: PreLoiStage[]
+  totalTurns: number
+  aosnTurns: number
+  sellerTurns: number
+  totalDays: number
+  internalDays: number
+  externalDays: number
+  unattributedDays: number
+  preLOIPhases: ApaPhase[]
+  turns: ApaTurn[]
+}
+
+// TODO: replace with GET /api/dashboard/apa-subphases when endpoint is ready
+const APA_DEAL_DATA: ApaDealDetail[] = [
+  {
+    dealName: 'Van Lue Veterinary Surgical',
+    closedDate: '2026-03-11',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 4,   party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 4,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 9,   party: 'internal' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 150, internalDays: 0, externalDays: 0, unattributedDays: 150,
+    preLOIPhases: [], turns: [],
+  },
+  {
+    dealName: 'Veterinary Dental Center',
+    closedDate: '2025-09-04',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 54,  party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 2,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 35,  party: 'internal' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 47, internalDays: 0, externalDays: 0, unattributedDays: 47,
+    preLOIPhases: [], turns: [],
+  },
+  {
+    dealName: 'Great Lakes Veterinary Dermatology',
+    closedDate: '2026-01-20',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 340, party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 3,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 24,  party: 'internal' },
+    ],
+    totalTurns: 12, aosnTurns: 7, sellerTurns: 5,
+    totalDays: 65, internalDays: 16, externalDays: 49, unattributedDays: 0,
+    preLOIPhases: [
+      { key: 'qoe_kick',       label: 'QoE kicked off',           date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'qoe_delivered',  label: 'QoE delivered',            date: null, daysFromPrev: null, party: 'thirdparty' },
+      { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
+    ],
+    turns: [],
+  },
+  {
+    dealName: 'Lehigh Valley Veterinary Dermatology',
+    closedDate: '2025-12-30',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 1,   party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 13,  party: 'internal' },
+      { label: 'First cmte → LOI',          days: 56,  party: 'internal' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 41, internalDays: 0, externalDays: 0, unattributedDays: 41,
+    preLOIPhases: [], turns: [],
+  },
+  {
+    dealName: 'Dentistry for Animals',
+    closedDate: '2026-02-09',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 113, party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: null, party: 'unattributed' },
+      { label: 'First cmte → LOI',          days: 21,  party: 'internal' },
+    ],
+    totalTurns: 8, aosnTurns: 7, sellerTurns: 1,
+    totalDays: 55, internalDays: 14, externalDays: 41, unattributedDays: 0,
+    preLOIPhases: [
+      { key: 'qoe_kick',       label: 'QoE kicked off',           date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'qoe_delivered',  label: 'QoE delivered',            date: null, daysFromPrev: null, party: 'thirdparty' },
+      { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
+    ],
+    turns: [],
+  },
+  {
+    dealName: 'Animal Eye Clinic of N. Florida',
+    closedDate: '2025-11-05',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 16,  party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 2,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 104, party: 'internal' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 43, internalDays: 0, externalDays: 0, unattributedDays: 43,
+    preLOIPhases: [], turns: [],
+  },
+  {
+    dealName: 'Golden Gate Specialists',
+    closedDate: '2025-12-08',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 616, party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 4,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 20,  party: 'internal' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 57, internalDays: 0, externalDays: 0, unattributedDays: 57,
+    preLOIPhases: [], turns: [],
+  },
+  {
+    dealName: 'Veterinary Dentistry and Oral Surgery of NM',
+    closedDate: '2026-03-03',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 104, party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 5,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 42,  party: 'internal' },
+    ],
+    totalTurns: 12, aosnTurns: 8, sellerTurns: 4,
+    totalDays: 102, internalDays: 40, externalDays: 62, unattributedDays: 0,
+    preLOIPhases: [
+      { key: 'qoe_kick',       label: 'QoE kicked off',           date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'qoe_delivered',  label: 'QoE delivered',            date: null, daysFromPrev: null, party: 'thirdparty' },
+      { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
+    ],
+    turns: [],
+  },
+  {
+    dealName: 'Veterinary Cancer & Surgery Specialists',
+    closedDate: '2026-03-11',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: null, party: 'unattributed' },
+      { label: 'Min. viable data → cmte',   days: 7,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 112, party: 'internal' },
+    ],
+    totalTurns: 9, aosnTurns: 6, sellerTurns: 3,
+    totalDays: 43, internalDays: 20, externalDays: 23, unattributedDays: 0,
+    preLOIPhases: [
+      { key: 'qoe_kick',       label: 'QoE kicked off',           date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'qoe_delivered',  label: 'QoE delivered',            date: null, daysFromPrev: null, party: 'thirdparty' },
+      { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
+    ],
+    turns: [],
+  },
+  {
+    dealName: 'Animal Dermatology Center',
+    closedDate: '2025-10-17',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 67,  party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 7,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 49,  party: 'internal' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 63, internalDays: 0, externalDays: 0, unattributedDays: 63,
+    preLOIPhases: [], turns: [],
+  },
+  {
+    dealName: 'Animal Dental Clinic of Pittsburgh',
+    closedDate: '',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 7,   party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 2,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 39,  party: 'internal' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 0, internalDays: 0, externalDays: 0, unattributedDays: 0,
+    preLOIPhases: [], turns: [],
+  },
+  {
+    dealName: 'OREV Specialty Vet Care',
+    closedDate: '2026-02-24',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 12,  party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: 2,   party: 'internal' },
+      { label: 'First cmte → LOI',          days: 39,  party: 'internal' },
+    ],
+    totalTurns: 8, aosnTurns: 6, sellerTurns: 2,
+    totalDays: 61, internalDays: 36, externalDays: 25, unattributedDays: 0,
+    preLOIPhases: [
+      { key: 'qoe_kick',       label: 'QoE kicked off',           date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'qoe_delivered',  label: 'QoE delivered',            date: null, daysFromPrev: null, party: 'thirdparty' },
+      { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
+      { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
+    ],
+    turns: [],
+  },
+  {
+    dealName: 'Derm for Pets',
+    closedDate: '2025-09-19',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: null, party: 'unattributed' },
+      { label: 'Min. viable data → cmte',   days: null, party: 'unattributed' },
+      { label: 'First cmte → LOI',          days: null, party: 'unattributed' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 144, internalDays: 0, externalDays: 0, unattributedDays: 144,
+    preLOIPhases: [], turns: [],
+  },
+  {
+    dealName: 'Texas Specialty Veterinary Services',
+    closedDate: '',
+    preLoiStages: [
+      { label: 'NDA → min. viable data',    days: 104, party: 'seller' },
+      { label: 'Min. viable data → cmte',   days: null, party: 'unattributed' },
+      { label: 'First cmte → LOI',          days: null, party: 'unattributed' },
+    ],
+    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
+    totalDays: 0, internalDays: 0, externalDays: 0, unattributedDays: 0,
+    preLOIPhases: [], turns: [],
+  },
+]
+
+function findApaDeal(dealName: string | null): ApaDealDetail | undefined {
+  if (!dealName) return undefined
+  const n = dealName.toLowerCase()
+  return APA_DEAL_DATA.find(d =>
+    d.dealName.toLowerCase().includes(n) || n.includes(d.dealName.toLowerCase())
+  )
+}
+
 type VintageRow = {
   quarter: string
   engaged: number
@@ -1372,6 +1621,7 @@ function VintageAnalysis() {
   const [rows, setRows] = useState<VintageRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [selectedDeal, setSelectedDeal] = useState<ApaDealDetail | null>(null)
 
   useEffect(() => {
     fetch('/api/dashboard/vintages')
@@ -1508,6 +1758,65 @@ function VintageAnalysis() {
                               })}
                             </tbody>
                           </table>
+                          {/* LOI → APA accountability breakdown — only renders if sub-phase data exists */}
+                          {(() => {
+                            const matched = r.deals.flatMap(deal => {
+                              const sub = findApaDeal(deal.dealName)
+                              return sub ? [{ deal, sub }] : []
+                            })
+                            if (matched.length === 0) return null
+
+                            return matched.map(({ deal, sub }) => (
+                              <div key={deal.dealId} className="mt-3 pt-3 border-t border-zinc-800/50">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-zinc-500 text-xs">LOI → APA breakdown</p>
+                                  <button
+                                    onClick={() => setSelectedDeal(sub)}
+                                    className="text-xs text-indigo-400 hover:text-indigo-300"
+                                  >
+                                    view phases →
+                                  </button>
+                                </div>
+
+                                {/* Stacked bar */}
+                                <div className="flex w-full h-4 rounded overflow-hidden bg-zinc-800 mb-2">
+                                  {sub.internalDays > 0 && (
+                                    <div
+                                      style={{ width: `${(sub.internalDays / sub.totalDays) * 100}%` }}
+                                      className="bg-teal-400 h-full"
+                                      title={`Our court: ${sub.internalDays}d`}
+                                    />
+                                  )}
+                                  {sub.externalDays > 0 && (
+                                    <div
+                                      style={{ width: `${(sub.externalDays / sub.totalDays) * 100}%` }}
+                                      className="bg-rose-400 h-full"
+                                      title={`Seller court: ${sub.externalDays}d`}
+                                    />
+                                  )}
+                                  {sub.unattributedDays > 0 && (
+                                    <div
+                                      style={{ width: `${(sub.unattributedDays / sub.totalDays) * 100}%` }}
+                                      className="bg-zinc-600 h-full"
+                                    />
+                                  )}
+                                </div>
+
+                                {/* Pills */}
+                                <div className="flex gap-2 flex-wrap items-center">
+                                  <span className="text-teal-400 bg-teal-400/10 text-xs px-2 py-0.5 rounded">
+                                    {sub.internalDays}d our court
+                                  </span>
+                                  <span className="text-rose-400 bg-rose-400/10 text-xs px-2 py-0.5 rounded">
+                                    {sub.externalDays}d seller court
+                                  </span>
+                                  <span className="text-zinc-400 text-xs px-1">
+                                    {sub.totalTurns} turns ({sub.aosnTurns} AOSN / {sub.sellerTurns} seller)
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          })()}
                         </td>
                       </tr>
                     )}
@@ -1525,6 +1834,221 @@ function VintageAnalysis() {
           <span className="text-xs text-zinc-600 ml-auto">Conv% = % of prior stage that advanced · Avg Days = time between milestones</span>
         </div>
       </div>
+
+      {/* Deal phase drill-through modal */}
+      {selectedDeal && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setSelectedDeal(null)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700/60 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-start justify-between p-5 border-b border-zinc-800">
+              <div>
+                <h3 className="text-sm font-medium text-zinc-100">{selectedDeal.dealName}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">LOI → APA phase breakdown</p>
+              </div>
+              <button
+                onClick={() => setSelectedDeal(null)}
+                className="text-zinc-500 hover:text-zinc-300 text-xs ml-4 mt-0.5"
+              >
+                close ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-6">
+
+              {/* Summary stat row */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
+                  <p className="text-zinc-500 text-xs mb-1">Total days</p>
+                  <p className="text-zinc-100 text-lg font-medium">{selectedDeal.totalDays}d</p>
+                </div>
+                <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
+                  <p className="text-zinc-500 text-xs mb-1">Our court</p>
+                  <p className="text-teal-400 text-lg font-medium">{selectedDeal.internalDays}d</p>
+                </div>
+                <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
+                  <p className="text-zinc-500 text-xs mb-1">Seller court</p>
+                  <p className="text-rose-400 text-lg font-medium">{selectedDeal.externalDays}d</p>
+                </div>
+              </div>
+
+              {/* Summary stacked bar */}
+              {selectedDeal.totalDays > 0 && (
+                <div>
+                  <p className="text-zinc-500 text-xs mb-2">Time allocation</p>
+                  <div className="flex w-full h-3 rounded overflow-hidden bg-zinc-800">
+                    {selectedDeal.internalDays > 0 && (
+                      <div
+                        style={{ width: `${(selectedDeal.internalDays / selectedDeal.totalDays) * 100}%` }}
+                        className="bg-teal-400 h-full"
+                        title={`Our court: ${selectedDeal.internalDays}d`}
+                      />
+                    )}
+                    {selectedDeal.externalDays > 0 && (
+                      <div
+                        style={{ width: `${(selectedDeal.externalDays / selectedDeal.totalDays) * 100}%` }}
+                        className="bg-rose-400 h-full"
+                        title={`Seller court: ${selectedDeal.externalDays}d`}
+                      />
+                    )}
+                    {selectedDeal.unattributedDays > 0 && (
+                      <div
+                        style={{ width: `${(selectedDeal.unattributedDays / selectedDeal.totalDays) * 100}%` }}
+                        className="bg-zinc-600 h-full"
+                      />
+                    )}
+                  </div>
+                  <div className="flex gap-3 mt-1.5">
+                    <span className="text-teal-400 text-xs">{Math.round((selectedDeal.internalDays / selectedDeal.totalDays) * 100)}% internal</span>
+                    <span className="text-rose-400 text-xs">{Math.round((selectedDeal.externalDays / selectedDeal.totalDays) * 100)}% external</span>
+                  </div>
+                </div>
+              )}
+
+              {/* APA turns summary */}
+              {selectedDeal.totalDays > 0 && (
+                <div>
+                  <p className="text-zinc-500 text-xs mb-2">APA negotiation turns</p>
+                  <div className="flex gap-3 flex-wrap">
+                    <span className="text-zinc-300 bg-zinc-800 text-xs px-2.5 py-1 rounded">
+                      {selectedDeal.totalTurns} total turns
+                    </span>
+                    <span className="text-teal-400 bg-teal-400/10 text-xs px-2.5 py-1 rounded">
+                      {selectedDeal.aosnTurns} AOSN / Fredrikson
+                    </span>
+                    <span className="text-rose-400 bg-rose-400/10 text-xs px-2.5 py-1 rounded">
+                      {selectedDeal.sellerTurns} seller
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Pre-LOI pipeline stages — always shown if data exists */}
+              {selectedDeal.preLoiStages.some(s => s.days !== null) && (
+                <div>
+                  <p className="text-zinc-500 text-xs mb-3">NDA → LOI pipeline stages</p>
+                  <div className="space-y-0">
+                    {selectedDeal.preLoiStages.map((stage, i) => {
+                      const partyColor =
+                        stage.party === 'internal' ? 'text-teal-400' :
+                        stage.party === 'seller'   ? 'text-rose-400' :
+                        'text-zinc-600'
+                      const isLong = stage.days !== null && stage.days > 30
+                      return (
+                        <div key={i} className="flex items-center gap-3 py-2 border-b border-zinc-800/60 last:border-0">
+                          <div className="flex-1 text-zinc-400 text-xs">{stage.label}</div>
+                          <span className={`text-xs font-medium ${isLong ? 'text-amber-400' : 'text-zinc-300'}`}>
+                            {stage.days !== null ? `${stage.days}d` : '—'}
+                          </span>
+                          <span className={`text-xs w-16 text-right ${partyColor}`}>{stage.party}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* LOI→APA process phases — only for deals with detail */}
+              {selectedDeal.preLOIPhases.length > 0 && (
+                <div>
+                  <p className="text-zinc-500 text-xs mb-3">LOI → APA process phases</p>
+                  <div className="space-y-0">
+                    {selectedDeal.preLOIPhases.map((phase, i) => {
+                      const partyColor =
+                        phase.party === 'internal'   ? 'text-teal-400' :
+                        phase.party === 'seller'     ? 'text-rose-400' :
+                        phase.party === 'counsel'    ? 'text-blue-400' :
+                        phase.party === 'thirdparty' ? 'text-amber-400' :
+                        'text-zinc-500'
+                      return (
+                        <div key={phase.key} className="flex items-start gap-3 py-2 border-b border-zinc-800/60 last:border-0">
+                          <div className="flex flex-col items-center mt-0.5 flex-shrink-0">
+                            <div className="w-2 h-2 rounded-full bg-zinc-600 flex-shrink-0" />
+                            {i < selectedDeal.preLOIPhases.length - 1 && (
+                              <div className="w-px h-5 bg-zinc-800 mt-0.5" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-zinc-300 text-xs">{phase.label}</span>
+                            {phase.date ? (
+                              <span className="text-zinc-500 text-xs ml-2">
+                                {new Date(phase.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                              </span>
+                            ) : (
+                              <span className="text-zinc-700 text-xs ml-2">date not logged</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {phase.daysFromPrev !== null && (
+                              <span className="text-zinc-500 text-xs">{phase.daysFromPrev}d</span>
+                            )}
+                            <span className={`text-xs ${partyColor}`}>{phase.party}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {/* APA turns — only if populated */}
+                    {selectedDeal.turns.length > 0 ? selectedDeal.turns.map((turn, i) => {
+                      const dirLabel = turn.direction === 'us_to_seller' ? 'us → seller' : 'seller → us'
+                      const partyColor =
+                        turn.delayParty === 'internal'   ? 'text-teal-400' :
+                        turn.delayParty === 'seller'     ? 'text-rose-400' :
+                        turn.delayParty === 'counsel'    ? 'text-blue-400' :
+                        turn.delayParty === 'thirdparty' ? 'text-amber-400' :
+                        'text-zinc-600'
+                      return (
+                        <div key={`turn-${i}`} className="flex items-start gap-3 py-2 border-b border-zinc-800/60 last:border-0">
+                          <div className="flex flex-col items-center mt-0.5 flex-shrink-0">
+                            <div className="w-2 h-2 rounded-sm bg-zinc-700 flex-shrink-0" />
+                            {i < selectedDeal.turns.length - 1 && (
+                              <div className="w-px h-5 bg-zinc-800 mt-0.5" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-zinc-400 text-xs">Turn {turn.turnNumber}</span>
+                            <span className="text-zinc-600 text-xs ml-2">{dirLabel}</span>
+                            {turn.date && (
+                              <span className="text-zinc-500 text-xs ml-2">
+                                {new Date(turn.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {turn.daysToRespond !== null && (
+                              <span className={`text-xs ${turn.daysToRespond > 14 ? 'text-rose-400' : 'text-zinc-500'}`}>
+                                {turn.daysToRespond}d
+                              </span>
+                            )}
+                            {turn.delayParty && (
+                              <span className={`text-xs ${partyColor}`}>{turn.delayParty}</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }) : (
+                      <div className="py-2 text-zinc-700 text-xs">
+                        Turn-level detail not yet logged
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* No LOI→APA detail */}
+              {selectedDeal.totalDays === 0 && (
+                <p className="text-zinc-600 text-xs">LOI → APA detail not yet available for this deal.</p>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1708,7 +2232,7 @@ function BreakdownView({ rows }: { rows: VintageRow[] }) {
 function VelocityExplorer() {
   const [rows, setRows] = useState<VintageRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'heatmap' | 'trends' | 'breakdown'>('heatmap')
+  const [view, setView] = useState<'heatmap' | 'trends' | 'breakdown' | 'accountability'>('heatmap')
 
   useEffect(() => {
     fetch('/api/dashboard/vintages')
@@ -1719,9 +2243,10 @@ function VelocityExplorer() {
   }, [])
 
   const views = [
-    { key: 'heatmap' as const,   label: 'Stage Duration Heatmap' },
-    { key: 'trends' as const,    label: 'Velocity Trend Lines' },
-    { key: 'breakdown' as const, label: 'Days-to-Close Breakdown' },
+    { key: 'heatmap' as const,        label: 'Stage Duration Heatmap' },
+    { key: 'trends' as const,         label: 'Velocity Trend Lines' },
+    { key: 'breakdown' as const,      label: 'Days-to-Close Breakdown' },
+    { key: 'accountability' as const, label: 'Accountability Split' },
   ]
 
   if (loading) return (
@@ -1757,6 +2282,108 @@ function VelocityExplorer() {
         {view === 'heatmap'    && <HeatmapView rows={rows} />}
         {view === 'trends'     && <TrendLinesView rows={rows} />}
         {view === 'breakdown'  && <BreakdownView rows={rows} />}
+        {view === 'accountability' && (
+          <div>
+            {APA_DEAL_DATA.length === 0 ? (
+              <p className="text-zinc-500 text-sm text-center py-12">
+                No sub-phase data yet.
+              </p>
+            ) : (
+              <>
+                {/* Stat cards — only computed over deals with LOI→APA data */}
+                {(() => {
+                  const withData = APA_DEAL_DATA.filter(d => d.totalDays > 0)
+                  const avgExt   = Math.round(withData.reduce((s, d) => s + (d.externalDays  / d.totalDays) * 100, 0) / withData.length)
+                  const avgInt   = Math.round(withData.reduce((s, d) => s + (d.internalDays  / d.totalDays) * 100, 0) / withData.length)
+                  const avgTurns = (withData.reduce((s, d) => s + d.totalTurns, 0) / withData.length).toFixed(1)
+                  return (
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                      <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                        <p className="text-zinc-500 text-xs mb-1">Avg external %</p>
+                        <p className="text-rose-400 text-xl font-medium">{avgExt}%</p>
+                      </div>
+                      <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                        <p className="text-zinc-500 text-xs mb-1">Avg internal %</p>
+                        <p className="text-teal-400 text-xl font-medium">{avgInt}%</p>
+                      </div>
+                      <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                        <p className="text-zinc-500 text-xs mb-1">Avg turns / deal</p>
+                        <p className="text-zinc-200 text-xl font-medium">{avgTurns}</p>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Stacked horizontal bar chart */}
+                {(() => {
+                  const chartData = APA_DEAL_DATA.map(d => ({
+                    name: d.dealName.length > 26 ? d.dealName.slice(0, 24) + '…' : d.dealName,
+                    internal:  d.internalDays,
+                    external:  d.externalDays,
+                    untracked: d.unattributedDays,
+                  }))
+                  return (
+                    <ResponsiveContainer width="100%" height={APA_DEAL_DATA.length * 52 + 40}>
+                      <BarChart
+                        data={chartData}
+                        layout="vertical"
+                        margin={{ top: 0, right: 40, left: 8, bottom: 0 }}
+                        barSize={26}
+                      >
+                        <XAxis
+                          type="number"
+                          tick={{ fill: '#71717a', fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickCount={6}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={200}
+                          tick={{ fill: '#a1a1aa', fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                          contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, fontSize: 12 }}
+                          formatter={(value: unknown, name: unknown) => [
+                            `${value}d`,
+                            name === 'internal' ? 'Our court' : name === 'external' ? 'Seller court' : 'Untracked',
+                          ]}
+                        />
+                        <Bar dataKey="internal"  stackId="a" fill="#2dd4bf">
+                          <LabelList dataKey="internal"  position="insideLeft" style={{ fill: '#134e4a', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        </Bar>
+                        <Bar dataKey="external"  stackId="a" fill="#fb7185">
+                          <LabelList dataKey="external"  position="insideLeft" style={{ fill: '#4c0519', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        </Bar>
+                        <Bar dataKey="untracked" stackId="a" fill="#52525b" radius={[0, 4, 4, 0]}>
+                          <LabelList dataKey="untracked" position="insideLeft" style={{ fill: '#d4d4d8', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )
+                })()}
+
+                {/* Legend */}
+                <div className="flex gap-4 mt-4 flex-wrap">
+                  {[
+                    { color: 'bg-teal-400', label: 'Our court' },
+                    { color: 'bg-rose-400', label: 'Seller court' },
+                    { color: 'bg-zinc-600', label: 'Untracked' },
+                  ].map(({ color, label }) => (
+                    <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
