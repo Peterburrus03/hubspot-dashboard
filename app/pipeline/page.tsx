@@ -1585,6 +1585,13 @@ function findApaDeal(dealName: string | null): ApaDealDetail | undefined {
   )
 }
 
+// Extracts the last name from HubSpot deal names like "Animal Eye Vet- (Ashton) - Murrieta, CA"
+function extractShortName(hubspotName: string | null): string | null {
+  if (!hubspotName) return null
+  const match = hubspotName.match(/\(([^)]+)\)/)
+  return match ? match[1] : null
+}
+
 type VintageRow = {
   quarter: string
   engaged: number
@@ -1742,9 +1749,17 @@ function VintageAnalysis() {
                             <tbody className="divide-y divide-zinc-800/30">
                               {r.deals.map((d) => {
                                 const mc = MILESTONE_COLORS[d.milestone] ?? MILESTONE_COLORS.Engaged
+                                const apaSub = findApaDeal(d.dealName)
                                 return (
-                                  <tr key={d.dealId} className="hover:bg-zinc-800/20">
-                                    <td className="py-2 pr-4 text-zinc-200 font-medium max-w-xs truncate">{d.dealName ?? d.dealId}</td>
+                                  <tr
+                                    key={d.dealId}
+                                    className={`hover:bg-zinc-800/20 ${apaSub ? 'cursor-pointer' : ''}`}
+                                    onClick={() => apaSub && setSelectedDeal(apaSub)}
+                                  >
+                                    <td className="py-2 pr-4 text-zinc-200 font-medium max-w-xs truncate">
+                                      {d.dealName ?? d.dealId}
+                                      {apaSub && <span className="ml-1.5 text-indigo-500 text-[10px]">↗</span>}
+                                    </td>
                                     <td className="py-2 px-3">
                                       <span className={`px-1.5 py-0.5 rounded border text-[10px] font-black ${mc}`}>{d.milestone}</span>
                                     </td>
@@ -1758,65 +1773,6 @@ function VintageAnalysis() {
                               })}
                             </tbody>
                           </table>
-                          {/* LOI → APA accountability breakdown — only renders if sub-phase data exists */}
-                          {(() => {
-                            const matched = r.deals.flatMap(deal => {
-                              const sub = findApaDeal(deal.dealName)
-                              return sub ? [{ deal, sub }] : []
-                            })
-                            if (matched.length === 0) return null
-
-                            return matched.map(({ deal, sub }) => (
-                              <div key={deal.dealId} className="mt-3 pt-3 border-t border-zinc-800/50">
-                                <div className="flex items-center justify-between mb-2">
-                                  <p className="text-zinc-500 text-xs">LOI → APA breakdown</p>
-                                  <button
-                                    onClick={() => setSelectedDeal(sub)}
-                                    className="text-xs text-indigo-400 hover:text-indigo-300"
-                                  >
-                                    view phases →
-                                  </button>
-                                </div>
-
-                                {/* Stacked bar */}
-                                <div className="flex w-full h-4 rounded overflow-hidden bg-zinc-800 mb-2">
-                                  {sub.internalDays > 0 && (
-                                    <div
-                                      style={{ width: `${(sub.internalDays / sub.totalDays) * 100}%` }}
-                                      className="bg-teal-400 h-full"
-                                      title={`Our court: ${sub.internalDays}d`}
-                                    />
-                                  )}
-                                  {sub.externalDays > 0 && (
-                                    <div
-                                      style={{ width: `${(sub.externalDays / sub.totalDays) * 100}%` }}
-                                      className="bg-rose-400 h-full"
-                                      title={`Seller court: ${sub.externalDays}d`}
-                                    />
-                                  )}
-                                  {sub.unattributedDays > 0 && (
-                                    <div
-                                      style={{ width: `${(sub.unattributedDays / sub.totalDays) * 100}%` }}
-                                      className="bg-zinc-600 h-full"
-                                    />
-                                  )}
-                                </div>
-
-                                {/* Pills */}
-                                <div className="flex gap-2 flex-wrap items-center">
-                                  <span className="text-teal-400 bg-teal-400/10 text-xs px-2 py-0.5 rounded">
-                                    {sub.internalDays}d our court
-                                  </span>
-                                  <span className="text-rose-400 bg-rose-400/10 text-xs px-2 py-0.5 rounded">
-                                    {sub.externalDays}d seller court
-                                  </span>
-                                  <span className="text-zinc-400 text-xs px-1">
-                                    {sub.totalTurns} turns ({sub.aosnTurns} AOSN / {sub.sellerTurns} seller)
-                                  </span>
-                                </div>
-                              </div>
-                            ))
-                          })()}
                         </td>
                       </tr>
                     )}
@@ -1849,7 +1805,7 @@ function VintageAnalysis() {
             <div className="flex items-start justify-between p-5 border-b border-zinc-800">
               <div>
                 <h3 className="text-sm font-medium text-zinc-100">{selectedDeal.dealName}</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">LOI → APA phase breakdown</p>
+                <p className="text-xs text-zinc-500 mt-0.5">NDA → close deal cycle</p>
               </div>
               <button
                 onClick={() => setSelectedDeal(null)}
@@ -1860,98 +1816,143 @@ function VintageAnalysis() {
             </div>
 
             <div className="p-5 space-y-6">
+              {(() => {
+                // Full-cycle aggregates
+                const preLoiTotal       = selectedDeal.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0)
+                const preLoiInternal    = selectedDeal.preLoiStages.filter(st => st.party === 'internal').reduce((s, st) => s + (st.days ?? 0), 0)
+                const preLoiSeller      = selectedDeal.preLoiStages.filter(st => st.party === 'seller').reduce((s, st) => s + (st.days ?? 0), 0)
+                const preLoiUnattrib    = selectedDeal.preLoiStages.filter(st => st.party === 'unattributed').reduce((s, st) => s + (st.days ?? 0), 0)
+                const fullTotal         = preLoiTotal + selectedDeal.totalDays
+                const fullInternal      = preLoiInternal + selectedDeal.internalDays
+                const fullExternal      = preLoiSeller   + selectedDeal.externalDays
+                const fullUnattributed  = preLoiUnattrib + selectedDeal.unattributedDays
+                const hasFullCycle      = fullTotal > 0
 
-              {/* Summary stat row */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
-                  <p className="text-zinc-500 text-xs mb-1">Total days</p>
-                  <p className="text-zinc-100 text-lg font-medium">{selectedDeal.totalDays}d</p>
-                </div>
-                <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
-                  <p className="text-zinc-500 text-xs mb-1">Our court</p>
-                  <p className="text-teal-400 text-lg font-medium">{selectedDeal.internalDays}d</p>
-                </div>
-                <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
-                  <p className="text-zinc-500 text-xs mb-1">Seller court</p>
-                  <p className="text-rose-400 text-lg font-medium">{selectedDeal.externalDays}d</p>
-                </div>
-              </div>
+                return (
+                  <>
+                    {/* Summary stat row — full cycle */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
+                        <p className="text-zinc-500 text-xs mb-1">Total days</p>
+                        <p className="text-zinc-100 text-lg font-medium">{fullTotal}d</p>
+                      </div>
+                      <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
+                        <p className="text-zinc-500 text-xs mb-1">Our court</p>
+                        <p className="text-teal-400 text-lg font-medium">{fullInternal}d</p>
+                      </div>
+                      <div className="bg-zinc-800/60 rounded-lg px-3 py-2.5">
+                        <p className="text-zinc-500 text-xs mb-1">Seller court</p>
+                        <p className="text-rose-400 text-lg font-medium">{fullExternal}d</p>
+                      </div>
+                    </div>
 
-              {/* Summary stacked bar */}
-              {selectedDeal.totalDays > 0 && (
-                <div>
-                  <p className="text-zinc-500 text-xs mb-2">Time allocation</p>
-                  <div className="flex w-full h-3 rounded overflow-hidden bg-zinc-800">
-                    {selectedDeal.internalDays > 0 && (
-                      <div
-                        style={{ width: `${(selectedDeal.internalDays / selectedDeal.totalDays) * 100}%` }}
-                        className="bg-teal-400 h-full"
-                        title={`Our court: ${selectedDeal.internalDays}d`}
-                      />
-                    )}
-                    {selectedDeal.externalDays > 0 && (
-                      <div
-                        style={{ width: `${(selectedDeal.externalDays / selectedDeal.totalDays) * 100}%` }}
-                        className="bg-rose-400 h-full"
-                        title={`Seller court: ${selectedDeal.externalDays}d`}
-                      />
-                    )}
-                    {selectedDeal.unattributedDays > 0 && (
-                      <div
-                        style={{ width: `${(selectedDeal.unattributedDays / selectedDeal.totalDays) * 100}%` }}
-                        className="bg-zinc-600 h-full"
-                      />
-                    )}
-                  </div>
-                  <div className="flex gap-3 mt-1.5">
-                    <span className="text-teal-400 text-xs">{Math.round((selectedDeal.internalDays / selectedDeal.totalDays) * 100)}% internal</span>
-                    <span className="text-rose-400 text-xs">{Math.round((selectedDeal.externalDays / selectedDeal.totalDays) * 100)}% external</span>
-                  </div>
-                </div>
-              )}
-
-              {/* APA turns summary */}
-              {selectedDeal.totalDays > 0 && (
-                <div>
-                  <p className="text-zinc-500 text-xs mb-2">APA negotiation turns</p>
-                  <div className="flex gap-3 flex-wrap">
-                    <span className="text-zinc-300 bg-zinc-800 text-xs px-2.5 py-1 rounded">
-                      {selectedDeal.totalTurns} total turns
-                    </span>
-                    <span className="text-teal-400 bg-teal-400/10 text-xs px-2.5 py-1 rounded">
-                      {selectedDeal.aosnTurns} AOSN / Fredrikson
-                    </span>
-                    <span className="text-rose-400 bg-rose-400/10 text-xs px-2.5 py-1 rounded">
-                      {selectedDeal.sellerTurns} seller
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Pre-LOI pipeline stages — always shown if data exists */}
-              {selectedDeal.preLoiStages.some(s => s.days !== null) && (
-                <div>
-                  <p className="text-zinc-500 text-xs mb-3">NDA → LOI pipeline stages</p>
-                  <div className="space-y-0">
-                    {selectedDeal.preLoiStages.map((stage, i) => {
-                      const partyColor =
-                        stage.party === 'internal' ? 'text-teal-400' :
-                        stage.party === 'seller'   ? 'text-rose-400' :
-                        'text-zinc-600'
-                      const isLong = stage.days !== null && stage.days > 30
-                      return (
-                        <div key={i} className="flex items-center gap-3 py-2 border-b border-zinc-800/60 last:border-0">
-                          <div className="flex-1 text-zinc-400 text-xs">{stage.label}</div>
-                          <span className={`text-xs font-medium ${isLong ? 'text-amber-400' : 'text-zinc-300'}`}>
-                            {stage.days !== null ? `${stage.days}d` : '—'}
-                          </span>
-                          <span className={`text-xs w-16 text-right ${partyColor}`}>{stage.party}</span>
+                    {/* Full-cycle stacked bar */}
+                    {hasFullCycle && (
+                      <div>
+                        <div className="flex justify-between mb-2">
+                          <p className="text-zinc-500 text-xs">Time allocation — NDA → close</p>
+                          <div className="flex gap-3">
+                            <span className="text-teal-400 text-xs">{Math.round((fullInternal / fullTotal) * 100)}% our court</span>
+                            <span className="text-rose-400 text-xs">{Math.round((fullExternal / fullTotal) * 100)}% seller</span>
+                          </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+                        {/* Bar: pre-LOI segments (muted) + divider + LOI→APA segments (full color) */}
+                        <div className="flex w-full h-4 rounded overflow-hidden bg-zinc-800">
+                          {selectedDeal.preLoiStages.map((st, i) => st.days && st.days > 0 ? (
+                            <div
+                              key={i}
+                              style={{ width: `${(st.days / fullTotal) * 100}%` }}
+                              className={`h-full ${st.party === 'internal' ? 'bg-teal-300/60' : st.party === 'seller' ? 'bg-rose-300/60' : 'bg-zinc-700'}`}
+                              title={`${st.label}: ${st.days}d`}
+                            />
+                          ) : null)}
+                          {/* 1px divider between NDA→LOI and LOI→APA */}
+                          {preLoiTotal > 0 && selectedDeal.totalDays > 0 && (
+                            <div className="w-px h-full bg-zinc-900 flex-shrink-0" />
+                          )}
+                          {selectedDeal.internalDays > 0 && (
+                            <div
+                              style={{ width: `${(selectedDeal.internalDays / fullTotal) * 100}%` }}
+                              className="bg-teal-400 h-full"
+                              title={`LOI→APA our court: ${selectedDeal.internalDays}d`}
+                            />
+                          )}
+                          {selectedDeal.externalDays > 0 && (
+                            <div
+                              style={{ width: `${(selectedDeal.externalDays / fullTotal) * 100}%` }}
+                              className="bg-rose-400 h-full"
+                              title={`LOI→APA seller: ${selectedDeal.externalDays}d`}
+                            />
+                          )}
+                          {selectedDeal.unattributedDays > 0 && (
+                            <div
+                              style={{ width: `${(selectedDeal.unattributedDays / fullTotal) * 100}%` }}
+                              className="bg-zinc-600 h-full"
+                            />
+                          )}
+                        </div>
+                        <div className="flex gap-4 mt-1.5 flex-wrap">
+                          <span className="flex items-center gap-1 text-xs text-zinc-500">
+                            <span className="w-2 h-2 rounded-sm bg-teal-300/60 inline-block" />NDA→LOI internal
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-zinc-500">
+                            <span className="w-2 h-2 rounded-sm bg-rose-300/60 inline-block" />NDA→LOI seller
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-zinc-500">
+                            <span className="w-2 h-2 rounded-sm bg-teal-400 inline-block" />LOI→APA internal
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-zinc-500">
+                            <span className="w-2 h-2 rounded-sm bg-rose-400 inline-block" />LOI→APA seller
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* NDA → LOI pipeline stages — moved above APA turns */}
+                    {selectedDeal.preLoiStages.some(s => s.days !== null) && (
+                      <div>
+                        <p className="text-zinc-500 text-xs mb-3">NDA → LOI pipeline stages</p>
+                        <div className="space-y-0">
+                          {selectedDeal.preLoiStages.map((stage, i) => {
+                            const partyColor =
+                              stage.party === 'internal' ? 'text-teal-400' :
+                              stage.party === 'seller'   ? 'text-rose-400' :
+                              'text-zinc-600'
+                            const isLong = stage.days !== null && stage.days > 30
+                            return (
+                              <div key={i} className="flex items-center gap-3 py-2 border-b border-zinc-800/60 last:border-0">
+                                <div className="flex-1 text-zinc-400 text-xs">{stage.label}</div>
+                                <span className={`text-xs font-medium ${isLong ? 'text-amber-400' : 'text-zinc-300'}`}>
+                                  {stage.days !== null ? `${stage.days}d` : '—'}
+                                </span>
+                                <span className={`text-xs w-16 text-right ${partyColor}`}>{stage.party}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* APA turns summary */}
+                    {selectedDeal.totalDays > 0 && (
+                      <div>
+                        <p className="text-zinc-500 text-xs mb-2">APA negotiation turns</p>
+                        <div className="flex gap-3 flex-wrap">
+                          <span className="text-zinc-300 bg-zinc-800 text-xs px-2.5 py-1 rounded">
+                            {selectedDeal.totalTurns} total turns
+                          </span>
+                          <span className="text-teal-400 bg-teal-400/10 text-xs px-2.5 py-1 rounded">
+                            {selectedDeal.aosnTurns} AOSN / Fredrikson
+                          </span>
+                          <span className="text-rose-400 bg-rose-400/10 text-xs px-2.5 py-1 rounded">
+                            {selectedDeal.sellerTurns} seller
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
 
               {/* LOI→APA process phases — only for deals with detail */}
               {selectedDeal.preLOIPhases.length > 0 && (
@@ -2290,38 +2291,74 @@ function VelocityExplorer() {
               </p>
             ) : (
               <>
-                {/* Stat cards — only computed over deals with LOI→APA data */}
+                {/* Stat cards — full cycle (NDA→LOI + LOI→APA) */}
                 {(() => {
-                  const withData = APA_DEAL_DATA.filter(d => d.totalDays > 0)
-                  const avgExt   = Math.round(withData.reduce((s, d) => s + (d.externalDays  / d.totalDays) * 100, 0) / withData.length)
-                  const avgInt   = Math.round(withData.reduce((s, d) => s + (d.internalDays  / d.totalDays) * 100, 0) / withData.length)
-                  const avgTurns = (withData.reduce((s, d) => s + d.totalTurns, 0) / withData.length).toFixed(1)
+                  const withData = APA_DEAL_DATA.filter(d => {
+                    const preLoiTotal = d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0)
+                    return (preLoiTotal + d.totalDays) > 0
+                  })
+                  const avgExt = Math.round(withData.reduce((s, d) => {
+                    const preLoiTotal    = d.preLoiStages.reduce((a, st) => a + (st.days ?? 0), 0)
+                    const preLoiSeller   = d.preLoiStages.filter(st => st.party === 'seller').reduce((a, st) => a + (st.days ?? 0), 0)
+                    const fullTotal      = preLoiTotal + d.totalDays
+                    const fullExternal   = preLoiSeller + d.externalDays
+                    return s + (fullExternal / fullTotal) * 100
+                  }, 0) / withData.length)
+                  const avgInt = Math.round(withData.reduce((s, d) => {
+                    const preLoiTotal    = d.preLoiStages.reduce((a, st) => a + (st.days ?? 0), 0)
+                    const preLoiInternal = d.preLoiStages.filter(st => st.party === 'internal').reduce((a, st) => a + (st.days ?? 0), 0)
+                    const fullTotal      = preLoiTotal + d.totalDays
+                    const fullInternal   = preLoiInternal + d.internalDays
+                    return s + (fullInternal / fullTotal) * 100
+                  }, 0) / withData.length)
+                  const avgTurns = (withData.filter(d => d.totalDays > 0).reduce((s, d) => s + d.totalTurns, 0) / withData.filter(d => d.totalDays > 0).length).toFixed(1)
                   return (
                     <div className="grid grid-cols-3 gap-3 mb-6">
                       <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                        <p className="text-zinc-500 text-xs mb-1">Avg external %</p>
+                        <p className="text-zinc-500 text-xs mb-1">Avg seller % (full cycle)</p>
                         <p className="text-rose-400 text-xl font-medium">{avgExt}%</p>
                       </div>
                       <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                        <p className="text-zinc-500 text-xs mb-1">Avg internal %</p>
+                        <p className="text-zinc-500 text-xs mb-1">Avg internal % (full cycle)</p>
                         <p className="text-teal-400 text-xl font-medium">{avgInt}%</p>
                       </div>
                       <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                        <p className="text-zinc-500 text-xs mb-1">Avg turns / deal</p>
+                        <p className="text-zinc-500 text-xs mb-1">Avg turns / deal (LOI→APA)</p>
                         <p className="text-zinc-200 text-xl font-medium">{avgTurns}</p>
                       </div>
                     </div>
                   )
                 })()}
 
-                {/* Stacked horizontal bar chart */}
+                {/* Stacked horizontal bar chart — full cycle */}
                 {(() => {
-                  const chartData = APA_DEAL_DATA.map(d => ({
-                    name: d.dealName.length > 26 ? d.dealName.slice(0, 24) + '…' : d.dealName,
-                    internal:  d.internalDays,
-                    external:  d.externalDays,
-                    untracked: d.unattributedDays,
-                  }))
+                  const allVintageDeals = rows.flatMap(r => r.deals)
+                  const chartData = APA_DEAL_DATA.map(d => {
+                    const vintageMatch = allVintageDeals.find(vd =>
+                      vd.dealName && (
+                        d.dealName.toLowerCase().includes(vd.dealName.toLowerCase()) ||
+                        vd.dealName.toLowerCase().includes(d.dealName.toLowerCase())
+                      )
+                    )
+                    const name = extractShortName(vintageMatch?.dealName ?? null)
+                      ?? (d.dealName.length > 26 ? d.dealName.slice(0, 24) + '…' : d.dealName)
+                    return ({
+                    name,
+                    preLoiSeller:    d.preLoiStages.filter(st => st.party === 'seller').reduce((s, st) => s + (st.days ?? 0), 0),
+                    preLoiInternal:  d.preLoiStages.filter(st => st.party === 'internal').reduce((s, st) => s + (st.days ?? 0), 0),
+                    preLoiUnattrib:  d.preLoiStages.filter(st => st.party === 'unattributed').reduce((s, st) => s + (st.days ?? 0), 0),
+                    loiApaInternal:  d.internalDays,
+                    loiApaExternal:  d.externalDays,
+                    loiApaUntracked: d.unattributedDays,
+                  })})
+                  const tooltipLabels: Record<string, string> = {
+                    preLoiSeller:    'NDA→LOI seller',
+                    preLoiInternal:  'NDA→LOI internal',
+                    preLoiUnattrib:  'NDA→LOI unattributed',
+                    loiApaInternal:  'LOI→APA our court',
+                    loiApaExternal:  'LOI→APA seller court',
+                    loiApaUntracked: 'LOI→APA untracked',
+                  }
                   return (
                     <ResponsiveContainer width="100%" height={APA_DEAL_DATA.length * 52 + 40}>
                       <BarChart
@@ -2348,19 +2385,30 @@ function VelocityExplorer() {
                         <Tooltip
                           cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                           contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, fontSize: 12 }}
-                          formatter={(value: unknown, name: unknown) => [
+                          formatter={(value: unknown, name: string | undefined) => [
                             `${value}d`,
-                            name === 'internal' ? 'Our court' : name === 'external' ? 'Seller court' : 'Untracked',
+                            name ? (tooltipLabels[name] ?? name) : '',
                           ]}
                         />
-                        <Bar dataKey="internal"  stackId="a" fill="#2dd4bf">
-                          <LabelList dataKey="internal"  position="insideLeft" style={{ fill: '#134e4a', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        {/* NDA→LOI segments — muted colors */}
+                        <Bar dataKey="preLoiSeller"   stackId="a" fill="#fda4af">
+                          <LabelList dataKey="preLoiSeller"   position="insideLeft" style={{ fill: '#4c0519', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
                         </Bar>
-                        <Bar dataKey="external"  stackId="a" fill="#fb7185">
-                          <LabelList dataKey="external"  position="insideLeft" style={{ fill: '#4c0519', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        <Bar dataKey="preLoiInternal" stackId="a" fill="#5eead4">
+                          <LabelList dataKey="preLoiInternal" position="insideLeft" style={{ fill: '#134e4a', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
                         </Bar>
-                        <Bar dataKey="untracked" stackId="a" fill="#52525b" radius={[0, 4, 4, 0]}>
-                          <LabelList dataKey="untracked" position="insideLeft" style={{ fill: '#d4d4d8', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        <Bar dataKey="preLoiUnattrib" stackId="a" fill="#3f3f46">
+                          <LabelList dataKey="preLoiUnattrib" position="insideLeft" style={{ fill: '#a1a1aa', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        </Bar>
+                        {/* LOI→APA segments — full color */}
+                        <Bar dataKey="loiApaInternal"  stackId="a" fill="#2dd4bf">
+                          <LabelList dataKey="loiApaInternal"  position="insideLeft" style={{ fill: '#134e4a', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        </Bar>
+                        <Bar dataKey="loiApaExternal"  stackId="a" fill="#fb7185">
+                          <LabelList dataKey="loiApaExternal"  position="insideLeft" style={{ fill: '#4c0519', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                        </Bar>
+                        <Bar dataKey="loiApaUntracked" stackId="a" fill="#52525b" radius={[0, 4, 4, 0]}>
+                          <LabelList dataKey="loiApaUntracked" position="insideLeft" style={{ fill: '#d4d4d8', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
@@ -2370,9 +2418,12 @@ function VelocityExplorer() {
                 {/* Legend */}
                 <div className="flex gap-4 mt-4 flex-wrap">
                   {[
-                    { color: 'bg-teal-400', label: 'Our court' },
-                    { color: 'bg-rose-400', label: 'Seller court' },
-                    { color: 'bg-zinc-600', label: 'Untracked' },
+                    { color: 'bg-rose-300',  label: 'NDA→LOI seller' },
+                    { color: 'bg-teal-300',  label: 'NDA→LOI internal' },
+                    { color: 'bg-zinc-700',  label: 'NDA→LOI unattributed' },
+                    { color: 'bg-teal-400',  label: 'LOI→APA our court' },
+                    { color: 'bg-rose-400',  label: 'LOI→APA seller court' },
+                    { color: 'bg-zinc-600',  label: 'LOI→APA untracked' },
                   ].map(({ color, label }) => (
                     <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
                       <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} />
