@@ -2291,146 +2291,149 @@ function VelocityExplorer() {
               </p>
             ) : (
               <>
-                {/* Stat cards — full cycle (NDA→LOI + LOI→APA) */}
+                {/* Only showing Dr. Casey Stepnik (Great Lakes Vet Dermatology) and Dr. Judy Force (Dentistry for Animals) */}
                 {(() => {
-                  const withData = APA_DEAL_DATA.filter(d => {
+                  const DOCTOR_DEALS: Record<string, string> = {
+                    'Great Lakes Veterinary Dermatology': 'Dr. Casey Stepnik',
+                    'Dentistry for Animals':              'Dr. Judy Force',
+                  }
+                  const focusedData = APA_DEAL_DATA.filter(d => d.dealName in DOCTOR_DEALS)
+
+                  {/* Stat cards — post-LOI only */}
+                  const withData = focusedData.filter(d => d.totalDays > 0)
+                  const avgExt   = Math.round(withData.reduce((s, d) => s + (d.externalDays / d.totalDays) * 100, 0) / withData.length)
+                  const avgInt   = Math.round(withData.reduce((s, d) => s + (d.internalDays / d.totalDays) * 100, 0) / withData.length)
+                  const avgTurns = (withData.reduce((s, d) => s + d.totalTurns, 0) / withData.length).toFixed(1)
+
+                  {/* Stat cards — full cycle (NDA→LOI + LOI→APA) — commented out for now
+                  const withDataFull = APA_DEAL_DATA.filter(d => {
                     const preLoiTotal = d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0)
                     return (preLoiTotal + d.totalDays) > 0
                   })
-                  const avgExt = Math.round(withData.reduce((s, d) => {
+                  const avgExtFull = Math.round(withDataFull.reduce((s, d) => {
                     const preLoiTotal    = d.preLoiStages.reduce((a, st) => a + (st.days ?? 0), 0)
                     const preLoiSeller   = d.preLoiStages.filter(st => st.party === 'seller').reduce((a, st) => a + (st.days ?? 0), 0)
                     const fullTotal      = preLoiTotal + d.totalDays
                     const fullExternal   = preLoiSeller + d.externalDays
                     return s + (fullExternal / fullTotal) * 100
-                  }, 0) / withData.length)
-                  const avgInt = Math.round(withData.reduce((s, d) => {
+                  }, 0) / withDataFull.length)
+                  const avgIntFull = Math.round(withDataFull.reduce((s, d) => {
                     const preLoiTotal    = d.preLoiStages.reduce((a, st) => a + (st.days ?? 0), 0)
                     const preLoiInternal = d.preLoiStages.filter(st => st.party === 'internal').reduce((a, st) => a + (st.days ?? 0), 0)
                     const fullTotal      = preLoiTotal + d.totalDays
                     const fullInternal   = preLoiInternal + d.internalDays
                     return s + (fullInternal / fullTotal) * 100
-                  }, 0) / withData.length)
-                  const avgTurns = (withData.filter(d => d.totalDays > 0).reduce((s, d) => s + d.totalTurns, 0) / withData.filter(d => d.totalDays > 0).length).toFixed(1)
-                  return (
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                      <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                        <p className="text-zinc-500 text-xs mb-1">Avg seller % (full cycle)</p>
-                        <p className="text-rose-400 text-xl font-medium">{avgExt}%</p>
-                      </div>
-                      <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                        <p className="text-zinc-500 text-xs mb-1">Avg internal % (full cycle)</p>
-                        <p className="text-teal-400 text-xl font-medium">{avgInt}%</p>
-                      </div>
-                      <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                        <p className="text-zinc-500 text-xs mb-1">Avg turns / deal (LOI→APA)</p>
-                        <p className="text-zinc-200 text-xl font-medium">{avgTurns}</p>
-                      </div>
-                    </div>
-                  )
-                })()}
+                  }, 0) / withDataFull.length)
+                  */}
 
-                {/* Stacked horizontal bar chart — full cycle */}
-                {(() => {
-                  const allVintageDeals = rows.flatMap(r => r.deals)
-                  const chartData = APA_DEAL_DATA.map(d => {
-                    const vintageMatch = allVintageDeals.find(vd =>
-                      vd.dealName && (
-                        d.dealName.toLowerCase().includes(vd.dealName.toLowerCase()) ||
-                        vd.dealName.toLowerCase().includes(d.dealName.toLowerCase())
-                      )
-                    )
-                    const name = extractShortName(vintageMatch?.dealName ?? null)
-                      ?? (d.dealName.length > 26 ? d.dealName.slice(0, 24) + '…' : d.dealName)
-                    return ({
-                    name,
-                    preLoiSeller:    d.preLoiStages.filter(st => st.party === 'seller').reduce((s, st) => s + (st.days ?? 0), 0),
-                    preLoiInternal:  d.preLoiStages.filter(st => st.party === 'internal').reduce((s, st) => s + (st.days ?? 0), 0),
-                    preLoiUnattrib:  d.preLoiStages.filter(st => st.party === 'unattributed').reduce((s, st) => s + (st.days ?? 0), 0),
+                  const chartData = focusedData.map(d => ({
+                    name: DOCTOR_DEALS[d.dealName],
+                    // preLoiSeller:    d.preLoiStages.filter(st => st.party === 'seller').reduce((s, st) => s + (st.days ?? 0), 0),
+                    // preLoiInternal:  d.preLoiStages.filter(st => st.party === 'internal').reduce((s, st) => s + (st.days ?? 0), 0),
+                    // preLoiUnattrib:  d.preLoiStages.filter(st => st.party === 'unattributed').reduce((s, st) => s + (st.days ?? 0), 0),
                     loiApaInternal:  d.internalDays,
                     loiApaExternal:  d.externalDays,
                     loiApaUntracked: d.unattributedDays,
-                  })})
+                  }))
                   const tooltipLabels: Record<string, string> = {
-                    preLoiSeller:    'NDA→LOI seller',
-                    preLoiInternal:  'NDA→LOI internal',
-                    preLoiUnattrib:  'NDA→LOI unattributed',
+                    // preLoiSeller:    'NDA→LOI seller',
+                    // preLoiInternal:  'NDA→LOI internal',
+                    // preLoiUnattrib:  'NDA→LOI unattributed',
                     loiApaInternal:  'LOI→APA our court',
                     loiApaExternal:  'LOI→APA seller court',
                     loiApaUntracked: 'LOI→APA untracked',
                   }
                   return (
-                    <ResponsiveContainer width="100%" height={APA_DEAL_DATA.length * 52 + 40}>
-                      <BarChart
-                        data={chartData}
-                        layout="vertical"
-                        margin={{ top: 0, right: 40, left: 8, bottom: 0 }}
-                        barSize={26}
-                      >
-                        <XAxis
-                          type="number"
-                          tick={{ fill: '#71717a', fontSize: 11 }}
-                          axisLine={false}
-                          tickLine={false}
-                          tickCount={6}
-                        />
-                        <YAxis
-                          type="category"
-                          dataKey="name"
-                          width={200}
-                          tick={{ fill: '#a1a1aa', fontSize: 12 }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip
-                          cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                          contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, fontSize: 12 }}
-                          formatter={(value: unknown, name: string | undefined) => [
-                            `${value}d`,
-                            name ? (tooltipLabels[name] ?? name) : '',
-                          ]}
-                        />
-                        {/* NDA→LOI segments — muted colors */}
-                        <Bar dataKey="preLoiSeller"   stackId="a" fill="#fda4af">
-                          <LabelList dataKey="preLoiSeller"   position="insideLeft" style={{ fill: '#4c0519', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                        </Bar>
-                        <Bar dataKey="preLoiInternal" stackId="a" fill="#5eead4">
-                          <LabelList dataKey="preLoiInternal" position="insideLeft" style={{ fill: '#134e4a', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                        </Bar>
-                        <Bar dataKey="preLoiUnattrib" stackId="a" fill="#3f3f46">
-                          <LabelList dataKey="preLoiUnattrib" position="insideLeft" style={{ fill: '#a1a1aa', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                        </Bar>
-                        {/* LOI→APA segments — full color */}
-                        <Bar dataKey="loiApaInternal"  stackId="a" fill="#2dd4bf">
-                          <LabelList dataKey="loiApaInternal"  position="insideLeft" style={{ fill: '#134e4a', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                        </Bar>
-                        <Bar dataKey="loiApaExternal"  stackId="a" fill="#fb7185">
-                          <LabelList dataKey="loiApaExternal"  position="insideLeft" style={{ fill: '#4c0519', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                        </Bar>
-                        <Bar dataKey="loiApaUntracked" stackId="a" fill="#52525b" radius={[0, 4, 4, 0]}>
-                          <LabelList dataKey="loiApaUntracked" position="insideLeft" style={{ fill: '#d4d4d8', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <>
+                      <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                          <p className="text-zinc-500 text-xs mb-1">Avg seller % (LOI→APA)</p>
+                          <p className="text-rose-400 text-xl font-medium">{avgExt}%</p>
+                        </div>
+                        <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                          <p className="text-zinc-500 text-xs mb-1">Avg internal % (LOI→APA)</p>
+                          <p className="text-teal-400 text-xl font-medium">{avgInt}%</p>
+                        </div>
+                        <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                          <p className="text-zinc-500 text-xs mb-1">Avg turns / deal (LOI→APA)</p>
+                          <p className="text-zinc-200 text-xl font-medium">{avgTurns}</p>
+                        </div>
+                      </div>
+
+                      {/* Stacked horizontal bar chart — post-LOI only */}
+                      <ResponsiveContainer width="100%" height={focusedData.length * 52 + 40}>
+                        <BarChart
+                          data={chartData}
+                          layout="vertical"
+                          margin={{ top: 0, right: 40, left: 8, bottom: 0 }}
+                          barSize={26}
+                        >
+                          <XAxis
+                            type="number"
+                            tick={{ fill: '#71717a', fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickCount={6}
+                          />
+                          <YAxis
+                            type="category"
+                            dataKey="name"
+                            width={160}
+                            tick={{ fill: '#a1a1aa', fontSize: 12 }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip
+                            cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                            contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, fontSize: 12 }}
+                            formatter={(value: unknown, name: string | undefined) => [
+                              `${value}d`,
+                              name ? (tooltipLabels[name] ?? name) : '',
+                            ]}
+                          />
+                          {/* NDA→LOI segments — commented out for now
+                          <Bar dataKey="preLoiSeller"   stackId="a" fill="#fda4af">
+                            <LabelList dataKey="preLoiSeller"   position="insideLeft" style={{ fill: '#4c0519', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                          </Bar>
+                          <Bar dataKey="preLoiInternal" stackId="a" fill="#5eead4">
+                            <LabelList dataKey="preLoiInternal" position="insideLeft" style={{ fill: '#134e4a', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                          </Bar>
+                          <Bar dataKey="preLoiUnattrib" stackId="a" fill="#3f3f46">
+                            <LabelList dataKey="preLoiUnattrib" position="insideLeft" style={{ fill: '#a1a1aa', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                          </Bar>
+                          */}
+                          {/* LOI→APA segments */}
+                          <Bar dataKey="loiApaInternal"  stackId="a" fill="#2dd4bf">
+                            <LabelList dataKey="loiApaInternal"  position="insideLeft" style={{ fill: '#134e4a', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                          </Bar>
+                          <Bar dataKey="loiApaExternal"  stackId="a" fill="#fb7185">
+                            <LabelList dataKey="loiApaExternal"  position="insideLeft" style={{ fill: '#4c0519', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                          </Bar>
+                          <Bar dataKey="loiApaUntracked" stackId="a" fill="#52525b" radius={[0, 4, 4, 0]}>
+                            <LabelList dataKey="loiApaUntracked" position="insideLeft" style={{ fill: '#d4d4d8', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+
+                      {/* Legend */}
+                      <div className="flex gap-4 mt-4 flex-wrap">
+                        {[
+                          // { color: 'bg-rose-300',  label: 'NDA→LOI seller' },
+                          // { color: 'bg-teal-300',  label: 'NDA→LOI internal' },
+                          // { color: 'bg-zinc-700',  label: 'NDA→LOI unattributed' },
+                          { color: 'bg-teal-400',  label: 'LOI→APA our court' },
+                          { color: 'bg-rose-400',  label: 'LOI→APA seller court' },
+                          { color: 'bg-zinc-600',  label: 'LOI→APA untracked' },
+                        ].map(({ color, label }) => (
+                          <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                            <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} />
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    </>
                   )
                 })()}
-
-                {/* Legend */}
-                <div className="flex gap-4 mt-4 flex-wrap">
-                  {[
-                    { color: 'bg-rose-300',  label: 'NDA→LOI seller' },
-                    { color: 'bg-teal-300',  label: 'NDA→LOI internal' },
-                    { color: 'bg-zinc-700',  label: 'NDA→LOI unattributed' },
-                    { color: 'bg-teal-400',  label: 'LOI→APA our court' },
-                    { color: 'bg-rose-400',  label: 'LOI→APA seller court' },
-                    { color: 'bg-zinc-600',  label: 'LOI→APA untracked' },
-                  ].map(({ color, label }) => (
-                    <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
-                      <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} />
-                      {label}
-                    </span>
-                  ))}
-                </div>
               </>
             )}
           </div>
