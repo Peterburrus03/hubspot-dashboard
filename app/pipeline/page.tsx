@@ -627,8 +627,48 @@ function VelocityCell({ days, goal, isCurrent }: { days: number | null; goal: nu
   )
 }
 
+// Sub-phase breakdown panel for NDA→LOI column
+function NdaToLoiPanel({ preLoiStages }: { preLoiStages: PreLoiStage[] }) {
+  const maxDays = Math.max(...preLoiStages.map(s => s.days ?? 0), 1)
+  const PARTY_COLOR: Record<string, string> = {
+    seller:       '#fb7185',
+    internal:     '#2dd4bf',
+    unattributed: '#52525b',
+  }
+  return (
+    <div className="space-y-2.5">
+      {preLoiStages.map((s, i) => {
+        const days = s.days
+        const barPct = days !== null ? Math.max((days / maxDays) * 100, 1) : 0
+        const color = PARTY_COLOR[s.party] ?? '#52525b'
+        return (
+          <div key={i} className="flex items-center gap-3">
+            <div className="w-52 text-xs text-zinc-400 shrink-0 leading-tight">{s.label}</div>
+            <div className="flex-1 bg-zinc-800 rounded-sm h-3 overflow-hidden">
+              {days !== null && (
+                <div className="h-3 rounded-sm" style={{ width: `${barPct}%`, background: color }} />
+              )}
+            </div>
+            <div className="w-10 text-xs text-right shrink-0" style={{ color: days !== null ? color : '#52525b' }}>
+              {days !== null ? `${days}d` : '—'}
+            </div>
+          </div>
+        )
+      })}
+      <div className="flex gap-4 pt-1">
+        {[['#fb7185','Seller'],['#2dd4bf','Internal'],['#52525b','Untracked']].map(([c,l]) => (
+          <span key={l} className="flex items-center gap-1 text-xs text-zinc-500">
+            <span className="w-2 h-2 rounded-sm inline-block shrink-0" style={{ background: c }} />{l}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
   const [vintageDeals, setVintageDeals] = useState<VintageDeal[]>([])
+  const [expandedCell, setExpandedCell] = useState<{ rowId: string; colKey: ScorecardColKey } | null>(null)
 
   useEffect(() => {
     fetch('/api/dashboard/vintages')
@@ -676,28 +716,60 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
     ? Math.round(rows.reduce((s, r) => s + r.totalDays, 0) / rows.length)
     : null
 
-  // Static closed-deal examples
-  const staticRows: { name: string; phases: Record<ScorecardColKey, number | null>; totalDays: number }[] = [
+  // Static closed-deal examples with APA_DEAL_DATA reference for drill-down
+  const staticRows: { name: string; apaDealName: string; phases: Record<ScorecardColKey, number | null>; totalDays: number }[] = [
     {
       name: 'Dr. Casey Stepnik',
+      apaDealName: 'Great Lakes Veterinary Dermatology',
       phases: { engagedToNda: null, ndaToLoi: 367, loiToApa: 65, apaToClose: 27 },
       totalDays: 459,
     },
     {
       name: 'Dr. Judy Force',
+      apaDealName: 'Dentistry for Animals',
       phases: { engagedToNda: null, ndaToLoi: 134, loiToApa: 55, apaToClose: 18 },
       totalDays: 207,
     },
   ]
 
+  const toggleCell = (rowId: string, colKey: ScorecardColKey) => {
+    setExpandedCell(prev =>
+      prev?.rowId === rowId && prev?.colKey === colKey ? null : { rowId, colKey }
+    )
+  }
+
+  const isExpanded = (rowId: string, colKey: ScorecardColKey) =>
+    expandedCell?.rowId === rowId && expandedCell?.colKey === colKey
+
   const thCls = 'text-left py-2 pr-6 text-xs font-semibold text-zinc-500 whitespace-nowrap border-b border-zinc-800 pb-3'
   const tdCls = 'py-3 pr-6 border-b border-zinc-800/50'
+  // NDA→LOI cells are clickable — show cursor + ring on hover
+  const ndaTdCls = `${tdCls} cursor-pointer group`
+  const TOTAL_COLS = 3 + SCORECARD_COLS.length + 1 // deal + ebitda + stage + cols + total
+
+  // Render the expanded detail row for a given rowId + colKey
+  const renderExpanded = (rowId: string, colKey: ScorecardColKey, preLoiStages: PreLoiStage[] | null) => {
+    if (colKey !== 'ndaToLoi') return null
+    return (
+      <tr key={`${rowId}-expanded`}>
+        <td colSpan={TOTAL_COLS} className="px-0 pb-0">
+          <div className="mx-0 mb-2 px-6 py-4 bg-zinc-900 border-b border-zinc-800 rounded-b">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">NDA → LOI breakdown</p>
+            {preLoiStages && preLoiStages.length > 0
+              ? <NdaToLoiPanel preLoiStages={preLoiStages} />
+              : <p className="text-xs text-zinc-600 italic">Sub-phase dates not yet tracked — requires HubSpot custom date fields (NDA→Data, Data→Cmte, Cmte→LOI)</p>
+            }
+          </div>
+        </td>
+      </tr>
+    )
+  }
 
   return (
     <div className={card}><div className={cardPad}>
       <div className="mb-5">
         <h2 className={h2Cls}>Pipeline Velocity Scorecard</h2>
-        <p className={`text-xs ${mutedCls} mt-0.5`}>Days per milestone phase · badge vs. goal · bright = current phase</p>
+        <p className={`text-xs ${mutedCls} mt-0.5`}>Days per milestone phase · badge vs. goal · bright = current · click NDA→LOI for breakdown</p>
       </div>
 
       <div className="overflow-x-auto">
@@ -717,28 +789,46 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ deal, phases, currentPhase, totalDays }) => (
-              <tr key={deal.id} className="hover:bg-zinc-900/40 transition-colors">
-                <td className={tdCls}>
-                  <div className="font-medium text-zinc-200 text-sm">{deal.name}</div>
-                  {deal.doctor && <div className="text-xs text-zinc-500 mt-0.5">{deal.doctor}</div>}
-                </td>
-                <td className={`${tdCls} text-zinc-400 text-sm`}>
-                  {deal.ebitda > 0 ? `$${(deal.ebitda / 1000).toFixed(1)}M` : '—'}
-                </td>
-                <td className={`${tdCls} text-zinc-400 text-xs`}>
-                  {STAGE_SHORT[deal.crmStage] ?? deal.crmStage}
-                </td>
-                {SCORECARD_COLS.map(col => (
-                  <td key={col.key} className={tdCls}>
-                    <VelocityCell days={phases[col.key]} goal={col.goal} isCurrent={currentPhase === col.key} />
-                  </td>
-                ))}
-                <td className={`${tdCls} font-medium text-zinc-300 text-sm`}>
-                  {totalDays > 0 ? `${totalDays}d` : '—'}
-                </td>
-              </tr>
-            ))}
+            {rows.map(({ deal, phases, currentPhase, totalDays }) => {
+              const apaDeal = APA_DEAL_DATA.find(d =>
+                deal.name.toLowerCase().includes(d.dealName.toLowerCase()) ||
+                d.dealName.toLowerCase().includes(deal.name.toLowerCase())
+              )
+              return (
+                <>
+                  <tr key={deal.id} className="hover:bg-zinc-900/40 transition-colors">
+                    <td className={tdCls}>
+                      <div className="font-medium text-zinc-200 text-sm">{deal.name}</div>
+                      {deal.doctor && <div className="text-xs text-zinc-500 mt-0.5">{deal.doctor}</div>}
+                    </td>
+                    <td className={`${tdCls} text-zinc-400 text-sm`}>
+                      {deal.ebitda > 0 ? `$${(deal.ebitda / 1000).toFixed(1)}M` : '—'}
+                    </td>
+                    <td className={`${tdCls} text-zinc-400 text-xs`}>
+                      {STAGE_SHORT[deal.crmStage] ?? deal.crmStage}
+                    </td>
+                    {SCORECARD_COLS.map(col => (
+                      <td
+                        key={col.key}
+                        className={col.key === 'ndaToLoi' ? ndaTdCls : tdCls}
+                        onClick={col.key === 'ndaToLoi' ? () => toggleCell(deal.id, col.key) : undefined}
+                      >
+                        <div className={col.key === 'ndaToLoi' ? 'group-hover:opacity-80 flex items-center gap-1.5' : ''}>
+                          <VelocityCell days={phases[col.key]} goal={col.goal} isCurrent={currentPhase === col.key} />
+                          {col.key === 'ndaToLoi' && phases[col.key] !== null && (
+                            <span className="text-zinc-600 text-xs ml-1">{isExpanded(deal.id, col.key) ? '▲' : '▼'}</span>
+                          )}
+                        </div>
+                      </td>
+                    ))}
+                    <td className={`${tdCls} font-medium text-zinc-300 text-sm`}>
+                      {totalDays > 0 ? `${totalDays}d` : '—'}
+                    </td>
+                  </tr>
+                  {isExpanded(deal.id, 'ndaToLoi') && renderExpanded(deal.id, 'ndaToLoi', apaDeal?.preLoiStages ?? null)}
+                </>
+              )
+            })}
             {/* Avg row */}
             {rows.length > 0 && (() => {
               const avgPhases = SCORECARD_COLS.map(col => {
@@ -774,22 +864,37 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <tbody>
-              {staticRows.map(row => (
-                <tr key={row.name} className="border-b border-zinc-800/40 last:border-0">
-                  <td className="py-2.5 pr-6 min-w-[140px]">
-                    <div className="font-medium text-zinc-400 text-sm">{row.name}</div>
-                    <div className="text-xs text-zinc-600 mt-0.5">Closed</div>
-                  </td>
-                  <td className="py-2.5 pr-6 text-zinc-600 text-sm w-16">—</td>
-                  <td className="py-2.5 pr-6 text-zinc-600 text-xs">Closed</td>
-                  {SCORECARD_COLS.map(col => (
-                    <td key={col.key} className="py-2.5 pr-6">
-                      <VelocityCell days={row.phases[col.key]} goal={col.goal} isCurrent={false} />
-                    </td>
-                  ))}
-                  <td className="py-2.5 text-sm font-medium text-zinc-400">{row.totalDays}d</td>
-                </tr>
-              ))}
+              {staticRows.map(row => {
+                const apaDeal = APA_DEAL_DATA.find(d => d.dealName === row.apaDealName)
+                return (
+                  <>
+                    <tr key={row.name} className="border-b border-zinc-800/40">
+                      <td className="py-2.5 pr-6 min-w-[140px]">
+                        <div className="font-medium text-zinc-400 text-sm">{row.name}</div>
+                        <div className="text-xs text-zinc-600 mt-0.5">Closed</div>
+                      </td>
+                      <td className="py-2.5 pr-6 text-zinc-600 text-sm w-16">—</td>
+                      <td className="py-2.5 pr-6 text-zinc-600 text-xs">Closed</td>
+                      {SCORECARD_COLS.map(col => (
+                        <td
+                          key={col.key}
+                          className={col.key === 'ndaToLoi' ? 'py-2.5 pr-6 cursor-pointer group' : 'py-2.5 pr-6'}
+                          onClick={col.key === 'ndaToLoi' ? () => toggleCell(row.name, col.key) : undefined}
+                        >
+                          <div className={col.key === 'ndaToLoi' ? 'group-hover:opacity-80 flex items-center gap-1.5' : ''}>
+                            <VelocityCell days={row.phases[col.key]} goal={col.goal} isCurrent={false} />
+                            {col.key === 'ndaToLoi' && row.phases[col.key] !== null && (
+                              <span className="text-zinc-600 text-xs ml-1">{isExpanded(row.name, col.key) ? '▲' : '▼'}</span>
+                            )}
+                          </div>
+                        </td>
+                      ))}
+                      <td className="py-2.5 text-sm font-medium text-zinc-400">{row.totalDays}d</td>
+                    </tr>
+                    {isExpanded(row.name, 'ndaToLoi') && renderExpanded(row.name, 'ndaToLoi', apaDeal?.preLoiStages ?? null)}
+                  </>
+                )
+              })}
             </tbody>
           </table>
         </div>
