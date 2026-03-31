@@ -1409,7 +1409,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
       { label: 'Min. viable data → cmte',   days: 3,   party: 'internal' },
       { label: 'First cmte → LOI',          days: 24,  party: 'internal' },
     ],
-    totalTurns: 12, aosnTurns: 7, sellerTurns: 5,
+    totalTurns: 11, aosnTurns: 6, sellerTurns: 5,
     totalDays: 65, internalDays: 16, externalDays: 49, unattributedDays: 0,
     preLOIPhases: [
       { key: 'qoe_kick',       label: 'QoE kicked off',           date: null, daysFromPrev: null, party: 'internal' },
@@ -1417,7 +1417,22 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
       { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
       { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
     ],
-    turns: [],
+    // APA version history: v1 Oct 20 internal, v2 Oct 22 initial draft, v3 Nov 20 seller,
+    // v4 Dec 1 Fredrikson, v5 Dec 15 seller, v6 Dec 17 Fredrikson, v7 Dec 19 seller,
+    // v8 Dec 20 Fredrikson, v9 Dec 23 seller, v10 Dec 23 Fredrikson, v11 Dec 24 seller, v12 Dec 24 final
+    turns: [
+      { turnNumber: 1,  date: '2025-10-20', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 2  },
+      { turnNumber: 2,  date: '2025-10-22', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 29 },
+      { turnNumber: 3,  date: '2025-11-20', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 11 },
+      { turnNumber: 4,  date: '2025-12-01', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 14 },
+      { turnNumber: 5,  date: '2025-12-15', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 2  },
+      { turnNumber: 6,  date: '2025-12-17', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 2  },
+      { turnNumber: 7,  date: '2025-12-19', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 1  },
+      { turnNumber: 8,  date: '2025-12-20', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 3  },
+      { turnNumber: 9,  date: '2025-12-23', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 0  },
+      { turnNumber: 10, date: '2025-12-23', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 1  },
+      { turnNumber: 11, date: '2025-12-24', direction: 'seller_to_us', delayParty: null,       daysToRespond: 0  },
+    ],
   },
   {
     dealName: 'Lehigh Valley Veterinary Dermatology',
@@ -1439,7 +1454,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
       { label: 'Min. viable data → cmte',   days: null, party: 'unattributed' },
       { label: 'First cmte → LOI',          days: 21,  party: 'internal' },
     ],
-    totalTurns: 8, aosnTurns: 7, sellerTurns: 1,
+    totalTurns: 3, aosnTurns: 2, sellerTurns: 1,
     totalDays: 55, internalDays: 14, externalDays: 41, unattributedDays: 0,
     preLOIPhases: [
       { key: 'qoe_kick',       label: 'QoE kicked off',           date: null, daysFromPrev: null, party: 'internal' },
@@ -1447,7 +1462,13 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
       { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
       { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
     ],
-    turns: [],
+    // APA version history: v4 Nov 28 internal, v5 Nov 29 internal, v6 Dec 2 initial draft,
+    // v7 Jan 12 seller, v8 Jan 12 Fredrikson, v9 Jan 18 Fredrikson, v10 Jan 22 Fredrikson, v11 Jan 22 final
+    turns: [
+      { turnNumber: 1, date: '2025-11-28', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 4  },
+      { turnNumber: 2, date: '2025-12-02', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 41 },
+      { turnNumber: 3, date: '2026-01-12', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 10 },
+    ],
   },
   {
     dealName: 'Animal Eye Clinic of N. Florida',
@@ -2326,23 +2347,13 @@ function VelocityExplorer() {
                   }, 0) / withDataFull.length)
                   */}
 
-                  const chartData = focusedData.map(d => ({
-                    name: DOCTOR_DEALS[d.dealName],
-                    // preLoiSeller:    d.preLoiStages.filter(st => st.party === 'seller').reduce((s, st) => s + (st.days ?? 0), 0),
-                    // preLoiInternal:  d.preLoiStages.filter(st => st.party === 'internal').reduce((s, st) => s + (st.days ?? 0), 0),
-                    // preLoiUnattrib:  d.preLoiStages.filter(st => st.party === 'unattributed').reduce((s, st) => s + (st.days ?? 0), 0),
-                    loiApaInternal:  d.internalDays,
-                    loiApaExternal:  d.externalDays,
-                    loiApaUntracked: d.unattributedDays,
-                  }))
-                  const tooltipLabels: Record<string, string> = {
-                    // preLoiSeller:    'NDA→LOI seller',
-                    // preLoiInternal:  'NDA→LOI internal',
-                    // preLoiUnattrib:  'NDA→LOI unattributed',
-                    loiApaInternal:  'LOI→APA our court',
-                    loiApaExternal:  'LOI→APA seller court',
-                    loiApaUntracked: 'LOI→APA untracked',
-                  }
+                  const maxTurns = Math.max(...focusedData.map(d => d.turns.length))
+                  const chartData = focusedData.map(d => {
+                    const entry: Record<string, number | string> = { name: DOCTOR_DEALS[d.dealName] }
+                    d.turns.forEach((t, i) => { entry[`t${i}`] = t.daysToRespond ?? 0 })
+                    return entry
+                  })
+
                   return (
                     <>
                       <div className="grid grid-cols-3 gap-3 mb-6">
@@ -2360,7 +2371,7 @@ function VelocityExplorer() {
                         </div>
                       </div>
 
-                      {/* Stacked horizontal bar chart — post-LOI only */}
+                      {/* Stacked horizontal bar chart — per-turn slivers */}
                       <ResponsiveContainer width="100%" height={focusedData.length * 52 + 40}>
                         <BarChart
                           data={chartData}
@@ -2385,45 +2396,52 @@ function VelocityExplorer() {
                           />
                           <Tooltip
                             cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                            contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, fontSize: 12 }}
-                            formatter={(value: unknown, name: string | undefined) => [
-                              `${value}d`,
-                              name ? (tooltipLabels[name] ?? name) : '',
-                            ]}
+                            content={(props) => {
+                              if (!props.active || !props.payload?.length) return null
+                              const label = props.label as string
+                              const deal = focusedData.find(d => DOCTOR_DEALS[d.dealName] === label)
+                              if (!deal) return null
+                              const items = (props.payload as any[]).filter(p => (p.value ?? 0) > 0)
+                              if (!items.length) return null
+                              return (
+                                <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, padding: '8px 12px', fontSize: 12 }}>
+                                  <p style={{ color: '#a1a1aa', marginBottom: 4 }}>{label}</p>
+                                  {items.map((p: any) => {
+                                    const idx = parseInt(p.dataKey.replace('t', ''))
+                                    const turn = deal.turns[idx]
+                                    if (!turn) return null
+                                    const party = turn.direction === 'us_to_seller' ? 'seller court' : 'our court'
+                                    const color = turn.direction === 'us_to_seller' ? '#fb7185' : '#2dd4bf'
+                                    return <p key={p.dataKey} style={{ color, margin: '2px 0' }}>{`Turn ${turn.turnNumber}: ${p.value}d (${party})`}</p>
+                                  })}
+                                </div>
+                              )
+                            }}
                           />
-                          {/* NDA→LOI segments — commented out for now
-                          <Bar dataKey="preLoiSeller"   stackId="a" fill="#fda4af">
-                            <LabelList dataKey="preLoiSeller"   position="insideLeft" style={{ fill: '#4c0519', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                          </Bar>
-                          <Bar dataKey="preLoiInternal" stackId="a" fill="#5eead4">
-                            <LabelList dataKey="preLoiInternal" position="insideLeft" style={{ fill: '#134e4a', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                          </Bar>
-                          <Bar dataKey="preLoiUnattrib" stackId="a" fill="#3f3f46">
-                            <LabelList dataKey="preLoiUnattrib" position="insideLeft" style={{ fill: '#a1a1aa', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                          </Bar>
-                          */}
-                          {/* LOI→APA segments */}
-                          <Bar dataKey="loiApaInternal"  stackId="a" fill="#2dd4bf">
-                            <LabelList dataKey="loiApaInternal"  position="insideLeft" style={{ fill: '#134e4a', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                          </Bar>
-                          <Bar dataKey="loiApaExternal"  stackId="a" fill="#fb7185">
-                            <LabelList dataKey="loiApaExternal"  position="insideLeft" style={{ fill: '#4c0519', fontSize: 11, fontWeight: 500 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                          </Bar>
-                          <Bar dataKey="loiApaUntracked" stackId="a" fill="#52525b" radius={[0, 4, 4, 0]}>
-                            <LabelList dataKey="loiApaUntracked" position="insideLeft" style={{ fill: '#d4d4d8', fontSize: 11 }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
-                          </Bar>
+                          {Array.from({ length: maxTurns }, (_, i) => (
+                            <Bar key={i} dataKey={`t${i}`} stackId="a" isAnimationActive={false}>
+                              {focusedData.map((d, di) => {
+                                const turn = d.turns[i]
+                                const days = turn?.daysToRespond ?? 0
+                                if (!turn || days === 0) return <Cell key={di} fill="transparent" />
+                                return <Cell key={di} fill={turn.direction === 'us_to_seller' ? '#fb7185' : '#2dd4bf'} />
+                              })}
+                              <LabelList
+                                dataKey={`t${i}`}
+                                position="insideLeft"
+                                style={{ fontSize: 11, fontWeight: 500, fill: '#fff' }}
+                                formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''}
+                              />
+                            </Bar>
+                          ))}
                         </BarChart>
                       </ResponsiveContainer>
 
                       {/* Legend */}
                       <div className="flex gap-4 mt-4 flex-wrap">
                         {[
-                          // { color: 'bg-rose-300',  label: 'NDA→LOI seller' },
-                          // { color: 'bg-teal-300',  label: 'NDA→LOI internal' },
-                          // { color: 'bg-zinc-700',  label: 'NDA→LOI unattributed' },
-                          { color: 'bg-teal-400',  label: 'LOI→APA our court' },
-                          { color: 'bg-rose-400',  label: 'LOI→APA seller court' },
-                          { color: 'bg-zinc-600',  label: 'LOI→APA untracked' },
+                          { color: 'bg-teal-400', label: 'Our court' },
+                          { color: 'bg-rose-400', label: 'Seller court' },
                         ].map(({ color, label }) => (
                           <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
                             <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} />
