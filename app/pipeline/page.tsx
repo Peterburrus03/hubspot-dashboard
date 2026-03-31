@@ -591,95 +591,209 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
   )
 }
 
-// ─── PipelineWeightedTiming ───────────────────────────────────────────────────
+// ─── PipelineVelocityScorecard ───────────────────────────────────────────────
 
-function PipelineWeightedTiming({ deals }: { deals: DealItem[] }) {
-  const activeStages = CRM_STAGE_ORDER.filter((s) => s !== 'Closed' && s !== 'APA Signed')
-  const GLOBAL_MAX = 120
-  const stageData = activeStages.map((stage) => {
-    const sd = deals.filter((d) => d.crmStage === stage)
-    const totalE = sd.reduce((s, d) => s + (d.ebitda || 1), 0)
-    const wtd = sd.length ? sd.reduce((s, d) => s + daysInStage(d) * (d.ebitda || 1), 0) / totalE : 0
-    const plan = STAGE_PLAN_DAYS[stage] || 14
-    const actual = Math.round(wtd)
-    const diff = actual - plan
-    const lbl =
-      stage === 'Data Collection (including NDA)' ? 'NDA' :
-      stage === 'Presented to Growth Committee' ? 'Growth Cmte' :
-      stage === 'LOI Signed/Diligence' ? 'LOI' :
-      stage === 'LOI Extended' ? 'LOI Extended' : stage
-    return { label: lbl, fullStage: stage, actual, plan, diff, over: diff > 0, count: sd.length }
+const SCORECARD_COLS = [
+  { key: 'engagedToNda', label: 'Engaged → NDA', goal: 21 },
+  { key: 'ndaToLoi',     label: 'NDA → LOI',     goal: 30 },
+  { key: 'loiToApa',     label: 'LOI → APA',     goal: 55 },
+  { key: 'apaToClose',   label: 'APA → Close',   goal: 14 },
+] as const
+type ScorecardColKey = typeof SCORECARD_COLS[number]['key']
+
+function daysBetweenStr(a: string | null, b: string | null): number | null {
+  if (!a || !b) return null
+  return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000)
+}
+function daysSinceStr(d: string | null): number | null {
+  if (!d) return null
+  return Math.round((TODAY.getTime() - new Date(d).getTime()) / 86400000)
+}
+
+function VelocityBadge({ days, goal }: { days: number; goal: number }) {
+  const diff = days - goal
+  if (diff === 0) return <span className="inline-block px-1.5 py-0.5 rounded text-xs font-medium bg-zinc-800 text-zinc-500">+0d</span>
+  if (diff > 0)   return <span className="inline-block px-1.5 py-0.5 rounded text-xs font-medium bg-red-950 text-red-400">+{diff}d</span>
+  return           <span className="inline-block px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-950 text-emerald-400">{diff}d</span>
+}
+
+function VelocityCell({ days, goal, isCurrent }: { days: number | null; goal: number; isCurrent: boolean }) {
+  if (days === null) return <span className="text-zinc-600">—</span>
+  return (
+    <div className="flex items-center gap-1.5 whitespace-nowrap">
+      <span className={isCurrent ? 'text-zinc-200 font-medium' : 'text-zinc-400'}>{days}d</span>
+      <VelocityBadge days={days} goal={goal} />
+    </div>
+  )
+}
+
+function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
+  const [vintageDeals, setVintageDeals] = useState<VintageDeal[]>([])
+
+  useEffect(() => {
+    fetch('/api/dashboard/vintages')
+      .then(r => r.json())
+      .then((d: { vintages?: VintageRow[] }) => {
+        if (d.vintages) setVintageDeals(d.vintages.flatMap(r => r.deals))
+      })
+      .catch(console.error)
+  }, [])
+
+  const activeDeals = deals.filter(d => d.crmStage !== 'Closed' && d.crmStage !== 'APA Signed')
+
+  const rows = activeDeals.map(deal => {
+    const vd = vintageDeals.find(v => v.dealId === deal.id)
+
+    const currentPhase: ScorecardColKey | null =
+      !vd?.ndaSignedDate             ? 'engagedToNda' :
+      !vd?.loiSignedDate             ? 'ndaToLoi'     :
+      !vd?.integrationCompletionDate ? 'loiToApa'     :
+      !vd?.officialClosedDate        ? 'apaToClose'   : null
+
+    const phases: Record<ScorecardColKey, number | null> = {
+      engagedToNda: currentPhase === 'engagedToNda'
+        ? daysSinceStr(vd?.engagedDate ?? null)
+        : daysBetweenStr(vd?.engagedDate ?? null, vd?.ndaSignedDate ?? null),
+      ndaToLoi: currentPhase === 'ndaToLoi'
+        ? daysSinceStr(vd?.ndaSignedDate ?? null)
+        : currentPhase === 'engagedToNda' ? null
+        : daysBetweenStr(vd?.ndaSignedDate ?? null, vd?.loiSignedDate ?? null),
+      loiToApa: currentPhase === 'loiToApa'
+        ? daysSinceStr(vd?.loiSignedDate ?? null)
+        : (currentPhase === 'engagedToNda' || currentPhase === 'ndaToLoi') ? null
+        : daysBetweenStr(vd?.loiSignedDate ?? null, vd?.integrationCompletionDate ?? null),
+      apaToClose: currentPhase === 'apaToClose'
+        ? daysSinceStr(vd?.integrationCompletionDate ?? null)
+        : currentPhase !== null ? null
+        : daysBetweenStr(vd?.integrationCompletionDate ?? null, vd?.officialClosedDate ?? null),
+    }
+
+    const totalDays = Object.values(phases).reduce<number>((s, v) => s + (v ?? 0), 0)
+    return { deal, phases, currentPhase, totalDays }
   })
-  const totalBehind = stageData.filter((s) => s.over && s.count > 0).reduce((sum, s) => sum + s.diff, 0)
-  const totalAhead = stageData.filter((s) => !s.over && s.count > 0).reduce((sum, s) => sum + Math.abs(s.diff), 0)
-  const netDays = totalBehind - totalAhead
-  const isNetBehind = netDays > 0
+
+  const avgTotalDays = rows.length > 0
+    ? Math.round(rows.reduce((s, r) => s + r.totalDays, 0) / rows.length)
+    : null
+
+  // Static closed-deal examples
+  const staticRows: { name: string; phases: Record<ScorecardColKey, number | null>; totalDays: number }[] = [
+    {
+      name: 'Dr. Casey Stepnik',
+      phases: { engagedToNda: null, ndaToLoi: 367, loiToApa: 65, apaToClose: 27 },
+      totalDays: 459,
+    },
+    {
+      name: 'Dr. Judy Force',
+      phases: { engagedToNda: null, ndaToLoi: 134, loiToApa: 55, apaToClose: 18 },
+      totalDays: 207,
+    },
+  ]
+
+  const thCls = 'text-left py-2 pr-6 text-xs font-semibold text-zinc-500 whitespace-nowrap border-b border-zinc-800 pb-3'
+  const tdCls = 'py-3 pr-6 border-b border-zinc-800/50'
 
   return (
-    <div className={`${card} overflow-hidden`}><div className={cardPad}>
-      <div className="flex justify-between items-start mb-5">
-        <div>
-          <h2 className={h2Cls}>Pipeline Velocity — Days in Stage</h2>
-          <p className={`text-xs ${mutedCls} mt-0.5`}>EBITDA-weighted avg · vertical line = plan target</p>
-        </div>
-        <div className="flex gap-3 text-xs">
-          <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded inline-block bg-emerald-500" />On track</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded inline-block bg-red-500" />Over plan</span>
+    <div className={card}><div className={cardPad}>
+      <div className="mb-5">
+        <h2 className={h2Cls}>Pipeline Velocity Scorecard</h2>
+        <p className={`text-xs ${mutedCls} mt-0.5`}>Days per milestone phase · badge vs. goal · bright = current phase</p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
+          <thead>
+            <tr>
+              <th className={`${thCls} min-w-[140px]`}>Deal</th>
+              <th className={thCls}>EBITDA</th>
+              <th className={thCls}>Stage</th>
+              {SCORECARD_COLS.map(col => (
+                <th key={col.key} className={thCls}>
+                  {col.label}
+                  <span className="block text-zinc-600 font-normal mt-0.5">goal: {col.goal}d</span>
+                </th>
+              ))}
+              <th className={thCls}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ deal, phases, currentPhase, totalDays }) => (
+              <tr key={deal.id} className="hover:bg-zinc-900/40 transition-colors">
+                <td className={tdCls}>
+                  <div className="font-medium text-zinc-200 text-sm">{deal.name}</div>
+                  {deal.doctor && <div className="text-xs text-zinc-500 mt-0.5">{deal.doctor}</div>}
+                </td>
+                <td className={`${tdCls} text-zinc-400 text-sm`}>
+                  {deal.ebitda > 0 ? `$${(deal.ebitda / 1000).toFixed(1)}M` : '—'}
+                </td>
+                <td className={`${tdCls} text-zinc-400 text-xs`}>
+                  {STAGE_SHORT[deal.crmStage] ?? deal.crmStage}
+                </td>
+                {SCORECARD_COLS.map(col => (
+                  <td key={col.key} className={tdCls}>
+                    <VelocityCell days={phases[col.key]} goal={col.goal} isCurrent={currentPhase === col.key} />
+                  </td>
+                ))}
+                <td className={`${tdCls} font-medium text-zinc-300 text-sm`}>
+                  {totalDays > 0 ? `${totalDays}d` : '—'}
+                </td>
+              </tr>
+            ))}
+            {/* Avg row */}
+            {rows.length > 0 && (() => {
+              const avgPhases = SCORECARD_COLS.map(col => {
+                const vals = rows.map(r => r.phases[col.key]).filter((v): v is number => v !== null)
+                return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
+              })
+              return (
+                <tr className="bg-zinc-900/60">
+                  <td className="py-3 pr-6 text-xs font-semibold text-zinc-500" colSpan={3}>Avg — active deals</td>
+                  {avgPhases.map((avg, i) => (
+                    <td key={SCORECARD_COLS[i].key} className="py-3 pr-6">
+                      {avg !== null
+                        ? <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className="text-zinc-300 text-sm">{avg}d</span>
+                            <VelocityBadge days={avg} goal={SCORECARD_COLS[i].goal} />
+                          </div>
+                        : <span className="text-zinc-600">—</span>}
+                    </td>
+                  ))}
+                  <td className="py-3 text-sm font-semibold text-zinc-300">
+                    {avgTotalDays !== null ? `${avgTotalDays}d` : '—'}
+                  </td>
+                </tr>
+              )
+            })()}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Closed examples — Stepnik & Force */}
+      <div className="mt-6 pt-5 border-t border-zinc-800">
+        <p className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-3">Closed examples</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
+            <tbody>
+              {staticRows.map(row => (
+                <tr key={row.name} className="border-b border-zinc-800/40 last:border-0">
+                  <td className="py-2.5 pr-6 min-w-[140px]">
+                    <div className="font-medium text-zinc-400 text-sm">{row.name}</div>
+                    <div className="text-xs text-zinc-600 mt-0.5">Closed</div>
+                  </td>
+                  <td className="py-2.5 pr-6 text-zinc-600 text-sm w-16">—</td>
+                  <td className="py-2.5 pr-6 text-zinc-600 text-xs">Closed</td>
+                  {SCORECARD_COLS.map(col => (
+                    <td key={col.key} className="py-2.5 pr-6">
+                      <VelocityCell days={row.phases[col.key]} goal={col.goal} isCurrent={false} />
+                    </td>
+                  ))}
+                  <td className="py-2.5 text-sm font-medium text-zinc-400">{row.totalDays}d</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div className="space-y-4">
-        {stageData.map((s) => {
-          const isEmpty = s.count === 0
-          const color = s.over ? '#f87171' : '#34d399'
-          const actualW = Math.min(Math.round((s.actual / GLOBAL_MAX) * 100), 92)
-          const planW = Math.min(Math.round((s.plan / GLOBAL_MAX) * 100), 92)
-          return (
-            <div key={s.fullStage} className="flex items-center gap-3">
-              <div className="w-28 flex-shrink-0 flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-300">{s.label}</span>
-                {s.count > 0 && (
-                  <span className="text-xs font-bold rounded-full px-1.5 py-0.5 text-black flex-shrink-0"
-                    style={{ background: CRM_STAGE_COLORS[s.fullStage], fontSize: '10px' }}>{s.count}</span>
-                )}
-              </div>
-              <div className="flex-1 relative" style={{ height: 44 }}>
-                {isEmpty ? (
-                  <div className="absolute top-2 left-0 right-0 h-8 rounded-lg bg-zinc-800 border border-dashed border-zinc-600 flex items-center px-3">
-                    <span className="text-xs text-zinc-600">No deals</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="absolute top-2 left-0 right-0 h-8 rounded-lg bg-zinc-800" />
-                    <div className="absolute top-2 left-0 h-8 rounded-lg transition-all" style={{ width: actualW + '%', background: color }} />
-                    <div className="absolute flex items-center h-8 z-20" style={{ top: 2, left: actualW + '%' }}>
-                      <span className="text-xs font-black ml-2 whitespace-nowrap" style={{ color }}>{s.actual}d</span>
-                    </div>
-                    <div className="absolute z-10" style={{ left: planW + '%', top: 0, bottom: 0 }}>
-                      <span className="absolute text-zinc-400 font-bold whitespace-nowrap bg-zinc-900 px-1 rounded border border-zinc-600"
-                        style={{ fontSize: '10px', bottom: '100%', marginBottom: 2, transform: 'translateX(-50%)' }}>
-                        {s.plan}d
-                      </span>
-                      <div className="absolute h-8 w-0.5 bg-zinc-400" style={{ top: 8 }} />
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="w-20 flex-shrink-0 text-right">
-                {!isEmpty && (
-                  s.over
-                    ? <span className="text-xs font-bold text-red-400">+{s.diff}d behind</span>
-                    : <span className="text-xs font-bold text-emerald-400">{Math.abs(s.diff)}d ahead</span>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-    <div className={`px-6 py-3 flex items-center justify-center ${isNetBehind ? 'bg-red-950 border-t border-red-800' : 'bg-emerald-950 border-t border-emerald-800'}`}>
-      <span className={`text-sm font-black ${isNetBehind ? 'text-red-400' : 'text-emerald-400'}`}>
-        Net: {isNetBehind ? `+${netDays}d behind plan` : `${Math.abs(netDays)}d ahead of plan`} across all stages
-      </span>
     </div></div>
   )
 }
@@ -2586,7 +2700,7 @@ export default function PipelinePage() {
               <>
                 <EBITDATargetBar deals={deals} closedEBITDA={actuals.closedEBITDA} />
                 <OutreachSection actuals={actuals} weeklyHistory={weeklyHistory} lastWeekStart={lastWeekStart} />
-                <PipelineWeightedTiming deals={deals} />
+                <PipelineVelocityScorecard deals={deals} />
                 <VintageAnalysis />
                 <VelocityExplorer />
                 <TopPriorities deals={deals} actuals={actuals} />
