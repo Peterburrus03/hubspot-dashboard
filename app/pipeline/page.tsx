@@ -732,7 +732,7 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
   const isExpanded = (rowId: string, colKey: ScorecardColKey) =>
     expandedCell?.rowId === rowId && expandedCell?.colKey === colKey
 
-  const thCls = 'text-left py-2 pr-6 text-xs font-semibold text-zinc-500 whitespace-nowrap border-b border-zinc-800 pb-3'
+  const thCls = 'text-left py-2 pr-6 text-xs font-semibold text-zinc-500 whitespace-nowrap border-b border-zinc-800 pb-3 sticky top-0 bg-zinc-900 z-10'
   const tdCls = 'py-3 pr-6 border-b border-zinc-800/50 align-top'
 
   return (
