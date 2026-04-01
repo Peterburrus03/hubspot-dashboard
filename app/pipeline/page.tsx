@@ -1226,8 +1226,10 @@ function WeeklyChanges({ deals, closedWonIds }: { deals: DealItem[]; closedWonId
       .then((list: string[]) => {
         setSnapshotList(list)
         if (list.length > 0) {
-          setSelectedAt(list[0])
-          return fetch(`/api/snapshots?at=${encodeURIComponent(list[0])}`).then((r) => r.json())
+          // Default to second-to-latest snapshot so you're comparing last week vs now
+          const defaultAt = list[1] ?? list[0]
+          setSelectedAt(defaultAt)
+          return fetch(`/api/snapshots?at=${encodeURIComponent(defaultAt)}`).then((r) => r.json())
         }
         return { snapshotAt: null, deals: [] }
       })
