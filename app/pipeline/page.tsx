@@ -679,7 +679,10 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
       .catch(console.error)
   }, [])
 
-  const activeDeals = deals.filter(d => d.crmStage !== 'Closed' && d.crmStage !== 'APA Signed')
+  const stageRank = Object.fromEntries(CRM_STAGE_ORDER.map((s, i) => [s, i]))
+  const activeDeals = deals
+    .filter(d => d.crmStage !== 'Closed' && d.crmStage !== 'APA Signed')
+    .sort((a, b) => stageRank[b.crmStage] - stageRank[a.crmStage])
 
   const rows = activeDeals.map(deal => {
     const vd = vintageDeals.find(v => v.dealId === deal.id)
