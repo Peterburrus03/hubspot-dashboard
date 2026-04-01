@@ -730,20 +730,20 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
     {
       name: 'Dr. Kramer',
       apaDealName: 'OREV Specialty Vet Care',
-      phases: { engagedToNda: null, ndaToLoi: 53, loiToApa: 61, apaToClose: 14 },
-      totalDays: 128,
+      phases: { engagedToNda: 3, ndaToLoi: 53, loiToApa: 61, apaToClose: 14 },
+      totalDays: 131,
     },
     {
       name: 'Dr. Wooldridge',
       apaDealName: 'Veterinary Cancer & Surgery Specialists',
-      phases: { engagedToNda: null, ndaToLoi: null, loiToApa: 44, apaToClose: 12 },
-      totalDays: 56,
+      phases: { engagedToNda: 0, ndaToLoi: 119, loiToApa: 44, apaToClose: 12 },
+      totalDays: 175,
     },
     {
       name: 'Dr. Palmeiro',
       apaDealName: 'Lehigh Valley Veterinary Dermatology',
-      phases: { engagedToNda: null, ndaToLoi: 70, loiToApa: 30, apaToClose: 12 },
-      totalDays: 112,
+      phases: { engagedToNda: 72, ndaToLoi: 70, loiToApa: 30, apaToClose: 12 },
+      totalDays: 184,
     },
   ]
 
@@ -1749,7 +1749,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
     dealName: 'Veterinary Cancer & Surgery Specialists',
     closedDate: '2026-03-10',
     preLoiStages: [
-      { label: 'NDA → min. viable data',    days: null, party: 'unattributed' },
+      { label: 'NDA → min. viable data',    days: 0,   party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 7,   party: 'internal' },
       { label: 'First cmte → LOI',          days: 112, party: 'internal' },
     ],
