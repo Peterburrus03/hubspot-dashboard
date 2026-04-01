@@ -628,40 +628,28 @@ function VelocityCell({ days, goal, isCurrent }: { days: number | null; goal: nu
 }
 
 // Sub-phase breakdown panel for NDA→LOI column
+const NDA_TO_LOI_SUBGOALS = [21, 4, 25]
+
 function NdaToLoiPanel({ preLoiStages }: { preLoiStages: PreLoiStage[] }) {
-  const maxDays = Math.max(...preLoiStages.map(s => s.days ?? 0), 1)
-  const PARTY_COLOR: Record<string, string> = {
-    seller:       '#fb7185',
-    internal:     '#2dd4bf',
-    unattributed: '#52525b',
-  }
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {preLoiStages.map((s, i) => {
         const days = s.days
-        const barPct = days !== null ? Math.max((days / maxDays) * 100, 1) : 0
-        const color = PARTY_COLOR[s.party] ?? '#52525b'
+        const goal = NDA_TO_LOI_SUBGOALS[i]
         return (
           <div key={i} className="flex items-center gap-3">
             <div className="w-52 text-xs text-zinc-400 shrink-0 leading-tight">{s.label}</div>
-            <div className="flex-1 bg-zinc-800 rounded-sm h-3 overflow-hidden">
-              {days !== null && (
-                <div className="h-3 rounded-sm" style={{ width: `${barPct}%`, background: color }} />
-              )}
-            </div>
-            <div className="w-10 text-xs text-right shrink-0" style={{ color: days !== null ? color : '#52525b' }}>
-              {days !== null ? `${days}d` : '—'}
-            </div>
+            {days !== null && goal !== undefined
+              ? <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-zinc-300">{days}d</span>
+                  <VelocityBadge days={days} goal={goal} />
+                  <span className="text-xs text-zinc-600">/ {goal}d goal</span>
+                </div>
+              : <span className="text-xs text-zinc-600">—</span>
+            }
           </div>
         )
       })}
-      <div className="flex gap-4 pt-1">
-        {[['#fb7185','Seller'],['#2dd4bf','Internal'],['#52525b','Untracked']].map(([c,l]) => (
-          <span key={l} className="flex items-center gap-1 text-xs text-zinc-500">
-            <span className="w-2 h-2 rounded-sm inline-block shrink-0" style={{ background: c }} />{l}
-          </span>
-        ))}
-      </div>
     </div>
   )
 }
