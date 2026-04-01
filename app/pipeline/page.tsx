@@ -718,14 +718,32 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
     {
       name: 'Dr. Casey Stepnik',
       apaDealName: 'Great Lakes Veterinary Dermatology',
-      phases: { engagedToNda: null, ndaToLoi: 367, loiToApa: 65, apaToClose: 27 },
-      totalDays: 459,
+      phases: { engagedToNda: 79, ndaToLoi: 367, loiToApa: 65, apaToClose: 27 },
+      totalDays: 538,
     },
     {
       name: 'Dr. Judy Force',
       apaDealName: 'Dentistry for Animals',
-      phases: { engagedToNda: null, ndaToLoi: 134, loiToApa: 55, apaToClose: 18 },
-      totalDays: 207,
+      phases: { engagedToNda: 58, ndaToLoi: 134, loiToApa: 55, apaToClose: 18 },
+      totalDays: 265,
+    },
+    {
+      name: 'Dr. Kramer',
+      apaDealName: 'OREV Specialty Vet Care',
+      phases: { engagedToNda: null, ndaToLoi: 53, loiToApa: 61, apaToClose: 14 },
+      totalDays: 128,
+    },
+    {
+      name: 'Dr. Wooldridge',
+      apaDealName: 'Veterinary Cancer & Surgery Specialists',
+      phases: { engagedToNda: null, ndaToLoi: null, loiToApa: 44, apaToClose: 12 },
+      totalDays: 56,
+    },
+    {
+      name: 'Dr. Palmeiro',
+      apaDealName: 'Lehigh Valley Veterinary Dermatology',
+      phases: { engagedToNda: null, ndaToLoi: 70, loiToApa: 30, apaToClose: 12 },
+      totalDays: 112,
     },
   ]
 
@@ -1648,9 +1666,18 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
       { label: 'Min. viable data → cmte',   days: 13,  party: 'internal' },
       { label: 'First cmte → LOI',          days: 56,  party: 'internal' },
     ],
-    totalTurns: 0, aosnTurns: 0, sellerTurns: 0,
-    totalDays: 41, internalDays: 0, externalDays: 0, unattributedDays: 41,
-    preLOIPhases: [], turns: [],
+    totalTurns: 7, aosnTurns: 5, sellerTurns: 2,
+    totalDays: 30, internalDays: 9, externalDays: 21, unattributedDays: 0,
+    preLOIPhases: [],
+    turns: [
+      { turnNumber: 1, date: '2025-11-18', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 0  },
+      { turnNumber: 2, date: '2025-11-21', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 3  },
+      { turnNumber: 3, date: '2025-12-07', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 16 },
+      { turnNumber: 4, date: '2025-12-10', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 3  },
+      { turnNumber: 5, date: '2025-12-15', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 5  },
+      { turnNumber: 6, date: '2025-12-16', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 1  },
+      { turnNumber: 7, date: '2025-12-18', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 2  },
+    ],
   },
   {
     dealName: 'Dentistry for Animals',
@@ -1720,21 +1747,34 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Veterinary Cancer & Surgery Specialists',
-    closedDate: '2026-03-11',
+    closedDate: '2026-03-10',
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: null, party: 'unattributed' },
       { label: 'Min. viable data → cmte',   days: 7,   party: 'internal' },
       { label: 'First cmte → LOI',          days: 112, party: 'internal' },
     ],
-    totalTurns: 9, aosnTurns: 6, sellerTurns: 3,
-    totalDays: 43, internalDays: 20, externalDays: 23, unattributedDays: 0,
+    totalTurns: 12, aosnTurns: 7, sellerTurns: 5,
+    totalDays: 44, internalDays: 13, externalDays: 31, unattributedDays: 0,
     preLOIPhases: [
       { key: 'qoe_kick',       label: 'QoE kicked off',           date: null, daysFromPrev: null, party: 'internal' },
       { key: 'qoe_delivered',  label: 'QoE delivered',            date: null, daysFromPrev: null, party: 'thirdparty' },
       { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
       { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
     ],
-    turns: [],
+    turns: [
+      { turnNumber: 1,  date: '2026-01-13', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 0  },
+      { turnNumber: 2,  date: '2026-01-15', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 2  },
+      { turnNumber: 3,  date: '2026-01-29', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 14 },
+      { turnNumber: 4,  date: '2026-02-02', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 4  },
+      { turnNumber: 5,  date: '2026-02-05', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 3  },
+      { turnNumber: 6,  date: '2026-02-09', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 4  },
+      { turnNumber: 7,  date: '2026-02-14', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 5  },
+      { turnNumber: 8,  date: '2026-02-20', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 6  },
+      { turnNumber: 9,  date: '2026-02-21', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 1  },
+      { turnNumber: 10, date: '2026-02-24', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 3  },
+      { turnNumber: 11, date: '2026-02-25', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 1  },
+      { turnNumber: 12, date: '2026-02-26', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 1  },
+    ],
   },
   {
     dealName: 'Animal Dermatology Center',
@@ -1776,7 +1816,16 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
       { key: 'legal_kickoff',  label: 'Legal diligence kick-off', date: null, daysFromPrev: null, party: 'internal' },
       { key: 'apa_draft_sent', label: 'APA draft sent to seller', date: null, daysFromPrev: null, party: 'internal' },
     ],
-    turns: [],
+    turns: [
+      { turnNumber: 1, date: '2025-12-11', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 0  },
+      { turnNumber: 2, date: '2025-12-16', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 5  },
+      { turnNumber: 3, date: '2026-01-02', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 17 },
+      { turnNumber: 4, date: '2026-01-08', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 6  },
+      { turnNumber: 5, date: '2026-01-29', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 21 },
+      { turnNumber: 6, date: '2026-02-06', direction: 'us_to_seller', delayParty: 'seller',   daysToRespond: 8  },
+      { turnNumber: 7, date: '2026-02-07', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 1  },
+      { turnNumber: 8, date: '2026-02-10', direction: 'seller_to_us', delayParty: 'internal', daysToRespond: 3  },
+    ],
   },
   {
     dealName: 'Derm for Pets',
@@ -2520,8 +2569,11 @@ function VelocityExplorer() {
                 {/* Only showing Dr. Casey Stepnik (Great Lakes Vet Dermatology) and Dr. Judy Force (Dentistry for Animals) */}
                 {(() => {
                   const DOCTOR_DEALS: Record<string, string> = {
-                    'Great Lakes Veterinary Dermatology': 'Dr. Casey Stepnik',
-                    'Dentistry for Animals':              'Dr. Judy Force',
+                    'Great Lakes Veterinary Dermatology':      'Dr. Casey Stepnik',
+                    'Dentistry for Animals':                   'Dr. Judy Force',
+                    'OREV Specialty Vet Care':                 'Dr. Kramer',
+                    'Veterinary Cancer & Surgery Specialists': 'Dr. Wooldridge',
+                    'Lehigh Valley Veterinary Dermatology':    'Dr. Palmeiro',
                   }
                   const focusedData = APA_DEAL_DATA.filter(d => d.dealName in DOCTOR_DEALS)
 
