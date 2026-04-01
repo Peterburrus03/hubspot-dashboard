@@ -742,7 +742,7 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
         <p className={`text-xs ${mutedCls} mt-0.5`}>Days per milestone phase · badge vs. goal · bright = current · click NDA→LOI for breakdown</p>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
         <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr>
@@ -2453,6 +2453,7 @@ function VelocityExplorer() {
   const [rows, setRows] = useState<VintageRow[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'heatmap' | 'trends' | 'breakdown' | 'accountability'>('heatmap')
+  const [loiPhase, setLoiPhase] = useState<'pre' | 'post'>('post')
 
   useEffect(() => {
     fetch('/api/dashboard/vintages')
@@ -2505,9 +2506,7 @@ function VelocityExplorer() {
         {view === 'accountability' && (
           <div>
             {APA_DEAL_DATA.length === 0 ? (
-              <p className="text-zinc-500 text-sm text-center py-12">
-                No sub-phase data yet.
-              </p>
+              <p className="text-zinc-500 text-sm text-center py-12">No sub-phase data yet.</p>
             ) : (
               <>
                 {/* Only showing Dr. Casey Stepnik (Great Lakes Vet Dermatology) and Dr. Judy Force (Dentistry for Animals) */}
@@ -2518,135 +2517,238 @@ function VelocityExplorer() {
                   }
                   const focusedData = APA_DEAL_DATA.filter(d => d.dealName in DOCTOR_DEALS)
 
-                  {/* Stat cards — post-LOI only */}
-                  const withData = focusedData.filter(d => d.totalDays > 0)
-                  const avgExt   = Math.round(withData.reduce((s, d) => s + (d.externalDays / d.totalDays) * 100, 0) / withData.length)
-                  const avgInt   = Math.round(withData.reduce((s, d) => s + (d.internalDays / d.totalDays) * 100, 0) / withData.length)
-                  const avgTurns = (withData.reduce((s, d) => s + d.totalTurns, 0) / withData.length).toFixed(1)
+                  // ── Post-LOI stats ──────────────────────────────────────────
+                  const withPostData = focusedData.filter(d => d.totalDays > 0)
+                  const avgExt   = withPostData.length ? Math.round(withPostData.reduce((s, d) => s + (d.externalDays / d.totalDays) * 100, 0) / withPostData.length) : 0
+                  const avgInt   = withPostData.length ? Math.round(withPostData.reduce((s, d) => s + (d.internalDays / d.totalDays) * 100, 0) / withPostData.length) : 0
+                  const avgTurns = withPostData.length ? (withPostData.reduce((s, d) => s + d.totalTurns, 0) / withPostData.length).toFixed(1) : '—'
+                  const avgPostDays = withPostData.length ? Math.round(withPostData.reduce((s, d) => s + d.totalDays, 0) / withPostData.length) : 0
 
-                  {/* Stat cards — full cycle (NDA→LOI + LOI→APA) — commented out for now
-                  const withDataFull = APA_DEAL_DATA.filter(d => {
-                    const preLoiTotal = d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0)
-                    return (preLoiTotal + d.totalDays) > 0
-                  })
-                  const avgExtFull = Math.round(withDataFull.reduce((s, d) => {
-                    const preLoiTotal    = d.preLoiStages.reduce((a, st) => a + (st.days ?? 0), 0)
-                    const preLoiSeller   = d.preLoiStages.filter(st => st.party === 'seller').reduce((a, st) => a + (st.days ?? 0), 0)
-                    const fullTotal      = preLoiTotal + d.totalDays
-                    const fullExternal   = preLoiSeller + d.externalDays
-                    return s + (fullExternal / fullTotal) * 100
-                  }, 0) / withDataFull.length)
-                  const avgIntFull = Math.round(withDataFull.reduce((s, d) => {
-                    const preLoiTotal    = d.preLoiStages.reduce((a, st) => a + (st.days ?? 0), 0)
-                    const preLoiInternal = d.preLoiStages.filter(st => st.party === 'internal').reduce((a, st) => a + (st.days ?? 0), 0)
-                    const fullTotal      = preLoiTotal + d.totalDays
-                    const fullInternal   = preLoiInternal + d.internalDays
-                    return s + (fullInternal / fullTotal) * 100
-                  }, 0) / withDataFull.length)
-                  */}
+                  // ── Pre-LOI stats ───────────────────────────────────────────
+                  const preLoiTotals = focusedData.map(d => d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0))
+                  const avgPreDays   = Math.round(preLoiTotals.reduce((a, b) => a + b, 0) / preLoiTotals.length)
+                  const avgSellerDays = Math.round(
+                    focusedData.reduce((s, d) => s + d.preLoiStages.filter(st => st.party === 'seller').reduce((a, st) => a + (st.days ?? 0), 0), 0) / focusedData.length
+                  )
+                  const avgInternalDays = Math.round(
+                    focusedData.reduce((s, d) => s + d.preLoiStages.filter(st => st.party === 'internal').reduce((a, st) => a + (st.days ?? 0), 0), 0) / focusedData.length
+                  )
 
+                  // ── Post-LOI chart data ─────────────────────────────────────
                   const maxTurns = Math.max(...focusedData.map(d => d.turns.length))
-                  const chartData = focusedData.map(d => {
-                    const entry: Record<string, number | string> = { name: DOCTOR_DEALS[d.dealName] }
+                  const postChartData = focusedData.map(d => {
+                    const entry: Record<string, number | string> = { name: `${DOCTOR_DEALS[d.dealName]} (${d.totalDays}d)` }
                     d.turns.forEach((t, i) => { entry[`t${i}`] = t.daysToRespond ?? 0 })
                     return entry
                   })
 
+                  // ── Pre-LOI chart data ──────────────────────────────────────
+                  const preChartData = focusedData.map(d => {
+                    const total = d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0)
+                    const entry: Record<string, number | string> = { name: `${DOCTOR_DEALS[d.dealName]} (${total}d)` }
+                    d.preLoiStages.forEach((st, i) => { entry[`s${i}`] = st.days ?? 0 })
+                    return entry
+                  })
+                  const stageLabels = focusedData[0]?.preLoiStages.map(s => s.label) ?? []
+
                   return (
                     <>
-                      <div className="grid grid-cols-3 gap-3 mb-6">
-                        <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                          <p className="text-zinc-500 text-xs mb-1">Avg seller % (LOI→APA)</p>
-                          <p className="text-rose-400 text-xl font-medium">{avgExt}%</p>
-                        </div>
-                        <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                          <p className="text-zinc-500 text-xs mb-1">Avg internal % (LOI→APA)</p>
-                          <p className="text-teal-400 text-xl font-medium">{avgInt}%</p>
-                        </div>
-                        <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                          <p className="text-zinc-500 text-xs mb-1">Avg turns / deal (LOI→APA)</p>
-                          <p className="text-zinc-200 text-xl font-medium">{avgTurns}</p>
-                        </div>
-                      </div>
-
-                      {/* Stacked horizontal bar chart — per-turn slivers */}
-                      <ResponsiveContainer width="100%" height={focusedData.length * 52 + 40}>
-                        <BarChart
-                          data={chartData}
-                          layout="vertical"
-                          margin={{ top: 0, right: 40, left: 8, bottom: 0 }}
-                          barSize={26}
-                        >
-                          <XAxis
-                            type="number"
-                            tick={{ fill: '#71717a', fontSize: 11 }}
-                            axisLine={false}
-                            tickLine={false}
-                            tickCount={6}
-                          />
-                          <YAxis
-                            type="category"
-                            dataKey="name"
-                            width={160}
-                            tick={{ fill: '#a1a1aa', fontSize: 12 }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
-                          <Tooltip
-                            cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                            content={(props) => {
-                              if (!props.active || !props.payload?.length) return null
-                              const label = props.label as string
-                              const deal = focusedData.find(d => DOCTOR_DEALS[d.dealName] === label)
-                              if (!deal) return null
-                              const items = (props.payload as any[]).filter(p => (p.value ?? 0) > 0)
-                              if (!items.length) return null
-                              return (
-                                <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, padding: '8px 12px', fontSize: 12 }}>
-                                  <p style={{ color: '#a1a1aa', marginBottom: 4 }}>{label}</p>
-                                  {items.map((p: any) => {
-                                    const idx = parseInt(p.dataKey.replace('t', ''))
-                                    const turn = deal.turns[idx]
-                                    if (!turn) return null
-                                    const party = turn.direction === 'us_to_seller' ? 'seller court' : 'our court'
-                                    const color = turn.direction === 'us_to_seller' ? '#fb7185' : '#2dd4bf'
-                                    return <p key={p.dataKey} style={{ color, margin: '2px 0' }}>{`Turn ${turn.turnNumber}: ${p.value}d (${party})`}</p>
-                                  })}
-                                </div>
-                              )
-                            }}
-                          />
-                          {Array.from({ length: maxTurns }, (_, i) => (
-                            <Bar key={i} dataKey={`t${i}`} stackId="a" isAnimationActive={false}>
-                              {focusedData.map((d, di) => {
-                                const turn = d.turns[i]
-                                const days = turn?.daysToRespond ?? 0
-                                if (!turn || days === 0) return <Cell key={di} fill="transparent" />
-                                return <Cell key={di} fill={turn.direction === 'us_to_seller' ? '#fb7185' : '#2dd4bf'} />
-                              })}
-                              <LabelList
-                                dataKey={`t${i}`}
-                                position="insideLeft"
-                                style={{ fontSize: 11, fontWeight: 500, fill: '#fff' }}
-                                formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''}
-                              />
-                            </Bar>
+                      {/* Pre / Post toggle */}
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="flex gap-1 bg-zinc-900 rounded-lg p-1">
+                          {(['pre', 'post'] as const).map(p => (
+                            <button
+                              key={p}
+                              onClick={() => setLoiPhase(p)}
+                              className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${
+                                loiPhase === p ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                              }`}
+                            >
+                              {p === 'pre' ? 'Pre-LOI (NDA → LOI)' : 'Post-LOI (LOI → APA)'}
+                            </button>
                           ))}
-                        </BarChart>
-                      </ResponsiveContainer>
-
-                      {/* Legend */}
-                      <div className="flex gap-4 mt-4 flex-wrap">
-                        {[
-                          { color: 'bg-teal-400', label: 'Our court' },
-                          { color: 'bg-rose-400', label: 'Seller court' },
-                        ].map(({ color, label }) => (
-                          <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
-                            <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} />
-                            {label}
-                          </span>
-                        ))}
+                        </div>
                       </div>
+
+                      {/* ── POST-LOI VIEW ─────────────────────────────────── */}
+                      {loiPhase === 'post' && (
+                        <>
+                          <div className="grid grid-cols-4 gap-3 mb-6">
+                            <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                              <p className="text-zinc-500 text-xs mb-1">Avg total days (LOI→APA)</p>
+                              <p className="text-zinc-200 text-xl font-medium">{avgPostDays}d</p>
+                            </div>
+                            <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                              <p className="text-zinc-500 text-xs mb-1">Avg seller % (LOI→APA)</p>
+                              <p className="text-rose-400 text-xl font-medium">{avgExt}%</p>
+                            </div>
+                            <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                              <p className="text-zinc-500 text-xs mb-1">Avg internal % (LOI→APA)</p>
+                              <p className="text-teal-400 text-xl font-medium">{avgInt}%</p>
+                            </div>
+                            <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                              <p className="text-zinc-500 text-xs mb-1">Avg turns / deal (LOI→APA)</p>
+                              <p className="text-zinc-200 text-xl font-medium">{avgTurns}</p>
+                            </div>
+                          </div>
+
+                          <ResponsiveContainer width="100%" height={focusedData.length * 52 + 40}>
+                            <BarChart data={postChartData} layout="vertical" margin={{ top: 0, right: 40, left: 8, bottom: 0 }} barSize={26}>
+                              <XAxis type="number" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} tickCount={6} />
+                              <YAxis type="category" dataKey="name" width={200} tick={{ fill: '#a1a1aa', fontSize: 12 }} axisLine={false} tickLine={false} />
+                              <Tooltip
+                                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                                content={(props) => {
+                                  if (!props.active || !props.payload?.length) return null
+                                  const label = props.label as string
+                                  const dealName = label.replace(/ \(\d+d\)$/, '')
+                                  const deal = focusedData.find(d => DOCTOR_DEALS[d.dealName] === dealName)
+                                  if (!deal) return null
+                                  const items = (props.payload as any[]).filter(p => (p.value ?? 0) > 0)
+                                  if (!items.length) return null
+                                  return (
+                                    <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, padding: '8px 12px', fontSize: 12 }}>
+                                      <p style={{ color: '#a1a1aa', marginBottom: 4 }}>{dealName}</p>
+                                      {items.map((p: any) => {
+                                        const idx = parseInt(p.dataKey.replace('t', ''))
+                                        const turn = deal.turns[idx]
+                                        if (!turn) return null
+                                        const party = turn.direction === 'us_to_seller' ? 'seller court' : 'our court'
+                                        const color = turn.direction === 'us_to_seller' ? '#fb7185' : '#2dd4bf'
+                                        return <p key={p.dataKey} style={{ color, margin: '2px 0' }}>{`Turn ${turn.turnNumber}: ${p.value}d (${party})`}</p>
+                                      })}
+                                    </div>
+                                  )
+                                }}
+                              />
+                              {Array.from({ length: maxTurns }, (_, i) => (
+                                <Bar key={i} dataKey={`t${i}`} stackId="a" isAnimationActive={false}>
+                                  {focusedData.map((d, di) => {
+                                    const turn = d.turns[i]
+                                    const days = turn?.daysToRespond ?? 0
+                                    if (!turn || days === 0) return <Cell key={di} fill="transparent" />
+                                    return <Cell key={di} fill={turn.direction === 'us_to_seller' ? '#fb7185' : '#2dd4bf'} />
+                                  })}
+                                  <LabelList dataKey={`t${i}`} position="insideLeft" style={{ fontSize: 11, fontWeight: 500, fill: '#fff' }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                                </Bar>
+                              ))}
+                            </BarChart>
+                          </ResponsiveContainer>
+
+                          <div className="flex gap-4 mt-4 flex-wrap">
+                            {[{ color: 'bg-teal-400', label: 'Our court' }, { color: 'bg-rose-400', label: 'Seller court' }].map(({ color, label }) => (
+                              <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                                <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} /> {label}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      {/* ── PRE-LOI VIEW ──────────────────────────────────── */}
+                      {loiPhase === 'pre' && (
+                        <>
+                          <div className="grid grid-cols-3 gap-3 mb-6">
+                            <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                              <p className="text-zinc-500 text-xs mb-1">Avg total days (NDA→LOI)</p>
+                              <p className="text-zinc-200 text-xl font-medium">{avgPreDays}d</p>
+                            </div>
+                            <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                              <p className="text-zinc-500 text-xs mb-1">Avg seller days (NDA→data)</p>
+                              <p className="text-rose-400 text-xl font-medium">{avgSellerDays}d</p>
+                            </div>
+                            <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                              <p className="text-zinc-500 text-xs mb-1">Avg internal days (data→LOI)</p>
+                              <p className="text-teal-400 text-xl font-medium">{avgInternalDays}d</p>
+                            </div>
+                          </div>
+
+                          <ResponsiveContainer width="100%" height={focusedData.length * 52 + 40}>
+                            <BarChart data={preChartData} layout="vertical" margin={{ top: 0, right: 40, left: 8, bottom: 0 }} barSize={26}>
+                              <XAxis type="number" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} tickCount={6} />
+                              <YAxis type="category" dataKey="name" width={200} tick={{ fill: '#a1a1aa', fontSize: 12 }} axisLine={false} tickLine={false} />
+                              <Tooltip
+                                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                                content={(props) => {
+                                  if (!props.active || !props.payload?.length) return null
+                                  const label = props.label as string
+                                  const dealName = label.replace(/ \(\d+d\)$/, '')
+                                  const deal = focusedData.find(d => DOCTOR_DEALS[d.dealName] === dealName)
+                                  if (!deal) return null
+                                  const items = (props.payload as any[]).filter(p => (p.value ?? 0) > 0)
+                                  if (!items.length) return null
+                                  return (
+                                    <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, padding: '8px 12px', fontSize: 12 }}>
+                                      <p style={{ color: '#a1a1aa', marginBottom: 4 }}>{dealName}</p>
+                                      {items.map((p: any) => {
+                                        const idx = parseInt(p.dataKey.replace('s', ''))
+                                        const stage = deal.preLoiStages[idx]
+                                        if (!stage) return null
+                                        const color = stage.party === 'seller' ? '#fb7185' : stage.party === 'internal' ? '#2dd4bf' : '#71717a'
+                                        return <p key={p.dataKey} style={{ color, margin: '2px 0' }}>{`${stage.label}: ${p.value}d`}</p>
+                                      })}
+                                    </div>
+                                  )
+                                }}
+                              />
+                              {stageLabels.map((_, i) => (
+                                <Bar key={i} dataKey={`s${i}`} stackId="b" isAnimationActive={false}>
+                                  {focusedData.map((d, di) => {
+                                    const stage = d.preLoiStages[i]
+                                    const color = stage?.party === 'seller' ? '#fb7185' : stage?.party === 'internal' ? '#2dd4bf' : '#71717a'
+                                    return <Cell key={di} fill={color} />
+                                  })}
+                                  <LabelList dataKey={`s${i}`} position="insideLeft" style={{ fontSize: 11, fontWeight: 500, fill: '#fff' }} formatter={(v: unknown) => typeof v === 'number' && v > 20 ? `${v}d` : ''} />
+                                </Bar>
+                              ))}
+                            </BarChart>
+                          </ResponsiveContainer>
+
+                          <div className="flex gap-4 mt-4 flex-wrap">
+                            {[
+                              { color: 'bg-rose-400',   label: 'Seller (waiting on data)' },
+                              { color: 'bg-teal-400',   label: 'Internal (cmte / LOI prep)' },
+                              { color: 'bg-zinc-500',   label: 'Unattributed' },
+                            ].map(({ color, label }) => (
+                              <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                                <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} /> {label}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Pre-LOI stage breakdown table */}
+                          <div className="mt-5 border-t border-zinc-800 pt-4">
+                            <p className="text-xs text-zinc-500 mb-3 font-medium">Stage detail</p>
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr>
+                                  <th className="text-left text-zinc-600 pb-2 font-medium">Deal</th>
+                                  {stageLabels.map((l, i) => (
+                                    <th key={i} className="text-left text-zinc-600 pb-2 font-medium pr-6">{l}</th>
+                                  ))}
+                                  <th className="text-left text-zinc-600 pb-2 font-medium">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {focusedData.map(d => {
+                                  const total = d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0)
+                                  return (
+                                    <tr key={d.dealName} className="border-t border-zinc-800/50">
+                                      <td className="py-2 pr-6 text-zinc-300">{DOCTOR_DEALS[d.dealName]}</td>
+                                      {d.preLoiStages.map((st, i) => (
+                                        <td key={i} className="py-2 pr-6" style={{ color: st.party === 'seller' ? '#fb7185' : st.party === 'internal' ? '#2dd4bf' : '#71717a' }}>
+                                          {st.days !== null ? `${st.days}d` : '—'}
+                                        </td>
+                                      ))}
+                                      <td className="py-2 text-zinc-300 font-medium">{total}d</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
                     </>
                   )
                 })()}
