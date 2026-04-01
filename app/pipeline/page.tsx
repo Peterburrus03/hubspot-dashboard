@@ -839,56 +839,51 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
                 </tr>
               )
             })()}
+            {/* Closed examples section label */}
+            <tr>
+              <td colSpan={3 + SCORECARD_COLS.length + 1} className="pt-6 pb-2 text-xs font-semibold text-zinc-600 uppercase tracking-widest border-t border-zinc-800">
+                Closed examples
+              </td>
+            </tr>
+            {staticRows.map(row => {
+              const apaDeal = APA_DEAL_DATA.find(d => d.dealName === row.apaDealName)
+              const expanded = isExpanded(row.name, 'ndaToLoi')
+              return (
+                <tr key={row.name} className="border-b border-zinc-800/40 last:border-0">
+                  <td className="py-2.5 pr-6 align-top">
+                    <div className="font-medium text-zinc-400 text-sm">{row.name}</div>
+                    <div className="text-xs text-zinc-600 mt-0.5">Closed</div>
+                  </td>
+                  <td className="py-2.5 pr-6 text-zinc-600 text-sm align-top">—</td>
+                  <td className="py-2.5 pr-6 text-zinc-600 text-xs align-top">Closed</td>
+                  {SCORECARD_COLS.map(col => (
+                    <td
+                      key={col.key}
+                      className={`py-2.5 pr-6 align-top${col.key === 'ndaToLoi' ? ' cursor-pointer' : ''}`}
+                      onClick={col.key === 'ndaToLoi' ? () => toggleCell(row.name, col.key) : undefined}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <VelocityCell days={row.phases[col.key]} goal={col.goal} isCurrent={false} />
+                        {col.key === 'ndaToLoi' && row.phases[col.key] !== null && (
+                          <span className="text-zinc-600 text-xs">{expanded ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                      {col.key === 'ndaToLoi' && expanded && (
+                        <div className="mt-3 min-w-[280px]">
+                          {apaDeal?.preLoiStages?.length
+                            ? <NdaToLoiPanel preLoiStages={apaDeal.preLoiStages} />
+                            : <p className="text-xs text-zinc-600 italic">No sub-phase data</p>
+                          }
+                        </div>
+                      )}
+                    </td>
+                  ))}
+                  <td className="py-2.5 text-sm font-medium text-zinc-400 align-top">{row.totalDays}d</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
-      </div>
-
-      {/* Closed examples — Stepnik & Force */}
-      <div className="mt-6 pt-5 border-t border-zinc-800">
-        <p className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-3">Closed examples</p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[700px]">
-            <tbody>
-              {staticRows.map(row => {
-                const apaDeal = APA_DEAL_DATA.find(d => d.dealName === row.apaDealName)
-                const expanded = isExpanded(row.name, 'ndaToLoi')
-                return (
-                  <tr key={row.name} className="border-b border-zinc-800/40 last:border-0">
-                    <td className="py-2.5 pr-6 min-w-[140px] align-top">
-                      <div className="font-medium text-zinc-400 text-sm">{row.name}</div>
-                      <div className="text-xs text-zinc-600 mt-0.5">Closed</div>
-                    </td>
-                    <td className="py-2.5 pr-6 text-zinc-600 text-sm w-16 align-top">—</td>
-                    <td className="py-2.5 pr-6 text-zinc-600 text-xs align-top">Closed</td>
-                    {SCORECARD_COLS.map(col => (
-                      <td
-                        key={col.key}
-                        className={`py-2.5 pr-6 align-top${col.key === 'ndaToLoi' ? ' cursor-pointer' : ''}`}
-                        onClick={col.key === 'ndaToLoi' ? () => toggleCell(row.name, col.key) : undefined}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <VelocityCell days={row.phases[col.key]} goal={col.goal} isCurrent={false} />
-                          {col.key === 'ndaToLoi' && row.phases[col.key] !== null && (
-                            <span className="text-zinc-600 text-xs">{expanded ? '▲' : '▼'}</span>
-                          )}
-                        </div>
-                        {col.key === 'ndaToLoi' && expanded && (
-                          <div className="mt-3 min-w-[280px]">
-                            {apaDeal?.preLoiStages?.length
-                              ? <NdaToLoiPanel preLoiStages={apaDeal.preLoiStages} />
-                              : <p className="text-xs text-zinc-600 italic">No sub-phase data</p>
-                            }
-                          </div>
-                        )}
-                      </td>
-                    ))}
-                    <td className="py-2.5 text-sm font-medium text-zinc-400 align-top">{row.totalDays}d</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div></div>
   )
