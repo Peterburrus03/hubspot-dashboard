@@ -2717,36 +2717,58 @@ function VelocityExplorer() {
                           </div>
 
                           {/* Pre-LOI stage breakdown table */}
-                          <div className="mt-5 border-t border-zinc-800 pt-4">
-                            <p className="text-xs text-zinc-500 mb-3 font-medium">Stage detail</p>
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr>
-                                  <th className="text-left text-zinc-600 pb-2 font-medium">Deal</th>
-                                  {stageLabels.map((l, i) => (
-                                    <th key={i} className="text-left text-zinc-600 pb-2 font-medium pr-6">{l}</th>
-                                  ))}
-                                  <th className="text-left text-zinc-600 pb-2 font-medium">Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {focusedData.map(d => {
-                                  const total = d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0)
-                                  return (
-                                    <tr key={d.dealName} className="border-t border-zinc-800/50">
-                                      <td className="py-2 pr-6 text-zinc-300">{DOCTOR_DEALS[d.dealName]}</td>
-                                      {d.preLoiStages.map((st, i) => (
-                                        <td key={i} className="py-2 pr-6" style={{ color: st.party === 'seller' ? '#fb7185' : st.party === 'internal' ? '#2dd4bf' : '#71717a' }}>
-                                          {st.days !== null ? `${st.days}d` : '—'}
-                                        </td>
+                          {(() => {
+                            const PRE_LOI_GOALS = [21, 4, 25] // NDA→data, data→cmte, cmte→LOI
+                            const PRE_LOI_TOTAL_GOAL = 50
+                            return (
+                              <div className="mt-5 border-t border-zinc-800 pt-4">
+                                <p className="text-xs text-zinc-500 mb-3 font-medium">Stage detail</p>
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr>
+                                      <th className="text-left text-zinc-600 pb-1 font-medium">Deal</th>
+                                      {stageLabels.map((l, i) => (
+                                        <th key={i} className="text-left text-zinc-600 pb-1 font-medium pr-6">
+                                          <div>{l}</div>
+                                          <div className="text-zinc-700 font-normal mt-0.5">goal {PRE_LOI_GOALS[i]}d</div>
+                                        </th>
                                       ))}
-                                      <td className="py-2 text-zinc-300 font-medium">{total}d</td>
+                                      <th className="text-left text-zinc-600 pb-1 font-medium">
+                                        <div>Total</div>
+                                        <div className="text-zinc-700 font-normal mt-0.5">goal {PRE_LOI_TOTAL_GOAL}d</div>
+                                      </th>
                                     </tr>
-                                  )
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
+                                  </thead>
+                                  <tbody>
+                                    {focusedData.map(d => {
+                                      const total = d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0)
+                                      return (
+                                        <tr key={d.dealName} className="border-t border-zinc-800/50">
+                                          <td className="py-2 pr-6 text-zinc-300">{DOCTOR_DEALS[d.dealName]}</td>
+                                          {d.preLoiStages.map((st, i) => (
+                                            <td key={i} className="py-2 pr-6">
+                                              {st.days !== null ? (
+                                                <div className="flex items-center gap-1.5">
+                                                  <span style={{ color: st.party === 'seller' ? '#fb7185' : st.party === 'internal' ? '#2dd4bf' : '#71717a' }}>{st.days}d</span>
+                                                  <VelocityBadge days={st.days} goal={PRE_LOI_GOALS[i]} />
+                                                </div>
+                                              ) : <span className="text-zinc-600">—</span>}
+                                            </td>
+                                          ))}
+                                          <td className="py-2">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-zinc-300 font-medium">{total}d</span>
+                                              <VelocityBadge days={total} goal={PRE_LOI_TOTAL_GOAL} />
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          })()}
                         </>
                       )}
                     </>
