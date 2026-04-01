@@ -603,11 +603,11 @@ type ScorecardColKey = typeof SCORECARD_COLS[number]['key']
 
 function daysBetweenStr(a: string | null, b: string | null): number | null {
   if (!a || !b) return null
-  return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000)
+  return Math.max(0, Math.floor((new Date(b).getTime() - new Date(a).getTime()) / 86400000))
 }
 function daysSinceStr(d: string | null): number | null {
   if (!d) return null
-  return Math.round((TODAY.getTime() - new Date(d).getTime()) / 86400000)
+  return Math.max(0, Math.floor((TODAY.getTime() - new Date(d).getTime()) / 86400000))
 }
 
 function VelocityBadge({ days, goal }: { days: number; goal: number }) {
