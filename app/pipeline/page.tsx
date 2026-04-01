@@ -594,8 +594,8 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
 // ─── PipelineVelocityScorecard ───────────────────────────────────────────────
 
 const SCORECARD_COLS = [
-  { key: 'engagedToNda', label: 'Engaged → NDA', goal: 21 },
-  { key: 'ndaToLoi',     label: 'NDA → LOI',     goal: 30 },
+  { key: 'engagedToNda', label: 'Engaged → NDA', goal: 10 },
+  { key: 'ndaToLoi',     label: 'NDA → LOI',     goal: 50 },
   { key: 'loiToApa',     label: 'LOI → APA',     goal: 55 },
   { key: 'apaToClose',   label: 'APA → Close',   goal: 14 },
 ] as const
