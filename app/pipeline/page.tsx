@@ -786,8 +786,10 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
                   <td className={`${tdCls} text-zinc-400 text-sm`}>
                     {deal.ebitda > 0 ? `$${(deal.ebitda / 1000).toFixed(1)}M` : '—'}
                   </td>
-                  <td className={`${tdCls} text-zinc-400 text-xs`}>
-                    {STAGE_SHORT[deal.crmStage] ?? deal.crmStage}
+                  <td className={`${tdCls} text-xs`}>
+                    <span className="font-medium" style={{ color: CRM_STAGE_COLORS[deal.crmStage] ?? '#a1a1aa' }}>
+                      {STAGE_SHORT[deal.crmStage] ?? deal.crmStage}
+                    </span>
                   </td>
                   {SCORECARD_COLS.map(col => (
                     <td
