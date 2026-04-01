@@ -427,6 +427,12 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
   const [showDetail, setShowDetail] = useState(false)
   const [period, setPeriod] = useState<OutreachPeriod>('last_week')
   const [selectedWeekStart, setSelectedWeekStart] = useState<string>('')
+  // Pre-select the second-to-latest completed week once history loads
+  useEffect(() => {
+    if (weeklyHistory.length >= 2) {
+      setSelectedWeekStart(weeklyHistory[weeklyHistory.length - 2].weekStart)
+    }
+  }, [weeklyHistory])
   const mGoal = TARGETS.monthlyOutreach[CURRENT_MONTH] || 318
   const mNdaGoal = TARGETS.monthlyNDAs[CURRENT_MONTH] || 9
   const chartStyle = { fontSize: 10, fill: '#71717a' }
