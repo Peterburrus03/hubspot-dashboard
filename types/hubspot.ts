@@ -124,6 +124,8 @@ export interface Deal {
   qualifiedToBuyDate?: Date
   engagedDate?: Date
   ndaSignedDate?: Date
+  dataReceivedDate?: Date
+  committeePresentedDate?: Date
   loiExtendedDate?: Date
   loiSignedDate?: Date
   targetCloseDate?: Date

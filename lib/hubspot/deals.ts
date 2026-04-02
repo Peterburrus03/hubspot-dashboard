@@ -17,6 +17,8 @@ const DEAL_PROPERTIES = [
   'hs_v2_date_entered_qualifiedtobuy',
   'hs_v2_date_entered_1031111813',
   'nda_sign_date',
+  'data_received_date',
+  'committee_presented_date',
   'loi_extended_date',
   'loi_signed_date',
   'target_close_date',
@@ -158,6 +160,8 @@ function transformDeal(hubspotDeal: HubSpotDeal, stageMap: Map<string, string>, 
     qualifiedToBuyDate: parseHubSpotDate(props.hs_v2_date_entered_qualifiedtobuy),
     engagedDate: parseHubSpotDate(props.hs_v2_date_entered_1031111813) ?? parseHubSpotDate(props.hs_v2_date_entered_qualifiedtobuy),
     ndaSignedDate: parseHubSpotDate(props.nda_sign_date),
+    dataReceivedDate: parseHubSpotDate(props.data_received_date),
+    committeePresentedDate: parseHubSpotDate(props.committee_presented_date),
     loiExtendedDate: parseHubSpotDate(props.loi_extended_date),
     loiSignedDate: parseHubSpotDate(props.loi_signed_date),
     targetCloseDate: parseHubSpotDate(props.target_close_date),
@@ -335,7 +339,9 @@ async function syncDealsToDatabase(deals: Deal[]): Promise<void> {
             "qualifiedToBuyDate"        = ${deal.qualifiedToBuyDate ?? null},
             "engagedDate"               = ${deal.engagedDate ?? null},
             "integrationCompletionDate" = ${deal.integrationCompletionDate ?? null},
-            "officialClosedDate"        = ${deal.officialClosedDate ?? null}
+            "officialClosedDate"        = ${deal.officialClosedDate ?? null},
+            "dataReceivedDate"          = ${deal.dataReceivedDate ?? null},
+            "committeePresentedDate"    = ${deal.committeePresentedDate ?? null}
         WHERE "dealId" = ${deal.dealId}
       `
     }

@@ -30,6 +30,8 @@ export async function GET() {
       dealCreatedAt: Date | null
       engagedDate: Date | null
       ndaSignedDate: Date | null
+      dataReceivedDate: Date | null
+      committeePresentedDate: Date | null
       loiSignedDate: Date | null
       integrationCompletionDate: Date | null
       officialClosedDate: Date | null
@@ -43,6 +45,8 @@ export async function GET() {
         "dealCreatedAt",
         COALESCE("engagedDate", "qualifiedToBuyDate") AS "engagedDate",
         "ndaSignedDate",
+        "dataReceivedDate",
+        "committeePresentedDate",
         "loiSignedDate",
         "integrationCompletionDate",
         "officialClosedDate",
@@ -59,6 +63,8 @@ export async function GET() {
       dealCreatedAt: string | null
       engagedDate: string | null
       ndaSignedDate: string | null
+      dataReceivedDate: string | null
+      committeePresentedDate: string | null
       loiSignedDate: string | null
       integrationCompletionDate: string | null
       officialClosedDate: string | null
@@ -126,6 +132,8 @@ export async function GET() {
         dealCreatedAt: fmtDate(deal.dealCreatedAt),
         engagedDate: fmtDate(deal.engagedDate),
         ndaSignedDate: fmtDate(deal.ndaSignedDate),
+        dataReceivedDate: fmtDate(deal.dataReceivedDate),
+        committeePresentedDate: fmtDate(deal.committeePresentedDate),
         loiSignedDate: fmtDate(deal.loiSignedDate),
         integrationCompletionDate: fmtDate(deal.integrationCompletionDate),
         officialClosedDate: fmtDate(deal.officialClosedDate),

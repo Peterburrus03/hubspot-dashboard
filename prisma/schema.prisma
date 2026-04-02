@@ -32,6 +32,8 @@ model Deal {
   qualifiedToBuyDate        DateTime?
   engagedDate               DateTime?
   ndaSignedDate             DateTime?
+  dataReceivedDate          DateTime?
+  committeePresentedDate    DateTime?
   loiExtendedDate           DateTime?
   loiSignedDate             DateTime?
   targetCloseDate           DateTime?

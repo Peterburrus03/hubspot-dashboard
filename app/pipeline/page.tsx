@@ -706,7 +706,7 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
     }
 
     const totalDays = Object.values(phases).reduce<number>((s, v) => s + (v ?? 0), 0)
-    return { deal, phases, currentPhase, totalDays }
+    return { deal, vd, phases, currentPhase, totalDays }
   })
 
   const avgTotalDays = rows.length > 0
@@ -783,7 +783,7 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ deal, phases, currentPhase, totalDays }) => {
+            {rows.map(({ deal, vd, phases, currentPhase, totalDays }) => {
               const apaDeal = APA_DEAL_DATA.find(d =>
                 deal.name.toLowerCase().includes(d.dealName.toLowerCase()) ||
                 d.dealName.toLowerCase().includes(deal.name.toLowerCase())
@@ -817,10 +817,32 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
                       </div>
                       {col.key === 'ndaToLoi' && expanded && (
                         <div className="mt-3 min-w-[280px]">
-                          {apaDeal?.preLoiStages?.length
-                            ? <NdaToLoiPanel preLoiStages={apaDeal.preLoiStages} />
-                            : <p className="text-xs text-zinc-600 italic leading-relaxed">Sub-phase dates not yet tracked —<br/>needs HubSpot custom fields</p>
-                          }
+                          {(() => {
+                            const hasLiveData = !!(vd?.ndaSignedDate)
+                            if (!hasLiveData) return <p className="text-xs text-zinc-600 italic">NDA not yet signed</p>
+                            const liveStages: PreLoiStage[] = [
+                              {
+                                label: 'NDA → Data Received',
+                                days: daysBetweenStr(vd.ndaSignedDate, vd.dataReceivedDate ?? null) ?? (vd.dataReceivedDate ? null : daysSinceStr(vd.ndaSignedDate)),
+                                party: 'seller',
+                              },
+                              {
+                                label: 'Data → First Cmte',
+                                days: vd.dataReceivedDate
+                                  ? (daysBetweenStr(vd.dataReceivedDate, vd.committeePresentedDate ?? null) ?? daysSinceStr(vd.dataReceivedDate))
+                                  : null,
+                                party: 'internal',
+                              },
+                              {
+                                label: 'First Cmte → LOI',
+                                days: vd.committeePresentedDate
+                                  ? (daysBetweenStr(vd.committeePresentedDate, vd.loiSignedDate ?? null) ?? daysSinceStr(vd.committeePresentedDate))
+                                  : null,
+                                party: 'internal',
+                              },
+                            ]
+                            return <NdaToLoiPanel preLoiStages={liveStages} />
+                          })()}
                         </div>
                       )}
                     </td>
@@ -1554,6 +1576,8 @@ type VintageDeal = {
   dealCreatedAt: string | null
   engagedDate: string | null
   ndaSignedDate: string | null
+  dataReceivedDate: string | null
+  committeePresentedDate: string | null
   loiSignedDate: string | null
   integrationCompletionDate: string | null
   officialClosedDate: string | null
