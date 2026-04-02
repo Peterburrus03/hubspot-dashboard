@@ -718,8 +718,8 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
     {
       name: 'Dr. Casey Stepnik',
       apaDealName: 'Great Lakes Veterinary Dermatology',
-      phases: { engagedToNda: 79, ndaToLoi: 367, loiToApa: 65, apaToClose: 27 },
-      totalDays: 538,
+      phases: { engagedToNda: 65, ndaToLoi: 367, loiToApa: 65, apaToClose: 27 },
+      totalDays: 524,
     },
     {
       name: 'Dr. Judy Force',
