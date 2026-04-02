@@ -73,7 +73,22 @@ export async function GET(request: NextRequest) {
       orderBy: { dealId: 'asc' },
     })
 
-    return NextResponse.json({ snapshotAt: targetAt, deals })
+    // Enrich any null dealNames by looking up the deal record (covers dropped/closed deals)
+    const nullNameIds = deals.filter(d => !d.dealName).map(d => d.dealId)
+    let nameMap = new Map<string, string | null>()
+    if (nullNameIds.length > 0) {
+      const found = await prisma.deal.findMany({
+        where: { dealId: { in: nullNameIds } },
+        select: { dealId: true, dealName: true },
+      })
+      nameMap = new Map(found.map(d => [d.dealId, d.dealName]))
+    }
+    const enriched = deals.map(d => ({
+      ...d,
+      dealName: d.dealName ?? nameMap.get(d.dealId) ?? `Deal ${d.dealId}`,
+    }))
+
+    return NextResponse.json({ snapshotAt: targetAt, deals: enriched })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message }, { status: 500 })
   }

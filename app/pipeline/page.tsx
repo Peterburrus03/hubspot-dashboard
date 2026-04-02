@@ -1486,7 +1486,7 @@ function WeeklyChanges({ deals, closedWonIds }: { deals: DealItem[]; closedWonId
               </thead>
               <tbody>
                 {dealChanges.map((c, i) => {
-                  const isItem = 'id' in c.deal
+                  const isItem = 'crmStage' in c.deal
                   const name = isItem ? (c.deal as DealItem).name : ((c.deal as SnapshotDeal).dealName ?? '')
                   const doctor = isItem ? (c.deal as DealItem).doctor : ''
                   const specialty = isItem ? (c.deal as DealItem).specialty : ''
