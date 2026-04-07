@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 
-const Q1_START = new Date('2026-01-05')
+// Quarter definitions for 2026 campaign
+const QUARTER_CONFIG: Record<string, { start: Date; numWeeks: number }> = {
+  '1': { start: new Date('2026-01-05'), numWeeks: 13 },
+  '2': { start: new Date('2026-04-06'), numWeeks: 13 },
+  '3': { start: new Date('2026-07-06'), numWeeks: 10 },
+}
 
 // Weekly outreach goals keyed by ISO week number
 const WEEKLY_GOALS: Record<number, number> = {
-  // January–February (ISO weeks 2–9) — original marketing plan budgets
+  // January–February (ISO weeks 2–9)
   2: 73, 3: 65, 4: 19, 5: 20,
   6: 35, 7: 39, 8: 37, 9: 34,
   // March (ISO weeks 10–13)
@@ -38,8 +43,13 @@ function weekGoal(weekStart: Date): number {
   return WEEKLY_GOALS[iso] ?? DEFAULT_WEEKLY_GOAL
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const q = searchParams.get('q') ?? '1'
+    const config = QUARTER_CONFIG[q] ?? QUARTER_CONFIG['1']
+    const { start: qStart, numWeeks } = config
+    const qEnd = new Date(qStart.getTime() + numWeeks * 7 * 24 * 60 * 60 * 1000)
     const now = new Date()
 
     const ownerContacts = await prisma.contact.findMany({
@@ -51,7 +61,7 @@ export async function GET() {
 
     const engagements = await prisma.engagement.findMany({
       where: {
-        timestamp: { gte: Q1_START, lte: now },
+        timestamp: { gte: qStart, lte: qEnd < now ? qEnd : now },
         contactId: { in: [...ownerContactIds] },
         OR: [
           { type: 'CALL' },
@@ -65,8 +75,8 @@ export async function GET() {
     })
 
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-    const weeklyActuals = Array(12).fill(0).map((_, i) => {
-      const weekStart = new Date(Q1_START.getTime() + i * 7 * 24 * 60 * 60 * 1000)
+    const weeklyActuals = Array(numWeeks).fill(0).map((_, i) => {
+      const weekStart = new Date(qStart.getTime() + i * 7 * 24 * 60 * 60 * 1000)
       const monthLabel = MONTHS[weekStart.getUTCMonth()]
       return {
         week: `Wk ${i + 1} ${monthLabel}`,
@@ -74,15 +84,13 @@ export async function GET() {
         tier1: 0,
         tier2: 0,
         total: 0,
-        ipad: i === 0 ? 111 : 0
+        ipad: q === '1' && i === 0 ? 111 : 0,
       }
     })
 
-    // Track seen email (contactId, date) pairs per week to deduplicate threads
     const seenEmailKeys = new Set<string>()
 
     engagements.forEach(e => {
-      // Deduplicate emails: count only 1 per contact per calendar day
       if (e.type === 'EMAIL') {
         const day = e.timestamp.toISOString().split('T')[0]
         const key = (e.contactId ?? 'none') + '|' + day
@@ -90,10 +98,10 @@ export async function GET() {
         seenEmailKeys.add(key)
       }
 
-      const diffTime = Math.abs(e.timestamp.getTime() - Q1_START.getTime())
+      const diffTime = Math.abs(e.timestamp.getTime() - qStart.getTime())
       const weekIndex = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7))
 
-      if (weekIndex >= 0 && weekIndex < 12) {
+      if (weekIndex >= 0 && weekIndex < numWeeks) {
         if (t1Ids.has(e.contactId ?? '')) {
           weeklyActuals[weekIndex].tier1++
         } else {
@@ -105,30 +113,29 @@ export async function GET() {
 
     let cumulativeActual = 0
     let cumulativeTarget = 0
-    
-    const report = weeklyActuals.map((w, i) => {
+
+    const report = weeklyActuals.map((w) => {
       cumulativeActual += (w.total + w.ipad)
       cumulativeTarget += w.target
       const delta = (w.total + w.ipad) - w.target
-      
       return {
         ...w,
         actual: w.total + w.ipad,
         cumulativeActual,
         cumulativeTarget,
         delta,
-        cumulativeDelta: cumulativeActual - cumulativeTarget
+        cumulativeDelta: cumulativeActual - cumulativeTarget,
       }
     })
 
-    const q1TotalTarget = weeklyActuals.reduce((sum, w) => sum + w.target, 0)
+    const qTotalTarget = weeklyActuals.reduce((sum, w) => sum + w.target, 0)
 
     const anchor = { week: '', target: 0, tier1: 0, tier2: 0, total: 0, ipad: 0, actual: 0, cumulativeActual: 0, cumulativeTarget: 0, delta: 0, cumulativeDelta: 0 }
 
     return NextResponse.json({
-      q1TotalTarget,
-      q1TotalActual: cumulativeActual,
-      weeklyData: [anchor, ...report]
+      qTotalTarget,
+      qTotalActual: cumulativeActual,
+      weeklyData: [anchor, ...report],
     })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
