@@ -346,6 +346,14 @@ async function syncDealsToDatabase(deals: Deal[]): Promise<void> {
       `
     }
 
+    // Delete deals that no longer exist in HubSpot
+    const hubspotDealIds = new Set(deals.map((d) => d.dealId))
+    const toDelete = existingStages.filter((d) => !hubspotDealIds.has(d.dealId)).map((d) => d.dealId)
+    if (toDelete.length > 0) {
+      console.log(`Deleting ${toDelete.length} deals removed from HubSpot: ${toDelete.join(', ')}`)
+      await prisma.deal.deleteMany({ where: { dealId: { in: toDelete } } })
+    }
+
     // Update cache metadata
     await prisma.cacheMetadata.upsert({
       where: { cacheKey: 'deals' },
