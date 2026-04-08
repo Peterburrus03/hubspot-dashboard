@@ -52,6 +52,7 @@ model Deal {
   nextStep             String?
   notes                String?  @db.Text
   closedLostReason     String?
+  closedNurtureReason  String?
   tags                 String?
 
   // Stage tracking

@@ -704,6 +704,7 @@ ${historyLines}`
 type ColumnContact = {
   contactId: string; name: string; specialty: string | null; ownerName: string
   status: string; tier1: boolean; dealStatus: string | null; outreachCount: number; lastActivity?: string
+  closedNurtureReason?: string | null
 }
 
 function ContactCard({ c, column, accentColor, onOpen }: {
@@ -730,6 +731,7 @@ function ContactCard({ c, column, accentColor, onOpen }: {
               {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
               {c.status && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>}
               {c.dealStatus && <span className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-bold">{c.dealStatus}</span>}
+              {c.closedNurtureReason && <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold">{c.closedNurtureReason}</span>}
               <span className={`flex items-center gap-1 text-[10px] font-bold uppercase ${accentColor.text}`}>
                 <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
               </span>

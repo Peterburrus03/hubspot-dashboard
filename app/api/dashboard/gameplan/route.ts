@@ -129,6 +129,16 @@ export async function GET(request: NextRequest) {
       ...closedNurtureContacts.map(c => c.contactId),
     ]))
 
+    // Fetch closedNurtureReason from deals for Open Deal contacts
+    const openDealContactIds = tier1Contacts.map(c => c.contactId).filter(Boolean) as string[]
+    const nurtureReasonRows = await prisma.$queryRaw<{ contactId: string; closedNurtureReason: string | null }[]>`
+      SELECT "contactId", "closedNurtureReason"
+      FROM deals
+      WHERE "contactId" = ANY(${openDealContactIds})
+        AND "closedNurtureReason" IS NOT NULL
+    `
+    const nurtureReasonMap = new Map(nurtureReasonRows.map(r => [r.contactId, r.closedNurtureReason]))
+
     const [latestEngagements, engagementCounts] = await Promise.all([
       prisma.engagement.findMany({
         where: { contactId: { in: allColumnIds }, timestamp: { lte: new Date() } },
@@ -165,6 +175,7 @@ export async function GET(request: NextRequest) {
         status: c.leadStatus,
         tier1: c.tier1 ?? false,
         dealStatus: c.dealStatus ?? null,
+        closedNurtureReason: nurtureReasonMap.get(c.contactId) ?? null,
         outreachCount: (countMap.get(c.contactId) ?? 0) + (c.ipadShipmentDate ? 1 : 0) + (c.ipadCoverShipDate ? 1 : 0),
       }
     }

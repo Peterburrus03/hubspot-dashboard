@@ -34,6 +34,7 @@ const DEAL_PROPERTIES = [
   'next_step',
   'deal_notes',
   'closed_lost_reason',
+  'closed_nurture_reasons',
   'tags',
   'hs_is_closed',
   'pipeline',
@@ -176,6 +177,7 @@ function transformDeal(hubspotDeal: HubSpotDeal, stageMap: Map<string, string>, 
     nextStep: props.next_step,
     notes: props.deal_notes,
     closedLostReason: props.closed_lost_reason,
+    closedNurtureReason: props.closed_nurture_reasons,
     tags: props.tags,
     isOpen: props.hs_is_closed !== 'true',
     stageEnteredDate,
@@ -341,7 +343,8 @@ async function syncDealsToDatabase(deals: Deal[]): Promise<void> {
             "integrationCompletionDate" = ${deal.integrationCompletionDate ?? null},
             "officialClosedDate"        = ${deal.officialClosedDate ?? null},
             "dataReceivedDate"          = ${deal.dataReceivedDate ?? null},
-            "committeePresentedDate"    = ${deal.committeePresentedDate ?? null}
+            "committeePresentedDate"    = ${deal.committeePresentedDate ?? null},
+            "closedNurtureReason"       = ${deal.closedNurtureReason ?? null}
         WHERE "dealId" = ${deal.dealId}
       `
     }
