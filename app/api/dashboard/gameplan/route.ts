@@ -176,6 +176,7 @@ export async function GET(request: NextRequest) {
         tier1: c.tier1 ?? false,
         dealStatus: c.dealStatus ?? null,
         closedNurtureReason: nurtureReasonMap.get(c.contactId) ?? null,
+        notes: c.notes ?? null,
         outreachCount: (countMap.get(c.contactId) ?? 0) + (c.ipadShipmentDate ? 1 : 0) + (c.ipadCoverShipDate ? 1 : 0),
       }
     }

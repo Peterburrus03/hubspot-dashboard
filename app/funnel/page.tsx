@@ -705,6 +705,7 @@ type ColumnContact = {
   contactId: string; name: string; specialty: string | null; ownerName: string
   status: string; tier1: boolean; dealStatus: string | null; outreachCount: number; lastActivity?: string
   closedNurtureReason?: string | null
+  notes?: string | null
 }
 
 const NURTURE_BUCKETS = [
@@ -723,7 +724,11 @@ function parseBucket(reason: string | null | undefined): { bucket: string; conte
   return { bucket: reason.slice(0, idx).trim(), context: reason.slice(idx + 3).trim() }
 }
 
-function groupByBucket(list: ColumnContact[], dir: 'asc' | 'desc') {
+function groupByBucket(
+  list: ColumnContact[],
+  dir: 'asc' | 'desc',
+  getField: (c: ColumnContact) => string | null | undefined = c => c.closedNurtureReason,
+) {
   const sorted = [...list].sort((a, b) => {
     if (!a.lastActivity && !b.lastActivity) return 0
     if (!a.lastActivity) return dir === 'asc' ? -1 : 1
@@ -734,7 +739,7 @@ function groupByBucket(list: ColumnContact[], dir: 'asc' | 'desc') {
   const bucketMap = new Map<string, ColumnContact[]>()
   const uncategorized: ColumnContact[] = []
   for (const c of sorted) {
-    const parsed = parseBucket(c.closedNurtureReason)
+    const parsed = parseBucket(getField(c))
     if (!parsed) { uncategorized.push(c); continue }
     const key = NURTURE_BUCKETS.find(b => b === parsed.bucket) ?? parsed.bucket
     if (!bucketMap.has(key)) bucketMap.set(key, [])
@@ -776,7 +781,10 @@ function ContactCard({ c, column, accentColor, onOpen }: {
               {c.specialty && <span className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty}</span>}
               {c.status && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-bold">{c.status}</span>}
               {c.dealStatus && <span className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-bold">{c.dealStatus}</span>}
-              {c.closedNurtureReason && (() => { const p = parseBucket(c.closedNurtureReason); return p?.context ? <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold">{p.context}</span> : null })()}
+              {column === 'Closed & Nurture'
+                ? c.notes && (() => { const p = parseBucket(c.notes); return p?.context ? <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold">{p.context}</span> : null })()
+                : c.closedNurtureReason && (() => { const p = parseBucket(c.closedNurtureReason); return p?.context ? <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold">{p.context}</span> : null })()
+              }
               <span className={`flex items-center gap-1 text-[10px] font-bold uppercase ${accentColor.text}`}>
                 <Clock className="w-3 h-3" />{c.lastActivity ? formatDistanceToNow(new Date(c.lastActivity), { addSuffix: true }) : 'Never contacted'}
               </span>
@@ -1062,19 +1070,30 @@ export default function FunnelPage() {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-5">
                   {filteredList.length === 0 ? (
                     <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No contacts in nurture.</p>
                     </div>
-                  ) : filteredList.map((c: any) => (
-                    <ContactCard
-                      key={c.contactId}
-                      c={c}
-                      column="Closed & Nurture"
-                      accentColor={{ border: 'border-emerald-50 hover:border-emerald-200', bg: '', avatar: 'bg-emerald-50', icon: 'text-emerald-400', text: 'text-emerald-400' }}
-                      onOpen={c => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
-                    />
+                  ) : groupByBucket(filteredList, dir, c => c.notes).map(({ bucket, contacts }) => (
+                    <div key={bucket}>
+                      <div className="flex items-center gap-2 mb-2 px-1">
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{bucket}</span>
+                        <span className="text-[10px] font-black text-emerald-300 bg-emerald-50 rounded-full px-1.5 py-0.5">{contacts.length}</span>
+                        <div className="flex-1 h-px bg-emerald-100" />
+                      </div>
+                      <div className="space-y-3">
+                        {contacts.map((c: any) => (
+                          <ContactCard
+                            key={c.contactId}
+                            c={c}
+                            column="Closed & Nurture"
+                            accentColor={{ border: 'border-emerald-50 hover:border-emerald-200', bg: '', avatar: 'bg-emerald-50', icon: 'text-emerald-400', text: 'text-emerald-400' }}
+                            onOpen={c => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </section>
