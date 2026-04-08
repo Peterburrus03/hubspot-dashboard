@@ -140,6 +140,7 @@ export interface Deal {
   nextStep?: string
   notes?: string
   closedLostReason?: string
+  closedNurtureReason?: string
   tags?: string
   stageEnteredDate?: Date
   isOpen: boolean
