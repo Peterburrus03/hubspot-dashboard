@@ -78,6 +78,23 @@ export async function GET(request: NextRequest) {
 
     const ownerMap = new Map(owners.map(o => [o.ownerId, `${o.firstName} ${o.lastName}`]))
 
+    // Fetch closedNurtureReason for Open Deal contacts
+    const openDealContactIds = tier1Contacts.map(c => c.contactId).filter(Boolean) as string[]
+    const nurtureReasonRows = await prisma.$queryRaw<{ contactId: string; closedNurtureReason: string | null }[]>`
+      SELECT "contactId", "closedNurtureReason"
+      FROM deals
+      WHERE "contactId" = ANY(${openDealContactIds})
+        AND "closedNurtureReason" IS NOT NULL
+    `
+    const nurtureReasonMap = new Map(nurtureReasonRows.map(r => [r.contactId, r.closedNurtureReason]))
+
+    const parseBucket = (reason: string | null | undefined): { bucket: string; context: string } | null => {
+      if (!reason) return null
+      const idx = reason.indexOf(' — ')
+      if (idx === -1) return { bucket: reason, context: '' }
+      return { bucket: reason.slice(0, idx).trim(), context: reason.slice(idx + 3).trim() }
+    }
+
     // Label each contact with its funnel column
     const labelledContacts = [
       ...tier1Contacts.map(c => ({ contact: c, column: 'Open Deal' })),
@@ -149,6 +166,8 @@ export async function GET(request: NextRequest) {
         'State': c.state ?? '',
         'Practice Type': c.practiceType ?? '',
         'Deal Status': c.dealStatus ?? '',
+        'Nurture Category': column === 'Open Deal' ? (parseBucket(nurtureReasonMap.get(c.contactId))?.bucket ?? '') : '',
+        'Nurture Context': column === 'Open Deal' ? (parseBucket(nurtureReasonMap.get(c.contactId))?.context ?? '') : '',
         'Last Activity': fmt(lastActivity),
         'Total Outreach': totalEngagements + ipadTouch,
         'Emails (Pre-2026)': emails(pre),
