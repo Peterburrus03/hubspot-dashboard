@@ -800,6 +800,7 @@ export default function FunnelPage() {
   const [colSort, setColSort] = useState<Record<'staleTier1s' | 'openLeads' | 'closedNurture', 'asc' | 'desc'>>({
     staleTier1s: 'asc', openLeads: 'asc', closedNurture: 'asc',
   })
+  const [nurtureFilterOn, setNurtureFilterOn] = useState(true)
 
   const sortedList = (list: any[], dir: 'asc' | 'desc') =>
     [...list].sort((a, b) => {
@@ -1034,6 +1035,7 @@ export default function FunnelPage() {
             const col = 'closedNurture'
             const dir = colSort[col]
             const list = sortedList(data.closedNurture, dir)
+            const filteredList = nurtureFilterOn ? list.filter((c: any) => !c.hiddenByDisposition) : list
             return (
               <section className="space-y-4">
                 <div className="flex items-center justify-between px-1">
@@ -1044,7 +1046,15 @@ export default function FunnelPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Closed & Nurture</h3>
-                        <span className="text-xs font-black text-emerald-500 bg-emerald-50 rounded-full px-2 py-0.5">{list.length}</span>
+                        <span className="text-xs font-black text-emerald-500 bg-emerald-50 rounded-full px-2 py-0.5">
+                          {nurtureFilterOn ? `${filteredList.length} / ${list.length}` : list.length}
+                        </span>
+                        <button
+                          onClick={() => setNurtureFilterOn(p => !p)}
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest transition-all ${nurtureFilterOn ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                        >
+                          {nurtureFilterOn ? 'Recently Touched Hidden' : 'Show All'}
+                        </button>
                       </div>
                       <button onClick={() => toggleSort(col)} className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-700">
                         {dir === 'asc' ? <><ChevronUp className="w-3 h-3" />Oldest First</> : <><ChevronDown className="w-3 h-3" />Newest First</>}
@@ -1053,11 +1063,11 @@ export default function FunnelPage() {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  {list.length === 0 ? (
+                  {filteredList.length === 0 ? (
                     <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No contacts in nurture.</p>
                     </div>
-                  ) : list.map((c: any) => (
+                  ) : filteredList.map((c: any) => (
                     <ContactCard
                       key={c.contactId}
                       c={c}

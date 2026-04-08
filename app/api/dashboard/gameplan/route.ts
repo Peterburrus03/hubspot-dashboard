@@ -183,15 +183,14 @@ export async function GET(request: NextRequest) {
     const staleTier1s = sortByLastActivity(tier1Contacts.map(buildEntry))
     const openLeads = sortByLastActivity(openLeadContacts.map(buildEntry))
     const closedNurture = sortByLastActivity(
-      closedNurtureContacts
-        .filter(c => {
-          const hasDisposition = c.notInterestedNowResponseDate != null || c.notInterestedAtAllResponseDate != null
-          if (!hasDisposition) return true
-          const lastEng = engagementMap.get(c.contactId)
-          const lastTouch = lastEng?.timestamp ?? c.ipadShipmentDate ?? c.ipadCoverShipDate ?? null
-          return !lastTouch || new Date(lastTouch) < sixMonthsAgo
-        })
-        .map(buildEntry)
+      closedNurtureContacts.map(c => {
+        const entry = buildEntry(c)
+        const hasDisposition = c.notInterestedNowResponseDate != null || c.notInterestedAtAllResponseDate != null
+        const lastEng = engagementMap.get(c.contactId)
+        const lastTouch = lastEng?.timestamp ?? c.ipadShipmentDate ?? c.ipadCoverShipDate ?? null
+        const hiddenByDisposition = hasDisposition && !!lastTouch && new Date(lastTouch) >= sixMonthsAgo
+        return { ...entry, hiddenByDisposition }
+      })
     )
 
     const twoWeeksAgo = subDays(new Date(), 14)
