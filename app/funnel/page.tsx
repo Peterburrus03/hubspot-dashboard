@@ -1052,30 +1052,19 @@ export default function FunnelPage() {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-5">
+                <div className="space-y-3">
                   {list.length === 0 ? (
                     <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No contacts in nurture.</p>
                     </div>
-                  ) : groupByBucket(list, dir).map(({ bucket, contacts }) => (
-                    <div key={bucket}>
-                      <div className="flex items-center gap-2 mb-2 px-1">
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{bucket}</span>
-                        <span className="text-[10px] font-black text-emerald-400 bg-emerald-50 rounded-full px-1.5 py-0.5">{contacts.length}</span>
-                        <div className="flex-1 h-px bg-emerald-100" />
-                      </div>
-                      <div className="space-y-3">
-                        {contacts.map((c: any) => (
-                          <ContactCard
-                            key={c.contactId}
-                            c={c}
-                            column="Closed & Nurture"
-                            accentColor={{ border: 'border-emerald-50 hover:border-emerald-200', bg: '', avatar: 'bg-emerald-50', icon: 'text-emerald-400', text: 'text-emerald-400' }}
-                            onOpen={c => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                  ) : list.map((c: any) => (
+                    <ContactCard
+                      key={c.contactId}
+                      c={c}
+                      column="Closed & Nurture"
+                      accentColor={{ border: 'border-emerald-50 hover:border-emerald-200', bg: '', avatar: 'bg-emerald-50', icon: 'text-emerald-400', text: 'text-emerald-400' }}
+                      onOpen={c => setSelectedContact({ contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName })}
+                    />
                   ))}
                 </div>
               </section>

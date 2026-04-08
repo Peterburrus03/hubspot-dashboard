@@ -129,11 +129,12 @@ export async function GET(request: NextRequest) {
       ...closedNurtureContacts.map(c => c.contactId),
     ]))
 
-    // Fetch closedNurtureReason from deals for all column contacts
+    // Fetch closedNurtureReason from deals for Open Deal contacts only
+    const openDealContactIds = tier1Contacts.map(c => c.contactId).filter(Boolean) as string[]
     const nurtureReasonRows = await prisma.$queryRaw<{ contactId: string; closedNurtureReason: string | null }[]>`
       SELECT "contactId", "closedNurtureReason"
       FROM deals
-      WHERE "contactId" = ANY(${allColumnIds})
+      WHERE "contactId" = ANY(${openDealContactIds})
         AND "closedNurtureReason" IS NOT NULL
     `
     const nurtureReasonMap = new Map(nurtureReasonRows.map(r => [r.contactId, r.closedNurtureReason]))
