@@ -176,6 +176,7 @@ export interface Contact {
   approximateAge?: number
   yearOpened?: number
   dvms?: string
+  notes?: string
 }
 
 export interface EngagementRecord {
