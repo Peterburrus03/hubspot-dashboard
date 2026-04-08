@@ -118,6 +118,7 @@ model Contact {
   approximateAge   Int?
   yearOpened       Int?
   dvms             String?
+  notes            String?  @db.Text
 
   // Tier 1 target
   tier1            Boolean?

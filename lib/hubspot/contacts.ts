@@ -52,6 +52,7 @@ const CONTACT_PROPERTIES = [
   'approximate_age',
   'year_opened',
   'dvms',
+  'notes',
 ]
 
 // Helper to parse date from HubSpot — handles both ms timestamps and YYYY-MM-DD strings
@@ -95,6 +96,7 @@ function transformContact(hubspotContact: HubSpotContact): Contact {
     approximateAge: props.approximate_age ? parseInt(props.approximate_age, 10) || undefined : undefined,
     yearOpened: props.year_opened ? parseInt(props.year_opened, 10) || undefined : undefined,
     dvms: props.dvms,
+    notes: props.notes,
   }
 }
 
