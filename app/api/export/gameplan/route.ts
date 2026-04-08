@@ -166,8 +166,16 @@ export async function GET(request: NextRequest) {
         'State': c.state ?? '',
         'Practice Type': c.practiceType ?? '',
         'Deal Status': c.dealStatus ?? '',
-        'Nurture Category': column === 'Open Deal' ? (parseBucket(nurtureReasonMap.get(c.contactId))?.bucket ?? '') : '',
-        'Nurture Context': column === 'Open Deal' ? (parseBucket(nurtureReasonMap.get(c.contactId))?.context ?? '') : '',
+        'Nurture Category': column === 'Open Deal'
+          ? (parseBucket(nurtureReasonMap.get(c.contactId))?.bucket ?? '')
+          : column === 'Closed & Nurture'
+          ? (parseBucket(c.notes)?.bucket ?? '')
+          : '',
+        'Nurture Context': column === 'Open Deal'
+          ? (parseBucket(nurtureReasonMap.get(c.contactId))?.context ?? '')
+          : column === 'Closed & Nurture'
+          ? (parseBucket(c.notes)?.context ?? '')
+          : '',
         'Last Activity': fmt(lastActivity),
         'Total Outreach': totalEngagements + ipadTouch,
         'Emails (Pre-2026)': emails(pre),
