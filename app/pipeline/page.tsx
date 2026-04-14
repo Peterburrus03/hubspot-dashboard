@@ -718,32 +718,32 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
     {
       name: 'Dr. Casey Stepnik',
       apaDealName: 'Great Lakes Veterinary Dermatology',
-      phases: { engagedToNda: 65, ndaToLoi: 367, loiToApa: 65, apaToClose: 27 },
-      totalDays: 524,
+      phases: { engagedToNda: 65, ndaToLoi: 367, loiToApa: 79, apaToClose: 27 },
+      totalDays: 538,
     },
     {
       name: 'Dr. Judy Force',
       apaDealName: 'Dentistry for Animals',
-      phases: { engagedToNda: 58, ndaToLoi: 134, loiToApa: 55, apaToClose: 18 },
-      totalDays: 265,
+      phases: { engagedToNda: 58, ndaToLoi: 134, loiToApa: 65, apaToClose: 18 },
+      totalDays: 275,
     },
     {
       name: 'Dr. Kramer',
       apaDealName: 'OREV Specialty Vet Care',
-      phases: { engagedToNda: 3, ndaToLoi: 53, loiToApa: 61, apaToClose: 14 },
-      totalDays: 131,
+      phases: { engagedToNda: 3, ndaToLoi: 53, loiToApa: 71, apaToClose: 14 },
+      totalDays: 141,
     },
     {
       name: 'Dr. Wooldridge',
       apaDealName: 'Veterinary Cancer & Surgery Specialists',
-      phases: { engagedToNda: 0, ndaToLoi: 119, loiToApa: 44, apaToClose: 12 },
-      totalDays: 175,
+      phases: { engagedToNda: 0, ndaToLoi: 119, loiToApa: 69, apaToClose: 12 },
+      totalDays: 200,
     },
     {
       name: 'Dr. Palmeiro',
       apaDealName: 'Lehigh Valley Veterinary Dermatology',
-      phases: { engagedToNda: 72, ndaToLoi: 70, loiToApa: 30, apaToClose: 12 },
-      totalDays: 184,
+      phases: { engagedToNda: 72, ndaToLoi: 70, loiToApa: 41, apaToClose: 12 },
+      totalDays: 195,
     },
   ]
 
@@ -1611,6 +1611,7 @@ type PreLoiStage = {
 type ApaDealDetail = {
   dealName: string
   closedDate: string
+  loiDate: string | null
   preLoiStages: PreLoiStage[]
   totalTurns: number
   aosnTurns: number
@@ -1627,7 +1628,7 @@ type ApaDealDetail = {
 const APA_DEAL_DATA: ApaDealDetail[] = [
   {
     dealName: 'Van Lue Veterinary Surgical',
-    closedDate: '2026-03-11',
+    closedDate: '2026-03-11', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 4,   party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 4,   party: 'internal' },
@@ -1639,7 +1640,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Veterinary Dental Center',
-    closedDate: '2025-09-04',
+    closedDate: '2025-09-04', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 54,  party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 2,   party: 'internal' },
@@ -1651,7 +1652,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Great Lakes Veterinary Dermatology',
-    closedDate: '2026-01-20',
+    closedDate: '2026-01-20', loiDate: '2025-10-06',
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 340, party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 3,   party: 'internal' },
@@ -1684,7 +1685,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Lehigh Valley Veterinary Dermatology',
-    closedDate: '2025-12-30',
+    closedDate: '2025-12-30', loiDate: '2025-11-07',
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 1,   party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 13,  party: 'internal' },
@@ -1705,7 +1706,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Dentistry for Animals',
-    closedDate: '2026-02-09',
+    closedDate: '2026-02-09', loiDate: '2025-11-18',
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 113, party: 'seller' },
       { label: 'Min. viable data → cmte',   days: null, party: 'unattributed' },
@@ -1729,7 +1730,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Animal Eye Clinic of N. Florida',
-    closedDate: '2025-11-05',
+    closedDate: '2025-11-05', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 16,  party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 2,   party: 'internal' },
@@ -1741,7 +1742,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Golden Gate Specialists',
-    closedDate: '2025-12-08',
+    closedDate: '2025-12-08', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 616, party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 4,   party: 'internal' },
@@ -1753,7 +1754,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Veterinary Dentistry and Oral Surgery of NM',
-    closedDate: '2026-03-03',
+    closedDate: '2026-03-03', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 104, party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 5,   party: 'internal' },
@@ -1771,7 +1772,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Veterinary Cancer & Surgery Specialists',
-    closedDate: '2026-03-10',
+    closedDate: '2026-03-10', loiDate: '2025-12-19',
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 0,   party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 7,   party: 'internal' },
@@ -1802,7 +1803,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Animal Dermatology Center',
-    closedDate: '2025-10-17',
+    closedDate: '2025-10-17', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 67,  party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 7,   party: 'internal' },
@@ -1814,7 +1815,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Animal Dental Clinic of Pittsburgh',
-    closedDate: '',
+    closedDate: '', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 7,   party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 2,   party: 'internal' },
@@ -1826,7 +1827,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'OREV Specialty Vet Care',
-    closedDate: '2026-02-24',
+    closedDate: '2026-02-24', loiDate: '2025-12-01',
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 12,  party: 'seller' },
       { label: 'Min. viable data → cmte',   days: 2,   party: 'internal' },
@@ -1853,7 +1854,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Derm for Pets',
-    closedDate: '2025-09-19',
+    closedDate: '2025-09-19', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: null, party: 'unattributed' },
       { label: 'Min. viable data → cmte',   days: null, party: 'unattributed' },
@@ -1865,7 +1866,7 @@ const APA_DEAL_DATA: ApaDealDetail[] = [
   },
   {
     dealName: 'Texas Specialty Veterinary Services',
-    closedDate: '',
+    closedDate: '', loiDate: null,
     preLoiStages: [
       { label: 'NDA → min. viable data',    days: 104, party: 'seller' },
       { label: 'Min. viable data → cmte',   days: null, party: 'unattributed' },
@@ -2608,6 +2609,18 @@ function VelocityExplorer() {
                   const avgTurns = withPostData.length ? (withPostData.reduce((s, d) => s + d.totalTurns, 0) / withPostData.length).toFixed(1) : '—'
                   const avgPostDays = withPostData.length ? Math.round(withPostData.reduce((s, d) => s + d.totalDays, 0) / withPostData.length) : 0
 
+                  // ── LOI → v1 draft (counsel prep) ───────────────────────────
+                  const loiToDraftDays = (d: typeof focusedData[number]): number | null => {
+                    if (!d.loiDate || !d.turns.length) return null
+                    const loi = new Date(d.loiDate).getTime()
+                    const v1  = new Date(d.turns[0].date).getTime()
+                    return Math.max(0, Math.round((v1 - loi) / 86400000))
+                  }
+                  const dealsWithLoiDraft = focusedData.filter(d => loiToDraftDays(d) !== null)
+                  const avgLoiToDraft = dealsWithLoiDraft.length
+                    ? Math.round(dealsWithLoiDraft.reduce((s, d) => s + (loiToDraftDays(d) ?? 0), 0) / dealsWithLoiDraft.length)
+                    : null
+
                   // ── Pre-LOI stats ───────────────────────────────────────────
                   const preLoiTotals = focusedData.map(d => d.preLoiStages.reduce((s, st) => s + (st.days ?? 0), 0))
                   const avgPreDays   = Math.round(preLoiTotals.reduce((a, b) => a + b, 0) / preLoiTotals.length)
@@ -2621,7 +2634,10 @@ function VelocityExplorer() {
                   // ── Post-LOI chart data ─────────────────────────────────────
                   const maxTurns = Math.max(...focusedData.map(d => d.turns.length))
                   const postChartData = focusedData.map(d => {
-                    const entry: Record<string, number | string> = { name: `${DOCTOR_DEALS[d.dealName]} (${d.totalDays}d)` }
+                    const loi2draft = loiToDraftDays(d)
+                    const totalLabel = loi2draft != null ? d.totalDays + loi2draft : d.totalDays
+                    const entry: Record<string, number | string> = { name: `${DOCTOR_DEALS[d.dealName]} (${totalLabel}d)` }
+                    entry['loi_draft'] = loi2draft ?? 0
                     d.turns.forEach((t, i) => { entry[`t${i}`] = t.daysToRespond ?? 0 })
                     return entry
                   })
@@ -2657,21 +2673,25 @@ function VelocityExplorer() {
                       {/* ── POST-LOI VIEW ─────────────────────────────────── */}
                       {loiPhase === 'post' && (
                         <>
-                          <div className="grid grid-cols-4 gap-3 mb-6">
+                          <div className="grid grid-cols-5 gap-3 mb-6">
                             <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                              <p className="text-zinc-500 text-xs mb-1">Avg total days (LOI→APA)</p>
+                              <p className="text-zinc-500 text-xs mb-1">Avg LOI → v1 draft</p>
+                              <p className="text-amber-400 text-xl font-medium">{avgLoiToDraft != null ? `${avgLoiToDraft}d` : '—'}</p>
+                            </div>
+                            <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
+                              <p className="text-zinc-500 text-xs mb-1">Avg total days (draft→APA)</p>
                               <p className="text-zinc-200 text-xl font-medium">{avgPostDays}d</p>
                             </div>
                             <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                              <p className="text-zinc-500 text-xs mb-1">Avg seller % (LOI→APA)</p>
+                              <p className="text-zinc-500 text-xs mb-1">Avg seller % (draft→APA)</p>
                               <p className="text-rose-400 text-xl font-medium">{avgExt}%</p>
                             </div>
                             <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                              <p className="text-zinc-500 text-xs mb-1">Avg internal % (LOI→APA)</p>
+                              <p className="text-zinc-500 text-xs mb-1">Avg internal % (draft→APA)</p>
                               <p className="text-teal-400 text-xl font-medium">{avgInt}%</p>
                             </div>
                             <div className="bg-zinc-900/60 rounded-lg px-4 py-3">
-                              <p className="text-zinc-500 text-xs mb-1">Avg turns / deal (LOI→APA)</p>
+                              <p className="text-zinc-500 text-xs mb-1">Avg turns / deal (draft→APA)</p>
                               <p className="text-zinc-200 text-xl font-medium">{avgTurns}</p>
                             </div>
                           </div>
@@ -2694,6 +2714,9 @@ function VelocityExplorer() {
                                     <div style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 6, padding: '8px 12px', fontSize: 12 }}>
                                       <p style={{ color: '#a1a1aa', marginBottom: 4 }}>{dealName}</p>
                                       {items.map((p: any) => {
+                                        if (p.dataKey === 'loi_draft') {
+                                          return <p key="loi_draft" style={{ color: '#fbbf24', margin: '2px 0' }}>{`LOI → v1 draft: ${p.value}d (counsel)`}</p>
+                                        }
                                         const idx = parseInt(p.dataKey.replace('t', ''))
                                         const turn = deal.turns[idx]
                                         if (!turn) return null
@@ -2705,6 +2728,12 @@ function VelocityExplorer() {
                                   )
                                 }}
                               />
+                              <Bar dataKey="loi_draft" stackId="a" isAnimationActive={false} fill="#fbbf24">
+                                {focusedData.map((d, di) => (
+                                  <Cell key={di} fill={(loiToDraftDays(d) ?? 0) > 0 ? '#fbbf24' : 'transparent'} />
+                                ))}
+                                <LabelList dataKey="loi_draft" position="insideLeft" style={{ fontSize: 11, fontWeight: 500, fill: '#fff' }} formatter={(v: unknown) => typeof v === 'number' && v > 8 ? `${v}d` : ''} />
+                              </Bar>
                               {Array.from({ length: maxTurns }, (_, i) => (
                                 <Bar key={i} dataKey={`t${i}`} stackId="a" isAnimationActive={false}>
                                   {focusedData.map((d, di) => {
@@ -2720,7 +2749,11 @@ function VelocityExplorer() {
                           </ResponsiveContainer>
 
                           <div className="flex gap-4 mt-4 flex-wrap">
-                            {[{ color: 'bg-teal-400', label: 'Our court' }, { color: 'bg-rose-400', label: 'Seller court' }].map(({ color, label }) => (
+                            {[
+                              { color: 'bg-amber-400', label: 'LOI → v1 draft (counsel)' },
+                              { color: 'bg-teal-400',  label: 'Our court' },
+                              { color: 'bg-rose-400',  label: 'Seller court' },
+                            ].map(({ color, label }) => (
                               <span key={label} className="flex items-center gap-1.5 text-xs text-zinc-400">
                                 <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} /> {label}
                               </span>
