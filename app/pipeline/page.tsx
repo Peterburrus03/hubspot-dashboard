@@ -30,15 +30,15 @@ const WEEKLY_GOALS: Record<number, { contacts: number; ndas: number }> = {
   13: { contacts: 74, ndas: 2 },
   14: { contacts: 74, ndas: 2 },
   // April (4 weeks: Apr 6–May 3) — weeks 15-18
-  15: { contacts: 74, ndas: 2.5 },
-  16: { contacts: 74, ndas: 2.5 },
-  17: { contacts: 74, ndas: 2.5 },
-  18: { contacts: 74, ndas: 2.5 },
+  15: { contacts: 50, ndas: 2.5 },
+  16: { contacts: 50, ndas: 2.5 },
+  17: { contacts: 50, ndas: 2.5 },
+  18: { contacts: 50, ndas: 2.5 },
   // May (4 weeks: May 4–May 31) — weeks 19-22
-  19: { contacts: 74, ndas: 2.5 },
-  20: { contacts: 74, ndas: 2.5 },
-  21: { contacts: 74, ndas: 2.5 },
-  22: { contacts: 74, ndas: 2.5 },
+  19: { contacts: 50, ndas: 2.5 },
+  20: { contacts: 50, ndas: 2.5 },
+  21: { contacts: 50, ndas: 2.5 },
+  22: { contacts: 50, ndas: 2.5 },
   // June (5 weeks: Jun 1–Jul 5) — weeks 23-27
   23: { contacts: 64, ndas: 2.2 },
   24: { contacts: 64, ndas: 2.2 },
