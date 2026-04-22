@@ -36,6 +36,7 @@ export default function SummaryStats({ summary, loading, taskCategories = [] }: 
     'FedEx Letter': 'orange',
     'Text': 'green',
     'Peer to Peer': 'orange',
+    'Check-in / In Town': 'blue',
     'Other': 'gray',
     'Uncategorized': 'gray',
   }

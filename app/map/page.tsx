@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { Search, X } from 'lucide-react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import ContactModal, { type ModalContact } from '@/components/ui/ContactModal'
+import InTownSection from '@/components/map/InTownSection'
 import type { MapContact, AdgLocation } from '@/components/ui/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/ui/LeafletMap'), { ssr: false })
@@ -325,6 +326,14 @@ export default function MapPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* I'm In Town — MSA check-in tracker */}
+      {data && (
+        <InTownSection
+          matched={data.matched}
+          onContactClick={setSelectedContact}
+        />
       )}
     </div>
   )

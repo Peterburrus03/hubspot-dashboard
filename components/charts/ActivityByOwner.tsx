@@ -38,6 +38,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   'FedEx Letter':               '#0ea5e9',
   'Text':                       '#14b8a6',
   'Peer to Peer':               '#f59e0b',
+  'Check-in / In Town':         '#0284c7',
   'Other':                      '#94a3b8',
   'Uncategorized':              '#cbd5e1',
 }
@@ -63,7 +64,7 @@ export default function ActivityByOwner({ data = [], loading }: ActivityByOwnerP
   const allCategories = Array.from(
     new Set(data.flatMap((r) => Object.keys(r.taskCategories ?? {})))
   ).sort((a, b) => {
-    const order = ['LinkedIn Outreach', 'Postal / Snail Mail Letter', 'Greeting Card / Gift Card', 'FedEx Letter', 'Text', 'Peer to Peer', 'Other', 'Uncategorized']
+    const order = ['LinkedIn Outreach', 'Postal / Snail Mail Letter', 'Greeting Card / Gift Card', 'FedEx Letter', 'Text', 'Peer to Peer', 'Check-in / In Town', 'Other', 'Uncategorized']
     return (order.indexOf(a) ?? 99) - (order.indexOf(b) ?? 99)
   })
 

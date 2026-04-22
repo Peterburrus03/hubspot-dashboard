@@ -53,6 +53,7 @@ const CONTACT_PROPERTIES = [
   'year_opened',
   'dvms',
   'notes',
+  'aosn_doctor_closest_referral',
 ]
 
 // Helper to parse date from HubSpot — handles both ms timestamps and YYYY-MM-DD strings
@@ -97,6 +98,7 @@ function transformContact(hubspotContact: HubSpotContact): Contact {
     yearOpened: props.year_opened ? parseInt(props.year_opened, 10) || undefined : undefined,
     dvms: props.dvms,
     notes: props.notes,
+    closestReferral: props.aosn_doctor_closest_referral,
   }
 }
 
@@ -230,6 +232,7 @@ export async function getContacts(forceRefresh = false): Promise<Contact[]> {
             approximateAge: c.approximateAge || undefined,
             yearOpened: c.yearOpened || undefined,
             dvms: c.dvms || undefined,
+            closestReferral: c.closestReferral || undefined,
           }))
 
           setCachedData('contacts', contacts)

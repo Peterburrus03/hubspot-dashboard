@@ -9,6 +9,7 @@ const TASK_CATEGORIES: Record<string, string> = {
   '05': 'LinkedIn Outreach',
   '06': 'Peer to Peer',
   '07': 'Other',
+  '08': 'Check-in / In Town',
 }
 
 function getTaskCategory(body: string | null | undefined): string {
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
         ipadGroup: true,
         ipadResponse: true,
         ipadResponseType: true,
+        closestReferral: true,
       }
     }),
     prisma.engagement.findMany({
@@ -112,5 +114,10 @@ export async function GET(request: NextRequest) {
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
 
-  return NextResponse.json({ engagements: timeline, taskCategories, ipad: contact })
+  return NextResponse.json({
+    engagements: timeline,
+    taskCategories,
+    ipad: contact,
+    closestReferral: contact?.closestReferral ?? null,
+  })
 }

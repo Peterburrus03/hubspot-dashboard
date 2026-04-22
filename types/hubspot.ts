@@ -177,6 +177,7 @@ export interface Contact {
   yearOpened?: number
   dvms?: string
   notes?: string
+  closestReferral?: string
 }
 
 export interface EngagementRecord {

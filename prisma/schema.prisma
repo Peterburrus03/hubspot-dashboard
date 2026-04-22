@@ -120,6 +120,9 @@ model Contact {
   dvms             String?
   notes            String?  @db.Text
 
+  // Peer-to-peer referral (AOSN doctor closest to this contact)
+  closestReferral  String?
+
   // Tier 1 target
   tier1            Boolean?
 

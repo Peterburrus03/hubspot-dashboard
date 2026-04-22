@@ -153,6 +153,7 @@ export async function GET(request: NextRequest) {
     const TASK_CATEGORIES: Record<string, string> = {
       '01': 'Text', '02': 'Postal / Snail Mail Letter', '03': 'Greeting Card / Gift Card',
       '04': 'FedEx Letter', '05': 'LinkedIn Outreach', '06': 'Peer to Peer', '07': 'Other',
+      '08': 'Check-in / In Town',
     }
     type TaskRow = { owner_id: string | null; body: string | null; cnt: bigint }
     const taskRows = await prisma.$queryRaw<TaskRow[]>(Prisma.sql`
