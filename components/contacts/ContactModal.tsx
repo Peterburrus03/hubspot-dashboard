@@ -52,6 +52,7 @@ export default function ContactModal({ contact, onClose }: {
 }) {
   const [engagements, setEngagements] = useState<any[]>([])
   const [closestReferral, setClosestReferral] = useState<string | null>(null)
+  const [top5Referrals, setTop5Referrals] = useState<{ rank: number; name: string; score: number | null; explanation: string }[]>([])
 
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState<number | null>(null)
@@ -65,6 +66,7 @@ export default function ContactModal({ contact, onClose }: {
       .then(d => {
         setEngagements(d.engagements ?? [])
         setClosestReferral(d.closestReferral ?? null)
+        setTop5Referrals(d.top5Referrals ?? [])
       })
       .finally(() => setLoading(false))
   }, [contact.contactId, days])
@@ -157,26 +159,64 @@ export default function ContactModal({ contact, onClose }: {
           )}
 
           {!loading && tab === 'peer' && (
-            <div className="py-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-fuchsia-100 rounded-lg">
-                  <Users className="w-5 h-5 text-fuchsia-600" />
+            <div className="py-4 space-y-6">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-fuchsia-100 rounded-lg">
+                    <Users className="w-5 h-5 text-fuchsia-600" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">Closest AOSN Referral</div>
+                    <div className="text-[10px] text-gray-400">Sourced from HubSpot · <span className="font-mono text-fuchsia-600">aosn_doctor_closest_referral</span></div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">Closest AOSN Referral</div>
-                  <div className="text-[10px] text-gray-400">Sourced from HubSpot · <span className="font-mono text-fuchsia-600">aosn_doctor_closest_referral</span></div>
-                </div>
+
+                {closestReferral ? (
+                  <div className="bg-fuchsia-50 border border-fuchsia-100 rounded-xl p-4">
+                    <div className="text-lg font-black text-gray-900">{closestReferral}</div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-center">
+                    <div className="text-sm font-bold text-gray-400 uppercase tracking-widest">No referral on file</div>
+                  </div>
+                )}
               </div>
 
-              {closestReferral ? (
-                <div className="bg-fuchsia-50 border border-fuchsia-100 rounded-xl p-4">
-                  <div className="text-lg font-black text-gray-900">{closestReferral}</div>
+              <div>
+                <div className="mb-3">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">Top 5 AOSN DVM Matches</div>
+                  <div className="text-[10px] text-gray-400">Ranked by shared school, residency, grad year, and state</div>
                 </div>
-              ) : (
-                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-center">
-                  <div className="text-sm font-bold text-gray-400 uppercase tracking-widest">No referral on file</div>
-                </div>
-              )}
+
+                {top5Referrals.length > 0 ? (
+                  <div className="space-y-2">
+                    {top5Referrals.map(r => (
+                      <div key={r.rank} className="flex gap-3 bg-white border border-gray-100 rounded-xl p-3">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-fuchsia-100 text-fuchsia-700 text-xs font-black flex items-center justify-center">
+                          {r.rank}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-bold text-gray-900 truncate">{r.name}</span>
+                            {r.score != null && (
+                              <span className="flex-shrink-0 px-2 py-0.5 rounded-md bg-fuchsia-50 text-fuchsia-700 text-[10px] font-black uppercase tracking-wider">
+                                Score {r.score}
+                              </span>
+                            )}
+                          </div>
+                          {r.explanation && (
+                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">{r.explanation}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-center">
+                    <div className="text-sm font-bold text-gray-400 uppercase tracking-widest">No top matches on file</div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

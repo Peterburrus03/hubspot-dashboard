@@ -12,6 +12,7 @@ export default function Navigation() {
     { label: 'Pipeline', href: '/pipeline' },
     // { label: 'Trends', href: '/trends' },
     { label: 'Game Plan', href: '/funnel' },
+    { label: 'Peer-to-Peer', href: '/peer-to-peer' },
     { label: 'Outreach Goals', href: '/outreach-goals' },
     { label: 'Map', href: '/map' },
   ]

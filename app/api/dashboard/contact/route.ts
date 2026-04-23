@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import peerReferrals from '@/lib/peer-referrals.json'
+
+type Top5Entry = { rank: number; name: string; score: number | null; explanation: string }
+const peerReferralsByName = peerReferrals as Record<string, Top5Entry[]>
 
 const TASK_CATEGORIES: Record<string, string> = {
   '01': 'Text',
@@ -29,6 +33,8 @@ export async function GET(request: NextRequest) {
     prisma.contact.findUnique({
       where: { contactId },
       select: {
+        firstName: true,
+        lastName: true,
         ipadCoverShipDate: true,
         ipadShipmentDate: true,
         ipadGroup: true,
@@ -114,10 +120,14 @@ export async function GET(request: NextRequest) {
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
 
+  const fullNameKey = `${contact?.firstName ?? ''} ${contact?.lastName ?? ''}`.trim().toLowerCase().replace(/\s+/g, ' ')
+  const top5Referrals = fullNameKey ? (peerReferralsByName[fullNameKey] ?? []) : []
+
   return NextResponse.json({
     engagements: timeline,
     taskCategories,
     ipad: contact,
     closestReferral: contact?.closestReferral ?? null,
+    top5Referrals,
   })
 }
