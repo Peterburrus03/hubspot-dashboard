@@ -312,7 +312,6 @@ const mutedCls = 'text-zinc-400'
 // ─── EBITDATargetBar ──────────────────────────────────────────────────────────
 
 function EBITDATargetBar({ deals, closedEBITDA }: { deals: DealItem[]; closedEBITDA: number }) {
-  const daysLeft = Math.max(0, Math.floor((NDA_DEADLINE.getTime() - TODAY.getTime()) / (1000 * 60 * 60 * 24)))
   const probWtdEBITDA = Math.round(deals.reduce((s, d) => s + d.ebitda * d.prob, 0))
   const totalCredited = closedEBITDA + probWtdEBITDA
   const gap = Math.max(0, TARGETS.totalEBITDA - totalCredited)
@@ -325,11 +324,6 @@ function EBITDATargetBar({ deals, closedEBITDA }: { deals: DealItem[]; closedEBI
         <div>
           <h2 className={h2Cls}>2026 EBITDA Acquisition Target</h2>
           <p className={`text-xs ${mutedCls} mt-0.5`}>$18.9M target · closed + prob-weighted pipeline vs. gap</p>
-        </div>
-        <div className="rounded-xl px-5 py-3 border border-amber-500/40 bg-amber-500/10 text-center">
-          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide">⏰ Days to NDA Deadline</div>
-          <div className="text-4xl font-black text-amber-400">{daysLeft}</div>
-          <div className="text-xs text-zinc-400">Sep 7, 2026</div>
         </div>
       </div>
       <div className="grid grid-cols-4 gap-3 mb-5">
@@ -2972,8 +2966,6 @@ export default function PipelinePage() {
     lsSet('aosn_notes_v1', JSON.stringify(saved))
   }
 
-  const atRiskCount = deals.filter(isAtRisk).length
-
   return (
     <div className="min-h-screen bg-black">
       <div className="max-w-7xl mx-auto px-4 py-6">
@@ -2982,8 +2974,7 @@ export default function PipelinePage() {
           <div>
             <h1 className="text-2xl font-black text-white tracking-tight">AOSN M&A Pipeline</h1>
             <p className="text-sm text-zinc-400 mt-0.5">
-              2026 Acquisition Plan · {deals.length} active deals ·{' '}
-              {atRiskCount > 0 && <span className="text-red-400 font-semibold">{atRiskCount} at risk</span>}
+              2026 Acquisition Plan · {deals.length} active deals
               {lastSync && <span className="text-zinc-600"> · synced {lastSync}</span>}
             </p>
           </div>
