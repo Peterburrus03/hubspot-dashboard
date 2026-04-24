@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { MapPin, Search, X, Check, Clock } from 'lucide-react'
+import { MapPin, Search, X, Check, Clock, ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import type { MapContact } from '@/components/ui/LeafletMap'
 import type { ModalContact } from '@/components/ui/ContactModal'
@@ -260,6 +260,18 @@ export default function InTownSection({ matched, onContactClick }: {
 
       {selectedMarket && (
         <div className="overflow-x-auto">
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
+            <button
+              onClick={() => { setSelectedMarket(null); setQuery(''); setCheckIns({}) }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 uppercase tracking-widest transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to All MSAs
+            </button>
+            <div className="text-[10px] font-black uppercase tracking-widest text-gray-700">
+              {selectedMarket}
+            </div>
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-[10px] font-black text-gray-500 uppercase tracking-widest">
               <tr>

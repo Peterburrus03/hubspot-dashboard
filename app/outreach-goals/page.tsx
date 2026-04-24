@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import ContactModal from '@/components/contacts/ContactModal'
 import { Clock, User } from 'lucide-react'
-import { formatDistanceToNow, format, startOfWeek, endOfWeek, addWeeks } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 
 type Contact = {
   contactId: string
@@ -93,10 +93,9 @@ function ContactCard({ c, onOpen }: { c: Contact; onOpen: (c: Contact) => void }
   )
 }
 
-function WeekColumn({ title, subtitle, dateRange, accentIcon, accentText, accentBg, contacts, onSelectContact }: {
+function WeekColumn({ title, subtitle, accentIcon, accentText, accentBg, contacts, onSelectContact }: {
   title: string
   subtitle: string
-  dateRange: string
   accentIcon: string
   accentText: string
   accentBg: string
@@ -115,7 +114,7 @@ function WeekColumn({ title, subtitle, dateRange, accentIcon, accentText, accent
             <span className={`text-xs font-black rounded-full px-2 py-0.5 ${accentText} ${accentBg}`}>{contacts.length}</span>
           </div>
           <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${accentText}`}>
-            {subtitle} · {dateRange}
+            {subtitle}
           </p>
         </div>
       </div>
@@ -167,14 +166,6 @@ export default function OutreachGoalsPage() {
   const pool = sortOldestFirst([...openLeads, ...unresponsiveOpenDeal, ...unresponsiveNurture])
   const [w1, w2, w3] = splitIntoThirds(pool)
 
-  const now = new Date()
-  const weekStart = (i: number) => addWeeks(startOfWeek(now, { weekStartsOn: 1 }), i)
-  const fmtRange = (i: number) => {
-    const s = weekStart(i)
-    const e = endOfWeek(s, { weekStartsOn: 1 })
-    return `${format(s, 'MMM d')} – ${format(e, 'MMM d')}`
-  }
-
   return (
     <div className="space-y-8">
       {selectedContact && (
@@ -198,14 +189,17 @@ export default function OutreachGoalsPage() {
         </div>
       </div>
 
-      <FilterBar onFilterChange={setFilters} showDateFilter={false} />
+      <FilterBar
+        onFilterChange={setFilters}
+        showDateFilter={false}
+        excludeSpecialties={['Dermatology', 'Dentistry']}
+      />
 
       {data && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           <WeekColumn
             title="Week 1"
             subtitle="This Week · Coldest"
-            dateRange={fmtRange(0)}
             accentIcon="text-rose-600"
             accentText="text-rose-500"
             accentBg="bg-rose-50"
@@ -215,7 +209,6 @@ export default function OutreachGoalsPage() {
           <WeekColumn
             title="Week 2"
             subtitle="Next Week"
-            dateRange={fmtRange(1)}
             accentIcon="text-amber-600"
             accentText="text-amber-500"
             accentBg="bg-amber-50"
@@ -225,7 +218,6 @@ export default function OutreachGoalsPage() {
           <WeekColumn
             title="Week 3"
             subtitle="Following · Most Recent"
-            dateRange={fmtRange(2)}
             accentIcon="text-sky-600"
             accentText="text-sky-500"
             accentBg="bg-sky-50"

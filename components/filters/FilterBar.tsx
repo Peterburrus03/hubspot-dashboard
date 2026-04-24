@@ -25,6 +25,12 @@ interface FilterOption {
 interface FilterBarProps {
   onFilterChange: (filters: FilterState) => void
   showDateFilter?: boolean
+  /**
+   * Case-insensitive specialty names to exclude by default.
+   * When the specialty list finishes loading, the filter is pre-populated with
+   * every specialty EXCEPT the ones listed here. Users can still adjust manually.
+   */
+  excludeSpecialties?: string[]
 }
 
 function getMondayOfWeek(date: Date): Date {
@@ -69,7 +75,7 @@ function getPresetDates(preset: FilterState['preset']): { start: string; end: st
   return { start: today, end: today }
 }
 
-export default function FilterBar({ onFilterChange, showDateFilter = true }: FilterBarProps) {
+export default function FilterBar({ onFilterChange, showDateFilter = true, excludeSpecialties }: FilterBarProps) {
   const [collapsed, setCollapsed] = useState(true)
 
   const [preset, setPreset] = useState<FilterState['preset']>('last_week')
@@ -93,6 +99,7 @@ export default function FilterBar({ onFilterChange, showDateFilter = true }: Fil
   const [dealStatuses, setDealStatuses] = useState<string[]>([])
 
   const [loadingFilters, setLoadingFilters] = useState(true)
+  const [specialtyDefaultsApplied, setSpecialtyDefaultsApplied] = useState(false)
 
   useEffect(() => {
     fetch('/api/dashboard/filters')
@@ -107,6 +114,17 @@ export default function FilterBar({ onFilterChange, showDateFilter = true }: Fil
       .catch(console.error)
       .finally(() => setLoadingFilters(false))
   }, [])
+
+  // Apply excludeSpecialties default exactly once, after specialties load.
+  useEffect(() => {
+    if (specialtyDefaultsApplied) return
+    if (!excludeSpecialties || excludeSpecialties.length === 0) return
+    if (specialties.length === 0) return
+    const excludeLower = excludeSpecialties.map(s => s.toLowerCase())
+    const kept = specialties.filter(s => !excludeLower.includes(s.toLowerCase()))
+    setSelectedSpecialties(kept)
+    setSpecialtyDefaultsApplied(true)
+  }, [specialties, excludeSpecialties, specialtyDefaultsApplied])
 
   useEffect(() => {
     onFilterChange({
@@ -369,7 +387,12 @@ export default function FilterBar({ onFilterChange, showDateFilter = true }: Fil
         <button
           onClick={() => {
             setSelectedOwners(['1995098221', '83426466', '48828284']) // Tracey, Max & Steve
-            setSelectedSpecialties([])
+            if (excludeSpecialties && excludeSpecialties.length > 0 && specialties.length > 0) {
+              const excludeLower = excludeSpecialties.map(s => s.toLowerCase())
+              setSelectedSpecialties(specialties.filter(s => !excludeLower.includes(s.toLowerCase())))
+            } else {
+              setSelectedSpecialties([])
+            }
             setSelectedCompanyTypes(['Private Practice', 'Private Hybrid Mobile'])
             setSelectedLeadStatuses(['NEW', 'OPEN', 'CONNECTED', 'IN_PROGRESS', 'OPEN_DEAL', 'Closed and Nurturing'])
             setSelectedDealStatuses(['Closed LOST', 'Closed PASS', 'Closed Won'])
