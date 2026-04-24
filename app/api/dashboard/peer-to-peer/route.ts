@@ -24,6 +24,26 @@ type DvmRow = {
   contacts: MatchedContact[]
 }
 
+type DvmMatch = {
+  rank: number
+  dvmName: string
+  score: number | null
+  explanation: string
+}
+
+type ContactRow = {
+  contactId: string | null
+  contactName: string
+  specialty: string | null
+  state: string | null
+  ownerName: string | null
+  closestReferral: string | null
+  totalMatches: number
+  avgScore: number | null
+  topScore: number | null
+  dvmMatches: DvmMatch[]
+}
+
 export async function GET() {
   const [contacts, owners] = await Promise.all([
     prisma.contact.findMany({
@@ -34,6 +54,7 @@ export async function GET() {
         specialty: true,
         state: true,
         ownerId: true,
+        closestReferral: true,
       },
     }),
     prisma.owner.findMany(),
@@ -92,8 +113,47 @@ export async function GET() {
 
   dvms.sort((a, b) => b.totalContacts - a.totalContacts || a.dvmName.localeCompare(b.dvmName))
 
+  // Contact-first grouping ("External Targets"): one row per external contact,
+  // expandable to show that contact's top 5 AOSN DVM matches.
+  const contactRows: ContactRow[] = []
+  for (const [contactKey, top5] of Object.entries(peerReferralsByName)) {
+    const dbContact = contactByName.get(contactKey)
+    const contactName = dbContact
+      ? `${dbContact.firstName ?? ''} ${dbContact.lastName ?? ''}`.trim()
+      : contactKey.replace(/\b\w/g, c => c.toUpperCase())
+
+    const dvmMatches: DvmMatch[] = top5
+      .map(entry => ({
+        rank: entry.rank,
+        dvmName: entry.name,
+        score: entry.score,
+        explanation: entry.explanation,
+      }))
+      .sort((a, b) => a.rank - b.rank)
+
+    const scores = dvmMatches.map(m => m.score).filter((s): s is number => typeof s === 'number')
+    const avgScore = scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : null
+    const topScore = scores.length ? Math.max(...scores) : null
+
+    contactRows.push({
+      contactId: dbContact?.contactId ?? null,
+      contactName,
+      specialty: dbContact?.specialty ?? null,
+      state: dbContact?.state ?? null,
+      ownerName: dbContact?.ownerId ? (ownerMap.get(dbContact.ownerId) ?? null) : null,
+      closestReferral: dbContact?.closestReferral ?? null,
+      totalMatches: dvmMatches.length,
+      avgScore,
+      topScore,
+      dvmMatches,
+    })
+  }
+
+  contactRows.sort((a, b) => (b.topScore ?? 0) - (a.topScore ?? 0) || a.contactName.localeCompare(b.contactName))
+
   return NextResponse.json({
     dvms,
+    contacts: contactRows,
     totalContactsScanned: Object.keys(peerReferralsByName).length,
     totalDvms: dvms.length,
   })
