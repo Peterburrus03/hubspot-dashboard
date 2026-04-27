@@ -115,8 +115,14 @@ export async function GET() {
 
   // Contact-first grouping ("External Targets"): one row per external contact,
   // expandable to show that contact's top 5 AOSN DVM matches.
+  // Hide contacts who have since joined AOSN.
+  const externalHide = new Set([
+    'kristin bannon', 'ian spiegel', 'robert schick', 'stephen juriga',
+    'alon kramer', 'alexander werner', 'brian palmeiro',
+  ])
   const contactRows: ContactRow[] = []
   for (const [contactKey, top5] of Object.entries(peerReferralsByName)) {
+    if (externalHide.has(contactKey)) continue
     const dbContact = contactByName.get(contactKey)
     const contactName = dbContact
       ? `${dbContact.firstName ?? ''} ${dbContact.lastName ?? ''}`.trim()
