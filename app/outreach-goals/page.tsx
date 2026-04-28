@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import ContactModal from '@/components/contacts/ContactModal'
+import CampaignTracker from '@/components/outreach/CampaignTracker'
 import { Clock, User } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -194,6 +195,8 @@ export default function OutreachGoalsPage() {
         showDateFilter={false}
         excludeSpecialties={['Dermatology', 'Dentistry']}
       />
+
+      <CampaignTracker filters={filters} />
 
       {data && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
