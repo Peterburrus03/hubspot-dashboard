@@ -31,6 +31,7 @@ model Deal {
   initialOutreachDate       DateTime?
   qualifiedToBuyDate        DateTime?
   engagedDate               DateTime?
+  steveMeetingDate          DateTime?
   ndaSignedDate             DateTime?
   dataReceivedDate          DateTime?
   committeePresentedDate    DateTime?

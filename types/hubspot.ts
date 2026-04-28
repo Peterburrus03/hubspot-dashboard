@@ -123,6 +123,7 @@ export interface Deal {
   initialOutreachDate?: Date
   qualifiedToBuyDate?: Date
   engagedDate?: Date
+  steveMeetingDate?: Date
   ndaSignedDate?: Date
   dataReceivedDate?: Date
   committeePresentedDate?: Date

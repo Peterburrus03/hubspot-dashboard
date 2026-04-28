@@ -29,6 +29,7 @@ export async function GET() {
       dealName: string | null
       dealCreatedAt: Date | null
       engagedDate: Date | null
+      steveMeetingDate: Date | null
       ndaSignedDate: Date | null
       dataReceivedDate: Date | null
       committeePresentedDate: Date | null
@@ -44,6 +45,7 @@ export async function GET() {
         "dealName",
         "dealCreatedAt",
         COALESCE("engagedDate", "qualifiedToBuyDate") AS "engagedDate",
+        "steveMeetingDate",
         "ndaSignedDate",
         "dataReceivedDate",
         "committeePresentedDate",
@@ -62,6 +64,7 @@ export async function GET() {
       stage: string | null
       dealCreatedAt: string | null
       engagedDate: string | null
+      steveMeetingDate: string | null
       ndaSignedDate: string | null
       dataReceivedDate: string | null
       committeePresentedDate: string | null
@@ -131,6 +134,7 @@ export async function GET() {
         stage: deal.stage,
         dealCreatedAt: fmtDate(deal.dealCreatedAt),
         engagedDate: fmtDate(deal.engagedDate),
+        steveMeetingDate: fmtDate(deal.steveMeetingDate),
         ndaSignedDate: fmtDate(deal.ndaSignedDate),
         dataReceivedDate: fmtDate(deal.dataReceivedDate),
         committeePresentedDate: fmtDate(deal.committeePresentedDate),

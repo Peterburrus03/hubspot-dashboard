@@ -766,6 +766,7 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
             <tr>
               <th className={`${thCls} min-w-[140px]`}>Deal</th>
               <th className={thCls}>EBITDA</th>
+              <th className={thCls}>Steve Meeting</th>
               <th className={thCls}>Stage</th>
               {SCORECARD_COLS.map(col => (
                 <th key={col.key} className={thCls}>
@@ -791,6 +792,11 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
                   </td>
                   <td className={`${tdCls} text-zinc-400 text-sm`}>
                     {deal.ebitda > 0 ? `$${(deal.ebitda / 1000).toFixed(1)}M` : '—'}
+                  </td>
+                  <td className={`${tdCls} text-zinc-400 text-sm whitespace-nowrap`}>
+                    {vd?.steveMeetingDate
+                      ? new Date(vd.steveMeetingDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : <span className="text-zinc-600">—</span>}
                   </td>
                   <td className={`${tdCls} text-xs`}>
                     <span className="font-medium" style={{ color: CRM_STAGE_COLORS[deal.crmStage] ?? '#a1a1aa' }}>
@@ -855,7 +861,7 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
               })
               return (
                 <tr className="bg-zinc-900/60">
-                  <td className="py-3 pr-6 text-xs font-semibold text-zinc-500" colSpan={3}>Avg — active deals</td>
+                  <td className="py-3 pr-6 text-xs font-semibold text-zinc-500" colSpan={4}>Avg — active deals</td>
                   {avgPhases.map((avg, i) => (
                     <td key={SCORECARD_COLS[i].key} className="py-3 pr-6">
                       {avg !== null
@@ -874,7 +880,7 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
             })()}
             {/* Closed examples section label */}
             <tr>
-              <td colSpan={3 + SCORECARD_COLS.length + 1} className="pt-6 pb-2 text-xs font-semibold text-zinc-600 uppercase tracking-widest border-t border-zinc-800">
+              <td colSpan={4 + SCORECARD_COLS.length + 1} className="pt-6 pb-2 text-xs font-semibold text-zinc-600 uppercase tracking-widest border-t border-zinc-800">
                 Closed examples
               </td>
             </tr>
@@ -887,6 +893,7 @@ function PipelineVelocityScorecard({ deals }: { deals: DealItem[] }) {
                     <div className="font-medium text-zinc-400 text-sm">{row.name}</div>
                     <div className="text-xs text-zinc-600 mt-0.5">Closed</div>
                   </td>
+                  <td className="py-2.5 pr-6 text-zinc-600 text-sm align-top">—</td>
                   <td className="py-2.5 pr-6 text-zinc-600 text-sm align-top">—</td>
                   <td className="py-2.5 pr-6 text-zinc-600 text-xs align-top">Closed</td>
                   {SCORECARD_COLS.map(col => (
@@ -1569,6 +1576,7 @@ type VintageDeal = {
   stage: string | null
   dealCreatedAt: string | null
   engagedDate: string | null
+  steveMeetingDate: string | null
   ndaSignedDate: string | null
   dataReceivedDate: string | null
   committeePresentedDate: string | null
