@@ -342,6 +342,7 @@ async function syncDealsToDatabase(deals: Deal[]): Promise<void> {
         SET "dealCreatedAt"             = ${deal.dealCreatedAt ?? null},
             "qualifiedToBuyDate"        = ${deal.qualifiedToBuyDate ?? null},
             "engagedDate"               = ${deal.engagedDate ?? null},
+            "steveMeetingDate"          = ${deal.steveMeetingDate ?? null},
             "integrationCompletionDate" = ${deal.integrationCompletionDate ?? null},
             "officialClosedDate"        = ${deal.officialClosedDate ?? null},
             "dataReceivedDate"          = ${deal.dataReceivedDate ?? null},
@@ -408,10 +409,11 @@ export async function getDeals(forceRefresh = false): Promise<Deal[]> {
       return cached
     }
 
-    // Check database cache
-    const dbDeals = await prisma.deal.findMany({
-      orderBy: { updatedAt: 'desc' },
-    })
+    // Check database cache - use raw SQL to fetch all columns including those
+    // missing from the outdated Prisma client.
+    const dbDeals: any[] = await prisma.$queryRaw`
+      SELECT * FROM deals ORDER BY "updatedAt" DESC
+    `
 
     if (dbDeals.length > 0) {
       const metadata = await prisma.cacheMetadata.findUnique({
@@ -434,13 +436,21 @@ export async function getDeals(forceRefresh = false): Promise<Deal[]> {
             revenue: d.revenue || undefined,
             weightedAmount: d.weightedAmount || undefined,
             ebitda: d.ebitda || undefined,
+            dealCreatedAt: d.dealCreatedAt || undefined,
             initialOutreachDate: d.initialOutreachDate || undefined,
+            qualifiedToBuyDate: d.qualifiedToBuyDate || undefined,
+            engagedDate: d.engagedDate || undefined,
+            steveMeetingDate: d.steveMeetingDate || undefined,
             ndaSignedDate: d.ndaSignedDate || undefined,
+            dataReceivedDate: d.dataReceivedDate || undefined,
+            committeePresentedDate: d.committeePresentedDate || undefined,
             loiExtendedDate: d.loiExtendedDate || undefined,
             loiSignedDate: d.loiSignedDate || undefined,
             targetCloseDate: d.targetCloseDate || undefined,
             revisedCloseDate: d.revisedCloseDate || undefined,
             closedDate: d.closedDate || undefined,
+            integrationCompletionDate: d.integrationCompletionDate || undefined,
+            officialClosedDate: d.officialClosedDate || undefined,
             city: d.city || undefined,
             state: d.state || undefined,
             specialty: d.specialty || undefined,
@@ -448,6 +458,7 @@ export async function getDeals(forceRefresh = false): Promise<Deal[]> {
             nextStep: d.nextStep || undefined,
             notes: d.notes || undefined,
             closedLostReason: d.closedLostReason || undefined,
+            closedNurtureReason: d.closedNurtureReason || undefined,
             tags: d.tags || undefined,
             stageEnteredDate: d.stageEnteredDate || undefined,
             isOpen: d.isOpen,
