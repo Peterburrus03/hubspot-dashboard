@@ -9,6 +9,23 @@ const ACTIVE_PIPELINE_STAGES = [
   'Pre-LOI Analysis',
 ]
 const OPEN_LEAD_STATUSES = ['OPEN', 'NEW', 'CONNECTED']
+const CANADIAN_PROVINCES = [
+  'AB', 'ON', 'NB', 'MB', 'BC', 'QC', 'SK', 'PE', 'NL', 'NS',
+  'ab', 'on', 'nb', 'mb', 'bc', 'qc', 'sk', 'pe', 'nl', 'ns',
+]
+
+export interface OutreachPoolFilters {
+  ownerIds?: string[]
+  companyTypes?: string[]
+  locationFilter?: 'all' | 'us' | 'international'
+}
+
+// Matches FilterBar defaults — used by cron so the stored pool equals the default view
+export const DEFAULT_POOL_FILTERS: OutreachPoolFilters = {
+  ownerIds: ['1995098221', '83426466', '48828284'],
+  companyTypes: ['Private Practice', 'Private Hybrid Mobile'],
+  locationFilter: 'us',
+}
 
 function parseBucket(field: string | null | undefined): string | null {
   if (!field) return null
@@ -39,8 +56,17 @@ export function splitIntoThirds<T>(arr: T[]): [T[], T[], T[]] {
   return [arr.slice(0, s1), arr.slice(s1, s1 + s2), arr.slice(s1 + s2)]
 }
 
-export async function computeOutreachPool(): Promise<{ contactId: string; lastActivity: Date | null }[]> {
+export async function computeOutreachPool(
+  filters: OutreachPoolFilters = DEFAULT_POOL_FILTERS
+): Promise<{ contactId: string; lastActivity: Date | null }[]> {
   const sixMonthsAgo = subMonths(new Date(), 6)
+
+  const ownerFilter = filters.ownerIds?.length ? { ownerId: { in: filters.ownerIds } } : {}
+  const companyFilter = filters.companyTypes?.length ? { practiceType: { in: filters.companyTypes } } : {}
+  const locationFilter =
+    filters.locationFilter === 'us' ? { state: { notIn: CANADIAN_PROVINCES } }
+    : filters.locationFilter === 'international' ? { state: { in: CANADIAN_PROVINCES } }
+    : {}
 
   const [closedDealRows, pipelineDealRows] = await Promise.all([
     prisma.deal.findMany({ where: { stage: { in: TERMINAL_STAGES } }, select: { contactId: true } }),
@@ -53,17 +79,19 @@ export async function computeOutreachPool(): Promise<{ contactId: string; lastAc
 
   const exclude = (ids: string[]) => ids.length ? { NOT: { contactId: { in: ids } } } : {}
 
+  const baseWhere = { professionalStatus: 'Owner', ...ownerFilter, ...companyFilter, ...locationFilter }
+
   const [openLeadContacts, openDealContacts, closedNurtureContacts] = await Promise.all([
     prisma.contact.findMany({
-      where: { professionalStatus: 'Owner', leadStatus: { in: OPEN_LEAD_STATUSES }, ...exclude(closedIds) },
+      where: { ...baseWhere, leadStatus: { in: OPEN_LEAD_STATUSES }, ...exclude(closedIds) },
       select: { contactId: true },
     }),
     prisma.contact.findMany({
-      where: { professionalStatus: 'Owner', leadStatus: 'OPEN_DEAL', ...exclude(openDealExcludeIds) },
+      where: { ...baseWhere, leadStatus: 'OPEN_DEAL', ...exclude(openDealExcludeIds) },
       select: { contactId: true },
     }),
     prisma.contact.findMany({
-      where: { professionalStatus: 'Owner', leadStatus: 'Closed and Nurturing', ...exclude(closedIds) },
+      where: { ...baseWhere, leadStatus: 'Closed and Nurturing', ...exclude(closedIds) },
       select: {
         contactId: true,
         notes: true,
@@ -133,11 +161,14 @@ export async function computeOutreachPool(): Promise<{ contactId: string; lastAc
   return pool
 }
 
-export async function initWeekAssignments(weekStart: Date): Promise<{ count: number; alreadyInitialized: boolean }> {
+export async function initWeekAssignments(
+  weekStart: Date,
+  filters: OutreachPoolFilters = DEFAULT_POOL_FILTERS
+): Promise<{ count: number; alreadyInitialized: boolean }> {
   const existing = await prisma.outreachWeekAssignment.count({ where: { weekStart } })
   if (existing > 0) return { count: existing, alreadyInitialized: true }
 
-  const pool = await computeOutreachPool()
+  const pool = await computeOutreachPool(filters)
   const [w1, w2, w3] = splitIntoThirds(pool)
 
   const data = [

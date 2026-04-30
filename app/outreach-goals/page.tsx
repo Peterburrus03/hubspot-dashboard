@@ -317,10 +317,21 @@ export default function OutreachGoalsPage() {
 
   useEffect(() => { fetchWeekData() }, [fetchWeekData])
 
-  const initWeek = async () => {
+  const initWeek = async (rebuild = false) => {
     setInitializing(true)
     try {
-      await fetch('/api/dashboard/outreach-week', { method: 'POST' })
+      if (rebuild) await fetch('/api/dashboard/outreach-week', { method: 'DELETE' })
+      await fetch('/api/dashboard/outreach-week', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filters: filters ? {
+            ownerIds: filters.ownerIds,
+            companyTypes: filters.companyTypes,
+            locationFilter: filters.locationFilter,
+          } : undefined,
+        }),
+      })
       await fetchWeekData()
     } finally {
       setInitializing(false)
@@ -399,12 +410,22 @@ export default function OutreachGoalsPage() {
           </button>
           {weekData && !weekData.initialized && (
             <button
-              onClick={initWeek}
+              onClick={() => initWeek(false)}
               disabled={initializing}
               className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
             >
               <Play className="w-4 h-4" />
               {initializing ? 'Building Queue…' : 'Start This Week'}
+            </button>
+          )}
+          {weekData?.initialized && (
+            <button
+              onClick={() => { if (confirm('Rebuild the queue? This will clear all completion checkmarks for this week.')) initWeek(true) }}
+              disabled={initializing}
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 border-gray-200 bg-white text-gray-500 hover:border-red-300 hover:text-red-500 disabled:opacity-40 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${initializing ? 'animate-spin' : ''}`} />
+              Rebuild Queue
             </button>
           )}
         </div>
@@ -435,7 +456,7 @@ export default function OutreachGoalsPage() {
             They'll lock in and persist for the rest of the week.
           </p>
           <button
-            onClick={initWeek}
+            onClick={() => initWeek(false)}
             disabled={initializing}
             className="inline-flex items-center gap-2 text-sm font-bold px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
           >

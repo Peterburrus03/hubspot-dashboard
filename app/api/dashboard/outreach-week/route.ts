@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { getWeekStart, initWeekAssignments } from '@/lib/outreach/pool'
+import { getWeekStart, initWeekAssignments, DEFAULT_POOL_FILTERS, type OutreachPoolFilters } from '@/lib/outreach/pool'
 
 export async function GET() {
   try {
@@ -79,10 +79,26 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function DELETE(request: NextRequest) {
   try {
     const weekStart = getWeekStart()
-    const result = await initWeekAssignments(weekStart)
+    await prisma.outreachWeekAssignment.deleteMany({ where: { weekStart } })
+    await prisma.outreachCompletion.deleteMany({ where: { weekStart } })
+    return NextResponse.json({ ok: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const weekStart = getWeekStart()
+    let filters: OutreachPoolFilters = DEFAULT_POOL_FILTERS
+    try {
+      const body = await request.json()
+      if (body?.filters) filters = { ...DEFAULT_POOL_FILTERS, ...body.filters }
+    } catch {}
+    const result = await initWeekAssignments(weekStart, filters)
     return NextResponse.json({ ok: true, ...result })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
