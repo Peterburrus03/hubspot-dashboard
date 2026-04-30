@@ -290,6 +290,34 @@ model AiFeedback {
   @@map("ai_feedback")
 }
 
+model OutreachWeekAssignment {
+  id        String   @id @default(uuid())
+  weekStart DateTime
+  contactId String
+  week      Int
+  createdAt DateTime @default(now())
+
+  @@unique([weekStart, contactId])
+  @@index([weekStart])
+  @@map("outreach_week_assignments")
+}
+
+model OutreachCompletion {
+  id           String    @id @default(uuid())
+  weekStart    DateTime
+  contactId    String
+  contacted    Boolean   @default(false)
+  meetingSet   Boolean   @default(false)
+  meetingDate  DateTime?
+  meetingNotes String?   @db.Text
+  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
+
+  @@unique([weekStart, contactId])
+  @@index([weekStart])
+  @@map("outreach_completions")
+}
+
 model CacheMetadata {
   id           String   @id @default(uuid())
   cacheKey     String   @unique

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { getWeekStart, initWeekAssignments } from '@/lib/outreach/pool'
 
 // Vercel crons always send GET requests — this endpoint is called by the weekly cron
 // and proxies the snapshot creation logic (identical to POST /api/snapshots)
@@ -28,7 +29,15 @@ export async function GET(request: NextRequest) {
       })),
     })
 
-    return NextResponse.json({ ok: true, snapshotAt, count: deals.length })
+    const weekStart = getWeekStart()
+    const weekResult = await initWeekAssignments(weekStart)
+
+    return NextResponse.json({
+      ok: true,
+      snapshotAt,
+      count: deals.length,
+      weekAssignments: weekResult,
+    })
   } catch (error: any) {
     console.error('Cron snapshot error:', error)
     return NextResponse.json({ error: error?.message }, { status: 500 })
