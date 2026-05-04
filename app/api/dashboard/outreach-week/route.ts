@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getWeekStart, initWeekAssignments, DEFAULT_POOL_FILTERS, type OutreachPoolFilters } from '@/lib/outreach/pool'
 
+async function findActiveWeekStart(): Promise<Date> {
+  const now = getWeekStart()
+  for (let i = 0; i < 3; i++) {
+    const candidate = new Date(now)
+    candidate.setUTCDate(candidate.getUTCDate() - i * 7)
+    const count = await prisma.outreachWeekAssignment.count({ where: { weekStart: candidate } })
+    if (count > 0) return candidate
+  }
+  return now
+}
+
 export async function GET() {
   try {
-    const weekStart = getWeekStart()
+    const weekStart = await findActiveWeekStart()
 
     const assignments = await prisma.outreachWeekAssignment.findMany({ where: { weekStart } })
     if (assignments.length === 0) {
@@ -81,7 +92,7 @@ export async function GET() {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const weekStart = getWeekStart()
+    const weekStart = await findActiveWeekStart()
     await prisma.outreachWeekAssignment.deleteMany({ where: { weekStart } })
     await prisma.outreachCompletion.deleteMany({ where: { weekStart } })
     return NextResponse.json({ ok: true })
