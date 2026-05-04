@@ -146,7 +146,7 @@ export default function CalendarPage() {
         <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm">
           <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
           <p className="text-amber-800 font-medium">
-            No meetings with "New" in the title found for this month. Meeting titles are captured during sync — trigger a meetings re-sync from the Admin panel to populate titles for existing records.
+            No meetings with "New" in the title or body found for this month. Meeting content is captured during sync — trigger a meetings re-sync from the Admin panel to populate existing records.
           </p>
         </div>
       )}
@@ -242,10 +242,13 @@ export default function CalendarPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       {m.title && (
-                        <span className="text-sm font-black text-gray-900">{m.title}</span>
+                        <span className="text-sm font-black text-gray-900">{m.title.split('\n')[0]}</span>
                       )}
                       <span className="text-[10px] font-black text-gray-400">{time}</span>
                     </div>
+                    {m.title?.includes('\n') && (
+                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{m.title.split('\n').slice(1).join(' ')}</p>
+                    )}
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {m.contactName && (
                         <button

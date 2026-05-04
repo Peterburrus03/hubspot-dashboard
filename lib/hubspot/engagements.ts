@@ -56,7 +56,7 @@ const PROPERTIES_MAP: Record<EngagementObjectType, string[]> = {
     'hs_call_body',
   ],
   notes: ['hs_timestamp', 'hubspot_owner_id', 'hs_note_body'],
-  meetings: ['hs_timestamp', 'hubspot_owner_id', 'hs_meeting_title', 'hs_meeting_start_time'],
+  meetings: ['hs_timestamp', 'hubspot_owner_id', 'hs_meeting_title', 'hs_meeting_body', 'hs_meeting_start_time'],
   tasks: ['hs_timestamp', 'hubspot_owner_id', 'hs_task_subject', 'hs_task_status', 'hs_task_completion_date'],
 }
 
@@ -83,7 +83,7 @@ function transformEngagement(
   let body = type === 'TASK'
     ? props.hs_task_subject || props.hs_task_body || undefined
     : type === 'MEETING'
-    ? props.hs_meeting_title || undefined
+    ? [props.hs_meeting_title, props.hs_meeting_body].filter(Boolean).join('\n') || undefined
     : props.hs_note_body || props.hs_call_body || undefined
   if (type === 'EMAIL' && !body) body = props.hs_email_text || undefined
 
