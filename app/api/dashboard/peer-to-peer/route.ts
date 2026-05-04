@@ -119,6 +119,7 @@ export async function GET() {
   const externalHide = new Set([
     'kristin bannon', 'ian spiegel', 'robert schick', 'stephen juriga',
     'alon kramer', 'alexander werner', 'brian palmeiro',
+    'jacquelyn (jackie) campbell',
   ])
   const contactRows: ContactRow[] = []
   for (const [contactKey, top5] of Object.entries(peerReferralsByName)) {

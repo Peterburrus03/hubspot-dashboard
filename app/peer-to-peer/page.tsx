@@ -134,9 +134,6 @@ export default function PeerToPeerPage() {
     })
   }
 
-  const resultsCount = view === 'internal' ? filteredDvms.length : filteredContacts.length
-  const resultsLabel = view === 'internal' ? 'DVMs Matched' : 'External Targets'
-
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
@@ -147,10 +144,6 @@ export default function PeerToPeerPage() {
               ? 'AOSN DVMs ranked by contact-match volume'
               : 'External targets in our universe with their top AOSN DVM matches'}
           </p>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-black text-fuchsia-600">{resultsCount}</div>
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{resultsLabel}</div>
         </div>
       </div>
 
@@ -249,10 +242,6 @@ export default function PeerToPeerPage() {
                           <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Avg</div>
                         </div>
                       )}
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-fuchsia-50 text-fuchsia-700 rounded-lg">
-                        <Users className="w-3.5 h-3.5" />
-                        <span className="text-sm font-black">{row.totalContacts}</span>
-                      </div>
                     </div>
                   </button>
 
