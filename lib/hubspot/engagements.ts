@@ -79,8 +79,11 @@ function transformEngagement(
   const type = ENGAGEMENT_TYPE_MAP[objectType]
 
   // For tasks, prefer the subject as the body (hs_task_body is almost always empty)
+  // For meetings, store the title so the calendar can filter/display it
   let body = type === 'TASK'
     ? props.hs_task_subject || props.hs_task_body || undefined
+    : type === 'MEETING'
+    ? props.hs_meeting_title || undefined
     : props.hs_note_body || props.hs_call_body || undefined
   if (type === 'EMAIL' && !body) body = props.hs_email_text || undefined
 

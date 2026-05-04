@@ -14,6 +14,7 @@ export default function Navigation() {
     { label: 'Game Plan', href: '/funnel' },
     { label: 'Peer-to-Peer', href: '/peer-to-peer' },
     { label: 'Outreach Goals', href: '/outreach-goals' },
+    { label: 'Calendar', href: '/calendar' },
     { label: 'Map', href: '/map' },
   ]
 
