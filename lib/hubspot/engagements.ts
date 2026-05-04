@@ -60,6 +60,18 @@ const PROPERTIES_MAP: Record<EngagementObjectType, string[]> = {
   tasks: ['hs_timestamp', 'hubspot_owner_id', 'hs_task_subject', 'hs_task_status', 'hs_task_completion_date'],
 }
 
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function parseHsTimestamp(value?: string): Date {
   if (!value) return new Date()
   // HubSpot can return ISO strings ("2026-02-26T...") or ms timestamps ("1706744400000")
@@ -83,7 +95,7 @@ function transformEngagement(
   let body = type === 'TASK'
     ? props.hs_task_subject || props.hs_task_body || undefined
     : type === 'MEETING'
-    ? [props.hs_meeting_title, props.hs_meeting_body].filter(Boolean).join('\n') || undefined
+    ? [props.hs_meeting_title, props.hs_meeting_body ? stripHtml(props.hs_meeting_body) : undefined].filter(Boolean).join('\n') || undefined
     : props.hs_note_body || props.hs_call_body || undefined
   if (type === 'EMAIL' && !body) body = props.hs_email_text || undefined
 
