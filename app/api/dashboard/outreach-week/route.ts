@@ -2,26 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getWeekStart, initWeekAssignments, DEFAULT_POOL_FILTERS, type OutreachPoolFilters } from '@/lib/outreach/pool'
 
-async function findActiveWeekStart(): Promise<Date> {
+async function findActiveCycle(): Promise<{ weekStart: Date; cycleWeek: number } | null> {
   const now = getWeekStart()
   for (let i = 0; i < 3; i++) {
     const candidate = new Date(now)
     candidate.setUTCDate(candidate.getUTCDate() - i * 7)
     const count = await prisma.outreachWeekAssignment.count({ where: { weekStart: candidate } })
-    if (count > 0) return candidate
+    if (count > 0) return { weekStart: candidate, cycleWeek: i + 1 }
   }
-  return now
+  return null
 }
 
 export async function GET() {
   try {
-    const weekStart = await findActiveWeekStart()
+    const cycle = await findActiveCycle()
 
-    const assignments = await prisma.outreachWeekAssignment.findMany({ where: { weekStart } })
-    if (assignments.length === 0) {
-      return NextResponse.json({ initialized: false, weekStart: weekStart.toISOString(), weeks: null })
+    if (!cycle) {
+      return NextResponse.json({ initialized: false, weekStart: null, cycleWeek: null, cycleEnds: null, weeks: null })
     }
 
+    const { weekStart, cycleWeek } = cycle
+    const cycleEnds = new Date(weekStart)
+    cycleEnds.setUTCDate(cycleEnds.getUTCDate() + 21)
+
+    const assignments = await prisma.outreachWeekAssignment.findMany({ where: { weekStart } })
     const contactIds = assignments.map(a => a.contactId)
 
     const [contacts, owners, latestEngagements, engagementCounts, completions] = await Promise.all([
@@ -84,7 +88,13 @@ export async function GET() {
       })
     }
 
-    return NextResponse.json({ initialized: true, weekStart: weekStart.toISOString(), weeks })
+    return NextResponse.json({
+      initialized: true,
+      weekStart: weekStart.toISOString(),
+      cycleWeek,
+      cycleEnds: cycleEnds.toISOString(),
+      weeks,
+    })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -92,9 +102,11 @@ export async function GET() {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const weekStart = await findActiveWeekStart()
-    await prisma.outreachWeekAssignment.deleteMany({ where: { weekStart } })
-    await prisma.outreachCompletion.deleteMany({ where: { weekStart } })
+    const cycle = await findActiveCycle()
+    if (cycle) {
+      await prisma.outreachWeekAssignment.deleteMany({ where: { weekStart: cycle.weekStart } })
+      await prisma.outreachCompletion.deleteMany({ where: { weekStart: cycle.weekStart } })
+    }
     return NextResponse.json({ ok: true })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })

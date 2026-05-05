@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import ContactModal from '@/components/contacts/ContactModal'
 import CampaignTracker from '@/components/outreach/CampaignTracker'
-import { Clock, User, Check, Calendar, RefreshCw, Play, ChevronDown, ChevronUp } from 'lucide-react'
+import { Clock, User, Check, Calendar, RefreshCw, Play, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react'
 import { formatDistanceToNow, format, addDays } from 'date-fns'
 
 type Completion = {
@@ -32,7 +32,9 @@ type WeekContact = {
 
 type WeekData = {
   initialized: boolean
-  weekStart: string
+  weekStart: string | null
+  cycleWeek: 1 | 2 | 3 | null
+  cycleEnds: string | null
   weeks: { 1: WeekContact[]; 2: WeekContact[]; 3: WeekContact[] } | null
 }
 
@@ -219,13 +221,15 @@ function ContactCard({
   )
 }
 
+type ColumnStatus = 'past' | 'current' | 'upcoming'
+
 function WeekColumn({
   weekNum,
   label,
   dateRange,
   contacts,
   completions,
-  accentColor,
+  status,
   onOpen,
   onCompletionChange,
 }: {
@@ -234,26 +238,45 @@ function WeekColumn({
   dateRange: string
   contacts: WeekContact[]
   completions: Record<string, Completion>
-  accentColor: { icon: string; text: string; bg: string; border: string }
+  status: ColumnStatus
   onOpen: (c: WeekContact) => void
   onCompletionChange: (contactId: string, update: Partial<Completion> & { _save?: boolean }) => void
 }) {
   const contacted = contacts.filter(c => (completions[c.contactId] ?? c.completion).contacted).length
   const meetings = contacts.filter(c => (completions[c.contactId] ?? c.completion).meetingSet).length
 
+  const headerStyles: Record<ColumnStatus, { border: string; bg: string; icon: string; text: string; badge: string }> = {
+    past:     { border: 'border-gray-200',  bg: 'bg-gray-50',    icon: 'text-gray-400',  text: 'text-gray-400',  badge: 'bg-gray-200 text-gray-500' },
+    current:  { border: 'border-blue-300',  bg: 'bg-blue-50',    icon: 'text-blue-600',  text: 'text-blue-500',  badge: 'bg-blue-600 text-white' },
+    upcoming: { border: 'border-gray-100',  bg: 'bg-white',      icon: 'text-gray-400',  text: 'text-gray-400',  badge: 'bg-gray-100 text-gray-500' },
+  }
+
+  const s = headerStyles[status]
+
+  const statusLabel: Record<ColumnStatus, string> = {
+    past: 'Done',
+    current: 'This Week',
+    upcoming: 'Upcoming',
+  }
+
   return (
-    <section className="space-y-4">
-      <div className={`rounded-xl border-2 ${accentColor.border} ${accentColor.bg} p-4`}>
+    <section className={`space-y-4 ${status === 'past' ? 'opacity-60' : ''}`}>
+      <div className={`rounded-xl border-2 ${s.border} ${s.bg} p-4`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Clock className={`w-5 h-5 ${accentColor.icon}`} />
-            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">{label}</h3>
-            <span className={`text-xs font-black rounded-full px-2 py-0.5 ${accentColor.text} ${accentColor.bg}`}>
+            <Clock className={`w-5 h-5 ${s.icon}`} />
+            <h3 className={`text-xl font-black uppercase tracking-tight ${status === 'current' ? 'text-gray-900' : 'text-gray-500'}`}>
+              {label}
+            </h3>
+            <span className={`text-[10px] font-black rounded-full px-2 py-0.5 ${s.text} ${status === 'past' ? 'bg-gray-200' : status === 'current' ? 'bg-blue-100' : 'bg-gray-100'}`}>
               {contacts.length}
             </span>
           </div>
+          <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${s.badge}`}>
+            {statusLabel[status]}
+          </span>
         </div>
-        <p className={`text-[10px] font-black uppercase tracking-widest ${accentColor.text}`}>{dateRange}</p>
+        <p className={`text-[10px] font-black uppercase tracking-widest ${s.text}`}>{dateRange}</p>
         <div className="flex items-center gap-3 mt-2">
           <span className="flex items-center gap-1 text-xs font-bold text-green-600">
             <Check className="w-3 h-3" />
@@ -317,10 +340,10 @@ export default function OutreachGoalsPage() {
 
   useEffect(() => { fetchWeekData() }, [fetchWeekData])
 
-  const initWeek = async (rebuild = false) => {
+  const startCycle = async (reset = false) => {
     setInitializing(true)
     try {
-      if (rebuild) await fetch('/api/dashboard/outreach-week', { method: 'DELETE' })
+      if (reset) await fetch('/api/dashboard/outreach-week', { method: 'DELETE' })
       await fetch('/api/dashboard/outreach-week', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -361,6 +384,8 @@ export default function OutreachGoalsPage() {
   }, [fetchWeekData])
 
   const weekStart = weekData?.weekStart ?? null
+  const cycleWeek = weekData?.cycleWeek ?? null
+  const cycleEnds = weekData?.cycleEnds ? format(new Date(weekData.cycleEnds), 'MMM d') : null
 
   const getWeekContacts = (weekNum: 1 | 2 | 3): WeekContact[] => {
     if (!weekData?.weeks || !filters) return []
@@ -372,11 +397,12 @@ export default function OutreachGoalsPage() {
   const w3 = getWeekContacts(3)
   const totalPool = w1.length + w2.length + w3.length
 
-  const WEEK_STYLES = [
-    { icon: 'text-rose-600', text: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-100' },
-    { icon: 'text-amber-600', text: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
-    { icon: 'text-sky-600', text: 'text-sky-500', bg: 'bg-sky-50', border: 'border-sky-100' },
-  ]
+  const columnStatus = (weekNum: 1 | 2 | 3): ColumnStatus => {
+    if (!cycleWeek) return 'upcoming'
+    if (weekNum < cycleWeek) return 'past'
+    if (weekNum === cycleWeek) return 'current'
+    return 'upcoming'
+  }
 
   return (
     <div className="space-y-8">
@@ -396,7 +422,9 @@ export default function OutreachGoalsPage() {
         <div>
           <h2 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">Outreach Goals</h2>
           <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-1">
-            3-Week Locked Queue · {totalPool} contacts · Resets every Monday
+            {weekData?.initialized && cycleWeek && cycleEnds
+              ? `Week ${cycleWeek} of 3 · Cycle ends ${cycleEnds} · ${totalPool} contacts`
+              : `3-Week Cycle · ${totalPool} contacts`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -408,24 +436,14 @@ export default function OutreachGoalsPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          {weekData && !weekData.initialized && (
-            <button
-              onClick={() => initWeek(false)}
-              disabled={initializing}
-              className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
-            >
-              <Play className="w-4 h-4" />
-              {initializing ? 'Building Queue…' : 'Start This Week'}
-            </button>
-          )}
           {weekData?.initialized && (
             <button
-              onClick={() => { if (confirm('Rebuild the queue? This will clear all completion checkmarks for this week.')) initWeek(true) }}
+              onClick={() => { if (confirm('Reset the cycle? This clears all 3 weeks of contacts and checkmarks so you can start fresh.')) startCycle(true) }}
               disabled={initializing}
               className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 border-gray-200 bg-white text-gray-500 hover:border-red-300 hover:text-red-500 disabled:opacity-40 transition-colors"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${initializing ? 'animate-spin' : ''}`} />
-              Rebuild Queue
+              <RotateCcw className={`w-3.5 h-3.5 ${initializing ? 'animate-spin' : ''}`} />
+              Reset Cycle
             </button>
           )}
         </div>
@@ -450,18 +468,17 @@ export default function OutreachGoalsPage() {
           <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Play className="w-7 h-7 text-blue-600" />
           </div>
-          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">No Queue for This Week</h3>
+          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Start a New 3-Week Cycle</h3>
           <p className="text-sm text-gray-500 font-bold mb-6 max-w-md mx-auto">
-            The Monday cron hasn't run yet. Click below to build this week's outreach assignments now.
-            They'll lock in and persist for the rest of the week.
+            Builds the outreach queue and locks it in for 3 weeks. Week 1, 2, and 3 contacts stay put — checkmarks carry through the full cycle.
           </p>
           <button
-            onClick={() => initWeek(false)}
+            onClick={() => startCycle(false)}
             disabled={initializing}
             className="inline-flex items-center gap-2 text-sm font-bold px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
           >
             <Play className="w-4 h-4" />
-            {initializing ? 'Building Queue…' : 'Start This Week\'s Queue'}
+            {initializing ? 'Building Cycle…' : 'Start New Cycle'}
           </button>
         </div>
       )}
@@ -474,7 +491,7 @@ export default function OutreachGoalsPage() {
             dateRange={weekDateRange(weekStart, 0)}
             contacts={w1}
             completions={completions}
-            accentColor={WEEK_STYLES[0]}
+            status={columnStatus(1)}
             onOpen={setSelectedContact}
             onCompletionChange={handleCompletionChange}
           />
@@ -484,7 +501,7 @@ export default function OutreachGoalsPage() {
             dateRange={weekDateRange(weekStart, 1)}
             contacts={w2}
             completions={completions}
-            accentColor={WEEK_STYLES[1]}
+            status={columnStatus(2)}
             onOpen={setSelectedContact}
             onCompletionChange={handleCompletionChange}
           />
@@ -494,7 +511,7 @@ export default function OutreachGoalsPage() {
             dateRange={weekDateRange(weekStart, 2)}
             contacts={w3}
             completions={completions}
-            accentColor={WEEK_STYLES[2]}
+            status={columnStatus(3)}
             onOpen={setSelectedContact}
             onCompletionChange={handleCompletionChange}
           />
