@@ -282,13 +282,17 @@ export async function syncEngagementType(
   windowDays = 90
 ): Promise<number> {
   const now = Date.now()
+  // For meetings, look 90 days ahead so future scheduled meetings are captured
+  const ceiling = objectType === 'meetings'
+    ? now + 90 * 24 * 60 * 60 * 1000
+    : now
   const start = sinceDateMs ?? now - windowDays * 24 * 60 * 60 * 1000
 
   // Break into 90-day windows to stay under HubSpot's search pagination cap
   const MS_PER_WINDOW = windowDays * 24 * 60 * 60 * 1000
   const windows: Array<{ from: number; to: number }> = []
-  for (let from = start; from < now; from += MS_PER_WINDOW) {
-    windows.push({ from, to: Math.min(from + MS_PER_WINDOW, now) })
+  for (let from = start; from < ceiling; from += MS_PER_WINDOW) {
+    windows.push({ from, to: Math.min(from + MS_PER_WINDOW, ceiling) })
   }
 
   let total = 0
