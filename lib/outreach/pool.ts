@@ -169,7 +169,34 @@ export async function initWeekAssignments(
   if (existing > 0) return { count: existing, alreadyInitialized: true }
 
   const pool = await computeOutreachPool(filters)
-  const [w1, w2, w3] = splitIntoThirds(pool)
+  const allContactIds = pool.map(p => p.contactId)
+
+  // Contacts already reached via 09 campaign in the past 14 days go into Week 1 (done)
+  const twoWeeksAgo = new Date()
+  twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14)
+
+  const recentCampaignRows = allContactIds.length
+    ? await prisma.engagement.findMany({
+        where: {
+          type: 'TASK',
+          taskStatus: 'COMPLETED',
+          body: { startsWith: '09' },
+          contactId: { in: allContactIds },
+          timestamp: { gte: twoWeeksAgo },
+        },
+        select: { contactId: true },
+      })
+    : []
+
+  const week1Ids = new Set(recentCampaignRows.map(r => r.contactId).filter(Boolean) as string[])
+
+  const w1 = pool.filter(p => week1Ids.has(p.contactId))
+  const remaining = pool.filter(p => !week1Ids.has(p.contactId))
+
+  // Split the rest evenly into Week 2 (this week) and Week 3 (next week)
+  const mid = Math.ceil(remaining.length / 2)
+  const w2 = remaining.slice(0, mid)
+  const w3 = remaining.slice(mid)
 
   const data = [
     ...w1.map(({ contactId }) => ({ weekStart, contactId, week: 1 })),

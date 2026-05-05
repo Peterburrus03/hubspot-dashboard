@@ -28,9 +28,9 @@ export async function GET() {
     const assignments = await prisma.outreachWeekAssignment.findMany({ where: { weekStart } })
     const contactIds = assignments.map(a => a.contactId)
 
-    // Week 1 date window — anyone with a completed 09-tag task in this range is auto-contacted
-    const week1End = new Date(weekStart)
-    week1End.setUTCDate(week1End.getUTCDate() + 7)
+    // Auto-contact: anyone with a completed 09-tag task in the past 14 days
+    const twoWeeksAgo = new Date()
+    twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14)
 
     const [contacts, owners, latestEngagements, engagementCounts, completions, campaignTouches] = await Promise.all([
       prisma.contact.findMany({
@@ -62,7 +62,7 @@ export async function GET() {
           taskStatus: 'COMPLETED',
           body: { startsWith: '09' },
           contactId: { in: contactIds },
-          timestamp: { gte: weekStart, lt: week1End },
+          timestamp: { gte: twoWeeksAgo },
         },
         select: { contactId: true },
       }),
@@ -103,6 +103,15 @@ export async function GET() {
       })
     }
 
+    // Ensure all auto-contacted contacts appear in Week 1 regardless of DB assignment
+    for (const weekNum of [2, 3] as const) {
+      const toMove = weeks[weekNum].filter((c: any) => autoContactedSet.has(c.contactId))
+      if (toMove.length) {
+        weeks[1].push(...toMove)
+        weeks[weekNum] = weeks[weekNum].filter((c: any) => !autoContactedSet.has(c.contactId))
+      }
+    }
+
     return NextResponse.json({
       initialized: true,
       weekStart: weekStart.toISOString(),
@@ -130,7 +139,23 @@ export async function DELETE(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const weekStart = getWeekStart()
+    const currentMonday = getWeekStart()
+    const lastMonday = new Date(currentMonday)
+    lastMonday.setUTCDate(lastMonday.getUTCDate() - 7)
+
+    // If 09 campaign tasks ran last week, backdate the cycle to last Monday
+    // so cycleWeek correctly shows 2 (not 1) when this week is the second week
+    const lastWeekCampaignCount = await prisma.engagement.count({
+      where: {
+        type: 'TASK',
+        taskStatus: 'COMPLETED',
+        body: { startsWith: '09' },
+        timestamp: { gte: lastMonday, lt: currentMonday },
+      },
+    })
+
+    const weekStart = lastWeekCampaignCount > 0 ? lastMonday : currentMonday
+
     let filters: OutreachPoolFilters = DEFAULT_POOL_FILTERS
     try {
       const body = await request.json()
