@@ -28,7 +28,11 @@ export async function GET() {
     const assignments = await prisma.outreachWeekAssignment.findMany({ where: { weekStart } })
     const contactIds = assignments.map(a => a.contactId)
 
-    const [contacts, owners, latestEngagements, engagementCounts, completions] = await Promise.all([
+    // Week 1 date window — anyone with a completed 09-tag task in this range is auto-contacted
+    const week1End = new Date(weekStart)
+    week1End.setUTCDate(week1End.getUTCDate() + 7)
+
+    const [contacts, owners, latestEngagements, engagementCounts, completions, campaignTouches] = await Promise.all([
       prisma.contact.findMany({
         where: { contactId: { in: contactIds } },
         select: {
@@ -52,6 +56,16 @@ export async function GET() {
         _count: { _all: true },
       }),
       prisma.outreachCompletion.findMany({ where: { weekStart } }),
+      prisma.engagement.findMany({
+        where: {
+          type: 'TASK',
+          taskStatus: 'COMPLETED',
+          body: { startsWith: '09' },
+          contactId: { in: contactIds },
+          timestamp: { gte: weekStart, lt: week1End },
+        },
+        select: { contactId: true },
+      }),
     ])
 
     const ownerMap = new Map(owners.map(o => [o.ownerId, `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim()]))
@@ -59,6 +73,7 @@ export async function GET() {
     const countMap = new Map(engagementCounts.map(e => [e.contactId, e._count._all]))
     const completionMap = new Map(completions.map(c => [c.contactId, c]))
     const contactMap = new Map(contacts.map(c => [c.contactId, c]))
+    const autoContactedSet = new Set(campaignTouches.map(e => e.contactId).filter(Boolean) as string[])
 
     const weeks: Record<number, any[]> = { 1: [], 2: [], 3: [] }
 
@@ -79,12 +94,12 @@ export async function GET() {
         outreachCount: (countMap.get(c.contactId) ?? 0) + (c.ipadShipmentDate ? 1 : 0) + (c.ipadCoverShipDate ? 1 : 0),
         practiceType: c.practiceType ?? null,
         state: c.state ?? null,
-        completion: comp ? {
-          contacted: comp.contacted,
-          meetingSet: comp.meetingSet,
-          meetingDate: comp.meetingDate?.toISOString() ?? null,
-          meetingNotes: comp.meetingNotes ?? null,
-        } : { contacted: false, meetingSet: false, meetingDate: null, meetingNotes: null },
+        completion: {
+          contacted: (comp?.contacted ?? false) || autoContactedSet.has(c.contactId),
+          meetingSet: comp?.meetingSet ?? false,
+          meetingDate: comp?.meetingDate?.toISOString() ?? null,
+          meetingNotes: comp?.meetingNotes ?? null,
+        },
       })
     }
 
