@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import ContactModal from '@/components/contacts/ContactModal'
 import CampaignTracker from '@/components/outreach/CampaignTracker'
-import { Clock, User, Check, Calendar, RefreshCw, Play, ChevronDown, ChevronUp, RotateCcw, Trophy } from 'lucide-react'
+import { Clock, User, Check, Calendar, RefreshCw, Play, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react'
 import { formatDistanceToNow, format, addDays } from 'date-fns'
 
 type Completion = {
@@ -28,15 +28,6 @@ type WeekContact = {
   practiceType: string | null
   state: string | null
   completion: Completion
-}
-
-type Win = {
-  contactId: string
-  name: string
-  specialty: string | null
-  ownerName: string
-  dealStage: string
-  mailerDate: string | null
 }
 
 type WeekData = {
@@ -321,17 +312,6 @@ function WeekColumn({
   )
 }
 
-const STAGE_COLORS: Record<string, string> = {
-  'Closed Won': 'bg-green-100 text-green-700',
-  'LOI Signed/Diligence': 'bg-purple-100 text-purple-700',
-  'LOI Extended': 'bg-violet-100 text-violet-700',
-  'Pre-LOI Analysis': 'bg-indigo-100 text-indigo-700',
-  'Data Collection (including NDA)': 'bg-sky-100 text-sky-700',
-  'Discussion': 'bg-blue-100 text-blue-700',
-  'Mutual Interest': 'bg-teal-100 text-teal-700',
-  'Engaged': 'bg-emerald-100 text-emerald-700',
-}
-
 export default function OutreachGoalsPage() {
   const [filters, setFilters] = useState<FilterState | null>(null)
   const [weekData, setWeekData] = useState<WeekData | null>(null)
@@ -339,7 +319,6 @@ export default function OutreachGoalsPage() {
   const [loading, setLoading] = useState(true)
   const [initializing, setInitializing] = useState(false)
   const [selectedContact, setSelectedContact] = useState<WeekContact | null>(null)
-  const [wins, setWins] = useState<Win[]>([])
 
   const fetchWeekData = useCallback(async () => {
     setLoading(true)
@@ -359,18 +338,7 @@ export default function OutreachGoalsPage() {
     }
   }, [])
 
-  const fetchWins = useCallback(async (f: FilterState) => {
-    const params = new URLSearchParams()
-    if (f.ownerIds.length) params.set('ownerIds', f.ownerIds.join(','))
-    if (f.companyTypes.length) params.set('companyTypes', f.companyTypes.join(','))
-    params.set('locationFilter', f.locationFilter)
-    const res = await fetch(`/api/dashboard/outreach-wins?${params}`)
-    const d = await res.json()
-    setWins(d.wins ?? [])
-  }, [])
-
   useEffect(() => { fetchWeekData() }, [fetchWeekData])
-  useEffect(() => { if (filters) fetchWins(filters) }, [filters, fetchWins])
 
   const startCycle = async (reset = false) => {
     setInitializing(true)
@@ -550,53 +518,6 @@ export default function OutreachGoalsPage() {
         </div>
       )}
 
-      {wins.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 rounded-xl">
-              <Trophy className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Campaign Wins</h3>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                Received AOSN detailer · Now in active pipeline · {wins.length} contact{wins.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {wins.map(w => (
-              <div
-                key={w.contactId}
-                className="bg-white border-2 border-amber-200 rounded-xl p-4 flex items-start gap-3 cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setSelectedContact({ ...w, ownerId: null, tier1: false, dealStatus: w.dealStage, status: null, lastActivity: null, outreachCount: 0, practiceType: null, state: null, completion: { contacted: true, meetingSet: false, meetingDate: null, meetingNotes: null } })}
-              >
-                <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Trophy className="w-4 h-4 text-amber-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900 leading-tight truncate">{w.name}</p>
-                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    {w.specialty && (
-                      <span className="text-[10px] text-gray-400 uppercase">{w.specialty}</span>
-                    )}
-                    <span className="text-[10px] font-bold text-gray-400">{w.ownerName}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${STAGE_COLORS[w.dealStage] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {w.dealStage}
-                    </span>
-                    {w.mailerDate && (
-                      <span className="text-[10px] text-gray-400">
-                        Detailer {format(new Date(w.mailerDate), 'MMM d, yyyy')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

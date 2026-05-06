@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronDown, ChevronUp, Megaphone, Calendar, User } from 'lucide-react'
+import { ChevronDown, ChevronUp, Megaphone, Calendar, User, Trophy } from 'lucide-react'
+import { format } from 'date-fns'
 import type { FilterState } from '@/components/filters/FilterBar'
 
 type CampaignResult = {
@@ -12,6 +13,26 @@ type CampaignResult = {
   endDate: string
   total: number
   byOwner: { ownerId: string; ownerName: string; count: number }[]
+}
+
+type Win = {
+  contactId: string
+  name: string
+  specialty: string | null
+  ownerName: string
+  dealStage: string
+  mailerDate: string | null
+}
+
+const STAGE_COLORS: Record<string, string> = {
+  'Closed Won': 'bg-green-100 text-green-700',
+  'LOI Signed/Diligence': 'bg-purple-100 text-purple-700',
+  'LOI Extended': 'bg-violet-100 text-violet-700',
+  'Pre-LOI Analysis': 'bg-indigo-100 text-indigo-700',
+  'Data Collection (including NDA)': 'bg-sky-100 text-sky-700',
+  'Discussion': 'bg-blue-100 text-blue-700',
+  'Mutual Interest': 'bg-teal-100 text-teal-700',
+  'Engaged': 'bg-emerald-100 text-emerald-700',
 }
 
 function buildQS(f: FilterState): string {
@@ -35,6 +56,7 @@ function formatRange(start: string, end: string): string {
 export default function CampaignTracker({ filters }: { filters: FilterState | null }) {
   const [open, setOpen] = useState(true)
   const [campaigns, setCampaigns] = useState<CampaignResult[] | null>(null)
+  const [wins, setWins] = useState<Win[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -45,6 +67,15 @@ export default function CampaignTracker({ filters }: { filters: FilterState | nu
       .then((d) => setCampaigns(d.campaigns ?? []))
       .catch(() => setCampaigns([]))
       .finally(() => setLoading(false))
+
+    const params = new URLSearchParams()
+    if (filters.ownerIds.length) params.set('ownerIds', filters.ownerIds.join(','))
+    if (filters.companyTypes.length) params.set('companyTypes', filters.companyTypes.join(','))
+    params.set('locationFilter', filters.locationFilter)
+    fetch(`/api/dashboard/outreach-wins?${params}`)
+      .then((r) => r.json())
+      .then((d) => setWins(d.wins ?? []))
+      .catch(() => setWins([]))
   }, [filters])
 
   const total = campaigns?.reduce((s, c) => s + c.total, 0) ?? 0
@@ -63,6 +94,9 @@ export default function CampaignTracker({ filters }: { filters: FilterState | nu
             <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Campaign Tracker</h3>
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-0.5">
               {campaigns?.length ?? 0} campaign{campaigns?.length === 1 ? '' : 's'} · {total} touch{total === 1 ? '' : 'es'} logged
+              {wins.length > 0 && (
+                <span className="ml-2 text-amber-500">· {wins.length} win{wins.length !== 1 ? 's' : ''} 🏆</span>
+              )}
             </p>
           </div>
         </div>
@@ -113,6 +147,36 @@ export default function CampaignTracker({ filters }: { filters: FilterState | nu
               )}
             </div>
           ))}
+
+          {wins.length > 0 && (
+            <div className="border-t-2 border-amber-100 pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+                  Campaign Wins · {wins.length} contact{wins.length !== 1 ? 's' : ''} converted
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {wins.map((w) => (
+                  <div key={w.contactId} className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+                    <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-black text-gray-900 truncate">{w.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        {w.specialty && <span className="text-[10px] text-gray-400 uppercase">{w.specialty}</span>}
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${STAGE_COLORS[w.dealStage] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {w.dealStage}
+                        </span>
+                      </div>
+                    </div>
+                    {w.mailerDate && (
+                      <span className="text-[10px] text-gray-400 flex-shrink-0">{format(new Date(w.mailerDate), 'MMM d')}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
