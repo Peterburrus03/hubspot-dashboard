@@ -42,6 +42,8 @@ export default function InTownSection({ matched, onContactClick }: {
   const [checkIns, setCheckIns] = useState<Record<string, CheckInStats>>({})
   const [loading, setLoading] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const [groupBy, setGroupBy] = useState<'msa' | 'state'>('msa')
+  const [selectedState, setSelectedState] = useState<string | null>(null)
 
   // Unique markets with matched-contact counts
   const markets = useMemo(() => {
@@ -73,6 +75,31 @@ export default function InTownSection({ matched, onContactClick }: {
       .filter(r => r.total >= 2)
       .sort((a, b) => b.total - a.total || a.market.localeCompare(b.market))
   }, [matched])
+
+  const stateRankings = useMemo(() => {
+    const byState = new Map<string, { openDeal: number; initialOutreach: number; closedNurture: number; total: number }>()
+    for (const c of matched) {
+      if (!c.state) continue
+      const row = byState.get(c.state) ?? { openDeal: 0, initialOutreach: 0, closedNurture: 0, total: 0 }
+      const ls = c.leadStatus ?? ''
+      if (ls === 'OPEN_DEAL') row.openDeal++
+      else if (ls === 'OPEN' || ls === 'NEW' || ls === 'CONNECTED') row.initialOutreach++
+      else if (ls === 'Closed and Nurturing') row.closedNurture++
+      row.total = row.openDeal + row.initialOutreach + row.closedNurture
+      byState.set(c.state, row)
+    }
+    return Array.from(byState.entries())
+      .map(([state, r]) => ({ state, ...r }))
+      .filter(r => r.total > 0)
+      .sort((a, b) => b.total - a.total || a.state.localeCompare(b.state))
+  }, [matched])
+
+  const stateContacts = useMemo(() => {
+    if (!selectedState) return []
+    return matched
+      .filter(c => c.state === selectedState)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [matched, selectedState])
 
   const filteredMarkets = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -136,7 +163,8 @@ export default function InTownSection({ matched, onContactClick }: {
         </div>
       </div>
 
-      {/* MSA picker */}
+      {/* MSA picker — only visible in MSA mode */}
+      {groupBy === 'msa' && (
       <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-4 flex-wrap">
         <div ref={dropdownRef} className="relative w-96">
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-100 transition-all">
@@ -194,62 +222,188 @@ export default function InTownSection({ matched, onContactClick }: {
           </>
         )}
       </div>
+      )}
 
       {/* MSA rankings (shown when no market selected) */}
-      {!selectedMarket && marketRankings.length === 0 && (
-        <div className="px-4 py-10 text-center text-sm font-bold text-gray-400 uppercase tracking-widest">
-          No MSAs with 2 or more matched practices
+      {/* Rankings table — MSA or State view */}
+      {!selectedMarket && !selectedState && (
+        <div className="overflow-x-auto">
+          <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between gap-3">
+            <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+              {groupBy === 'msa'
+                ? <>Top MSAs · <span className="text-gray-900">{marketRankings.length}</span> markets with 2+ practices</>
+                : <>By State · <span className="text-gray-900">{stateRankings.length}</span> states</>
+              }
+            </div>
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+              {(['msa', 'state'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => {
+                    setGroupBy(mode)
+                    setSelectedMarket(null)
+                    setSelectedState(null)
+                    setQuery('')
+                    setCheckIns({})
+                  }}
+                  className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    groupBy === mode
+                      ? 'bg-white text-sky-700 shadow-sm'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  {mode === 'msa' ? 'MSA' : 'State'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {groupBy === 'msa' && marketRankings.length === 0 && (
+            <div className="px-4 py-10 text-center text-sm font-bold text-gray-400 uppercase tracking-widest">
+              No MSAs with 2 or more matched practices
+            </div>
+          )}
+
+          {groupBy === 'msa' && marketRankings.length > 0 && (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                <tr>
+                  <th className="text-left px-4 py-2">MSA</th>
+                  <th className="text-right px-4 py-2">Open Deal</th>
+                  <th className="text-right px-4 py-2">Initial Outreach</th>
+                  <th className="text-right px-4 py-2">Closed Nurture</th>
+                  <th className="text-right px-4 py-2">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {marketRankings.map(r => (
+                  <tr
+                    key={r.market}
+                    onClick={() => { setSelectedMarket(r.market); setQuery(r.market); setShowDropdown(false) }}
+                    className="hover:bg-sky-50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-2 text-sm font-bold text-gray-900">{r.market}</td>
+                    <td className="px-4 py-2 text-right">
+                      {r.openDeal > 0 ? <span className="text-sm font-black text-emerald-700">{r.openDeal}</span> : <span className="text-[10px] text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {r.initialOutreach > 0 ? <span className="text-sm font-black text-sky-700">{r.initialOutreach}</span> : <span className="text-[10px] text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {r.closedNurture > 0 ? <span className="text-sm font-black text-amber-700">{r.closedNurture}</span> : <span className="text-[10px] text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <span className="text-sm font-black text-gray-900 bg-gray-100 rounded-full px-2 py-0.5">{r.total}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {groupBy === 'state' && stateRankings.length === 0 && (
+            <div className="px-4 py-10 text-center text-sm font-bold text-gray-400 uppercase tracking-widest">
+              No matched practices with state data
+            </div>
+          )}
+
+          {groupBy === 'state' && stateRankings.length > 0 && (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                <tr>
+                  <th className="text-left px-4 py-2">State</th>
+                  <th className="text-right px-4 py-2">Open Deal</th>
+                  <th className="text-right px-4 py-2">Initial Outreach</th>
+                  <th className="text-right px-4 py-2">Closed Nurture</th>
+                  <th className="text-right px-4 py-2">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {stateRankings.map(r => (
+                  <tr
+                    key={r.state}
+                    onClick={() => setSelectedState(r.state)}
+                    className="hover:bg-sky-50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-2 text-sm font-bold text-gray-900">{r.state}</td>
+                    <td className="px-4 py-2 text-right">
+                      {r.openDeal > 0 ? <span className="text-sm font-black text-emerald-700">{r.openDeal}</span> : <span className="text-[10px] text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {r.initialOutreach > 0 ? <span className="text-sm font-black text-sky-700">{r.initialOutreach}</span> : <span className="text-[10px] text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {r.closedNurture > 0 ? <span className="text-sm font-black text-amber-700">{r.closedNurture}</span> : <span className="text-[10px] text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <span className="text-sm font-black text-gray-900 bg-gray-100 rounded-full px-2 py-0.5">{r.total}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
-      {!selectedMarket && marketRankings.length > 0 && (
+      {/* State drill-down */}
+      {selectedState && (
         <div className="overflow-x-auto">
-          <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/30">
-            <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-              Top MSAs · <span className="text-gray-900">{marketRankings.length}</span> markets with 2 or more practices
-            </div>
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
+            <button
+              onClick={() => setSelectedState(null)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 uppercase tracking-widest transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to All States
+            </button>
+            <div className="text-[10px] font-black uppercase tracking-widest text-gray-700">{selectedState}</div>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-[10px] font-black text-gray-500 uppercase tracking-widest">
               <tr>
-                <th className="text-left px-4 py-2">MSA</th>
-                <th className="text-right px-4 py-2">Open Deal</th>
-                <th className="text-right px-4 py-2">Initial Outreach</th>
-                <th className="text-right px-4 py-2">Closed Nurture</th>
-                <th className="text-right px-4 py-2">Total</th>
+                <th className="text-left px-4 py-2">Contact</th>
+                <th className="text-left px-4 py-2">Clinic</th>
+                <th className="text-left px-4 py-2">Owner</th>
+                <th className="text-left px-4 py-2">Disposition</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {marketRankings.map(r => (
-                <tr
-                  key={r.market}
-                  onClick={() => { setSelectedMarket(r.market); setQuery(r.market); setShowDropdown(false) }}
-                  className="hover:bg-sky-50 cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-2 text-sm font-bold text-gray-900">{r.market}</td>
-                  <td className="px-4 py-2 text-right">
-                    {r.openDeal > 0 ? (
-                      <span className="text-sm font-black text-emerald-700">{r.openDeal}</span>
-                    ) : (
-                      <span className="text-[10px] text-gray-300">—</span>
-                    )}
+              {stateContacts.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400 text-xs uppercase tracking-widest font-bold">No matched contacts in this state</td></tr>
+              )}
+              {stateContacts.map(c => (
+                <tr key={c.contactId} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-2">
+                    <button
+                      onClick={() => onContactClick({
+                        contactId: c.contactId,
+                        name: c.name,
+                        specialty: c.specialty,
+                        ownerName: c.ownerName,
+                        disposition: c.disposition,
+                        clinic: c.clinic,
+                        city: null,
+                        state: c.state,
+                      })}
+                      className="text-left"
+                    >
+                      <div className="text-sm font-bold text-gray-900 hover:text-sky-600 transition-colors">{c.name}</div>
+                      <div className="text-[10px] text-gray-400 uppercase tracking-tight">{c.specialty ?? '—'}</div>
+                    </button>
                   </td>
-                  <td className="px-4 py-2 text-right">
-                    {r.initialOutreach > 0 ? (
-                      <span className="text-sm font-black text-sky-700">{r.initialOutreach}</span>
-                    ) : (
-                      <span className="text-[10px] text-gray-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    {r.closedNurture > 0 ? (
-                      <span className="text-sm font-black text-amber-700">{r.closedNurture}</span>
-                    ) : (
-                      <span className="text-[10px] text-gray-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <span className="text-sm font-black text-gray-900 bg-gray-100 rounded-full px-2 py-0.5">{r.total}</span>
+                  <td className="px-4 py-2 text-xs text-gray-600">{c.clinic ?? '—'}</td>
+                  <td className="px-4 py-2 text-xs text-gray-500">{c.ownerName}</td>
+                  <td className="px-4 py-2">
+                    <span
+                      className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: DISPOSITION_COLORS[c.disposition] + '20',
+                        color: DISPOSITION_COLORS[c.disposition],
+                      }}
+                    >
+                      {DISPOSITION_LABELS[c.disposition]}
+                    </span>
                   </td>
                 </tr>
               ))}

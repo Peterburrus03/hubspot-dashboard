@@ -27,6 +27,7 @@ export type MapContact = {
   longitude: number
   clinic: string | null
   market: string | null
+  state: string | null
   practiceTag: string | null
   disposition: 'interested' | 'fairGame' | 'notNow' | 'notInterested'
 }
