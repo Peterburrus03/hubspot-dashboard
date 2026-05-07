@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import ContactModal from '@/components/contacts/ContactModal'
 import CampaignTracker from '@/components/outreach/CampaignTracker'
-import { Clock, User, Check, Calendar, RefreshCw, Play, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react'
+import { Clock, User, Check, Calendar, RefreshCw, Play, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from 'lucide-react'
 import { formatDistanceToNow, format, addDays } from 'date-fns'
 
 type Completion = {
@@ -29,6 +29,8 @@ type WeekContact = {
   state: string | null
   completion: Completion
 }
+
+type Win = { contactId: string; mailerDate: string | null }
 
 type WeekData = {
   initialized: boolean
@@ -230,6 +232,7 @@ function WeekColumn({
   contacts,
   completions,
   status,
+  winsCount,
   onOpen,
   onCompletionChange,
 }: {
@@ -239,6 +242,7 @@ function WeekColumn({
   contacts: WeekContact[]
   completions: Record<string, Completion>
   status: ColumnStatus
+  winsCount: number
   onOpen: (c: WeekContact) => void
   onCompletionChange: (contactId: string, update: Partial<Completion> & { _save?: boolean }) => void
 }) {
@@ -288,6 +292,12 @@ function WeekColumn({
               {meetings} meeting{meetings !== 1 ? 's' : ''} set
             </span>
           )}
+          {status !== 'upcoming' && contacts.length > 0 && (
+            <span className="flex items-center gap-1 text-xs font-bold text-purple-600">
+              <TrendingUp className="w-3 h-3" />
+              {((winsCount / contacts.length) * 100).toFixed(1)}% ({winsCount}/{contacts.length}) converted
+            </span>
+          )}
         </div>
       </div>
 
@@ -316,6 +326,7 @@ export default function OutreachGoalsPage() {
   const [filters, setFilters] = useState<FilterState | null>(null)
   const [weekData, setWeekData] = useState<WeekData | null>(null)
   const [completions, setCompletions] = useState<Record<string, Completion>>({})
+  const [wins, setWins] = useState<Win[]>([])
   const [loading, setLoading] = useState(true)
   const [initializing, setInitializing] = useState(false)
   const [selectedContact, setSelectedContact] = useState<WeekContact | null>(null)
@@ -339,6 +350,18 @@ export default function OutreachGoalsPage() {
   }, [])
 
   useEffect(() => { fetchWeekData() }, [fetchWeekData])
+
+  useEffect(() => {
+    if (!filters) return
+    const params = new URLSearchParams()
+    if (filters.ownerIds.length) params.set('ownerIds', filters.ownerIds.join(','))
+    if (filters.companyTypes.length) params.set('companyTypes', filters.companyTypes.join(','))
+    params.set('locationFilter', filters.locationFilter)
+    fetch(`/api/dashboard/outreach-wins?${params}`)
+      .then(r => r.json())
+      .then(d => setWins(d.wins ?? []))
+      .catch(() => setWins([]))
+  }, [filters])
 
   const startCycle = async (reset = false) => {
     setInitializing(true)
@@ -386,6 +409,19 @@ export default function OutreachGoalsPage() {
   const weekStart = weekData?.weekStart ?? null
   const cycleWeek = weekData?.cycleWeek ?? null
   const cycleEnds = weekData?.cycleEnds ? format(new Date(weekData.cycleEnds), 'MMM d') : null
+
+  const winsPerWeek: Record<1 | 2 | 3, number> = { 1: 0, 2: 0, 3: 0 }
+  if (weekStart) {
+    const wsMs = new Date(weekStart).getTime()
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+    for (const win of wins) {
+      if (!win.mailerDate) continue
+      const ms = new Date(win.mailerDate).getTime() - wsMs
+      if (ms < 0) continue
+      const wk = ms < WEEK_MS ? 1 : ms < 2 * WEEK_MS ? 2 : 3
+      winsPerWeek[wk as 1 | 2 | 3]++
+    }
+  }
 
   const getWeekContacts = (weekNum: 1 | 2 | 3): WeekContact[] => {
     if (!weekData?.weeks || !filters) return []
@@ -492,6 +528,7 @@ export default function OutreachGoalsPage() {
             contacts={w1}
             completions={completions}
             status={columnStatus(1)}
+            winsCount={winsPerWeek[1]}
             onOpen={setSelectedContact}
             onCompletionChange={handleCompletionChange}
           />
@@ -502,6 +539,7 @@ export default function OutreachGoalsPage() {
             contacts={w2}
             completions={completions}
             status={columnStatus(2)}
+            winsCount={winsPerWeek[2]}
             onOpen={setSelectedContact}
             onCompletionChange={handleCompletionChange}
           />
@@ -512,6 +550,7 @@ export default function OutreachGoalsPage() {
             contacts={w3}
             completions={completions}
             status={columnStatus(3)}
+            winsCount={winsPerWeek[3]}
             onOpen={setSelectedContact}
             onCompletionChange={handleCompletionChange}
           />
