@@ -28,10 +28,6 @@ export async function GET() {
     const assignments = await prisma.outreachWeekAssignment.findMany({ where: { weekStart } })
     const contactIds = assignments.map(a => a.contactId)
 
-    // Auto-contact: anyone with a completed 09-tag task in the past 14 days
-    const twoWeeksAgo = new Date()
-    twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14)
-
     const [contacts, owners, latestEngagements, engagementCounts, completions, campaignTouches] = await Promise.all([
       prisma.contact.findMany({
         where: { contactId: { in: contactIds } },
@@ -62,9 +58,9 @@ export async function GET() {
           taskStatus: 'COMPLETED',
           body: { startsWith: '09' },
           contactId: { in: contactIds },
-          timestamp: { gte: twoWeeksAgo },
+          timestamp: { gte: weekStart, lt: cycleEnds },
         },
-        select: { contactId: true },
+        select: { contactId: true, timestamp: true },
       }),
     ])
 
@@ -73,7 +69,14 @@ export async function GET() {
     const countMap = new Map(engagementCounts.map(e => [e.contactId, e._count._all]))
     const completionMap = new Map(completions.map(c => [c.contactId, c]))
     const contactMap = new Map(contacts.map(c => [c.contactId, c]))
-    const autoContactedSet = new Set(campaignTouches.map(e => e.contactId).filter(Boolean) as string[])
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+    const campaignWeekMap = new Map<string, number>()
+    for (const touch of campaignTouches) {
+      if (!touch.contactId || !touch.timestamp) continue
+      const msIntoCycle = touch.timestamp.getTime() - weekStart.getTime()
+      const touchWeek = msIntoCycle < WEEK_MS ? 1 : msIntoCycle < 2 * WEEK_MS ? 2 : 3
+      campaignWeekMap.set(touch.contactId, touchWeek)
+    }
 
     const weeks: Record<number, any[]> = { 1: [], 2: [], 3: [] }
 
@@ -95,7 +98,7 @@ export async function GET() {
         practiceType: c.practiceType ?? null,
         state: c.state ?? null,
         completion: {
-          contacted: (comp?.contacted ?? false) || autoContactedSet.has(c.contactId),
+          contacted: (comp?.contacted ?? false) || campaignWeekMap.has(c.contactId),
           meetingSet: comp?.meetingSet ?? false,
           meetingDate: comp?.meetingDate?.toISOString() ?? null,
           meetingNotes: comp?.meetingNotes ?? null,
@@ -103,12 +106,14 @@ export async function GET() {
       })
     }
 
-    // Ensure all auto-contacted contacts appear in Week 1 regardless of DB assignment
-    for (const weekNum of [2, 3] as const) {
-      const toMove = weeks[weekNum].filter((c: any) => autoContactedSet.has(c.contactId))
-      if (toMove.length) {
-        weeks[1].push(...toMove)
-        weeks[weekNum] = weeks[weekNum].filter((c: any) => !autoContactedSet.has(c.contactId))
+    // Move auto-contacted contacts to the week their O9 completion actually fell in
+    for (const weekNum of [1, 2, 3] as const) {
+      for (const contact of [...weeks[weekNum]]) {
+        const touchWeek = campaignWeekMap.get(contact.contactId)
+        if (touchWeek !== undefined && touchWeek !== weekNum) {
+          weeks[weekNum] = weeks[weekNum].filter((c: any) => c.contactId !== contact.contactId)
+          weeks[touchWeek as 1 | 2 | 3].push(contact)
+        }
       }
     }
 

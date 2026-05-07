@@ -171,8 +171,8 @@ export async function initWeekAssignments(
   const pool = await computeOutreachPool(filters)
   const allContactIds = pool.map(p => p.contactId)
 
-  // Contacts already reached via 09 campaign in the past 14 days go into Week 1 (done)
-  const twoWeeksAgo = new Date()
+  // Contacts reached via 09 campaign in the 14 days before the cycle starts go into Week 1 (already done)
+  const twoWeeksAgo = new Date(weekStart)
   twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14)
 
   const recentCampaignRows = allContactIds.length
