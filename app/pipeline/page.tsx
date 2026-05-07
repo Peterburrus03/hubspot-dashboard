@@ -63,12 +63,6 @@ const WEEKLY_GOALS: Record<number, { contacts: number; ndas: number }> = {
 const THIS_WEEK = getISOWeek(TODAY)
 const THIS_WEEK_GOALS = WEEKLY_GOALS[THIS_WEEK] ?? { contacts: 68, ndas: 2 }
 
-function computeYtdNdaGoal(upToWeek: number): number {
-  return Object.entries(WEEKLY_GOALS)
-    .filter(([w]) => parseInt(w) <= upToWeek)
-    .reduce((sum, [, g]) => sum + g.ndas, 0)
-}
-
 const STAGE_PLAN_DAYS: Record<string, number> = {
   'Engaged': 10,
   'Data Collection (including NDA)': 21,
@@ -469,9 +463,6 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
     ? weeklyHistory.filter(w => w.weekStart <= refWeekStart).reduce((sum, w) => sum + w.ndas, 0)
     : actuals.ytdNDAs
 
-  const ytdRefWeek = refDate ? getISOWeek(refDate) : THIS_WEEK
-  const ytdNdaGoal = computeYtdNdaGoal(ytdRefWeek)
-
   const TYPE_META = [
     { key: 'emails' as const, label: 'Emails', icon: '✉️', color: '#818cf8' },
     { key: 'calls' as const, label: 'Calls', icon: '📞', color: '#34d399' },
@@ -516,7 +507,7 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
           <div className="flex justify-around">
             <MiniGauge actual={activeNDAs} goal={activeNdaGoal} color="#c084fc" label={activeLabel} sublabel={`goal ${activeNdaGoal}`} />
             <MiniGauge actual={displayMtdNDAs} goal={mNdaGoal} color="#c084fc" label="MTD" sublabel={`goal ${mNdaGoal}`} />
-            <MiniGauge actual={displayYtdNDAs} goal={ytdNdaGoal} color="#c084fc" label="YTD" sublabel={`goal ${ytdNdaGoal}`} />
+            <MiniGauge actual={displayYtdNDAs} goal={TARGETS.totalNDAs} color="#c084fc" label="YTD" sublabel={`goal ${TARGETS.totalNDAs}`} />
           </div>
         </div>
       </div>
