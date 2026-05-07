@@ -30,38 +30,44 @@ const WEEKLY_GOALS: Record<number, { contacts: number; ndas: number }> = {
   13: { contacts: 74, ndas: 2 },
   14: { contacts: 74, ndas: 2 },
   // April (4 weeks: Apr 6–May 3) — weeks 15-18
-  15: { contacts: 50, ndas: 2.5 },
-  16: { contacts: 50, ndas: 2.5 },
-  17: { contacts: 50, ndas: 2.5 },
-  18: { contacts: 50, ndas: 2.5 },
+  15: { contacts: 50, ndas: 2 },
+  16: { contacts: 50, ndas: 2 },
+  17: { contacts: 50, ndas: 2 },
+  18: { contacts: 50, ndas: 2 },
   // May (4 weeks: May 4–May 31) — weeks 19-22
-  19: { contacts: 50, ndas: 2.5 },
-  20: { contacts: 50, ndas: 2.5 },
-  21: { contacts: 50, ndas: 2.5 },
-  22: { contacts: 50, ndas: 2.5 },
+  19: { contacts: 50, ndas: 2 },
+  20: { contacts: 50, ndas: 2 },
+  21: { contacts: 50, ndas: 2 },
+  22: { contacts: 50, ndas: 2 },
   // June (5 weeks: Jun 1–Jul 5) — weeks 23-27
-  23: { contacts: 64, ndas: 2.2 },
-  24: { contacts: 64, ndas: 2.2 },
-  25: { contacts: 64, ndas: 2.2 },
-  26: { contacts: 64, ndas: 2.2 },
-  27: { contacts: 64, ndas: 2.2 },
+  23: { contacts: 64, ndas: 2 },
+  24: { contacts: 64, ndas: 2 },
+  25: { contacts: 64, ndas: 2 },
+  26: { contacts: 64, ndas: 2 },
+  27: { contacts: 64, ndas: 2 },
   // July (4 weeks: Jul 6–Aug 2) — weeks 28-31
   28: { contacts: 60, ndas: 2 },
   29: { contacts: 60, ndas: 2 },
   30: { contacts: 60, ndas: 2 },
   31: { contacts: 60, ndas: 2 },
   // August (5 weeks: Aug 3–Sep 6) — weeks 32-36
-  32: { contacts: 60, ndas: 1.8 },
-  33: { contacts: 60, ndas: 1.8 },
-  34: { contacts: 60, ndas: 1.8 },
-  35: { contacts: 60, ndas: 1.8 },
-  36: { contacts: 60, ndas: 1.8 },
+  32: { contacts: 60, ndas: 2 },
+  33: { contacts: 60, ndas: 2 },
+  34: { contacts: 60, ndas: 2 },
+  35: { contacts: 60, ndas: 2 },
+  36: { contacts: 60, ndas: 2 },
   // September (deadline week: Sep 7) — week 37
   37: { contacts: 0, ndas: 2 },
 }
 
 const THIS_WEEK = getISOWeek(TODAY)
 const THIS_WEEK_GOALS = WEEKLY_GOALS[THIS_WEEK] ?? { contacts: 68, ndas: 2 }
+
+function computeYtdNdaGoal(upToWeek: number): number {
+  return Object.entries(WEEKLY_GOALS)
+    .filter(([w]) => parseInt(w) <= upToWeek)
+    .reduce((sum, [, g]) => sum + g.ndas, 0)
+}
 
 const STAGE_PLAN_DAYS: Record<string, number> = {
   'Engaged': 10,
@@ -110,14 +116,14 @@ const STAGE_SHORT: Record<string, string> = {
 const TARGETS = {
   totalEBITDA: 18900,
   closedEBITDA: 0,
-  totalNDAs: 60,
+  totalNDAs: 56,
   totalLOIs: 45,
   totalAPAs: 23,
   totalOutreach: 1820,
   weeklyOutreach: 68,
   weeklyNDAs: 2,
   monthlyOutreach: { 3: 318, 4: 318, 5: 279, 6: 279, 7: 279, 8: 279, 9: 68 } as Record<number, number>,
-  monthlyNDAs: { 3: 9, 4: 9, 5: 9, 6: 9, 7: 9, 8: 9, 9: 6 } as Record<number, number>,
+  monthlyNDAs: { 3: 9, 4: 8, 5: 8, 6: 10, 7: 8, 8: 10, 9: 2 } as Record<number, number>,
 }
 
 interface ActivityBreakdown { emails: number; calls: number; meetings: number }
@@ -430,7 +436,6 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
   const mGoal = TARGETS.monthlyOutreach[CURRENT_MONTH] || 318
   const mNdaGoal = TARGETS.monthlyNDAs[CURRENT_MONTH] || 9
   const chartStyle = { fontSize: 10, fill: '#71717a' }
-  const conversionRate = actuals.ytdOutreach > 0 ? ((actuals.ytdNDAs / actuals.ytdOutreach) * 100).toFixed(1) : '—'
 
   const selectedPoint = weeklyHistory.find(w => w.weekStart === selectedWeekStart) ?? null
   const historicalGoals = selectedPoint ? (WEEKLY_GOALS[getISOWeek(new Date(selectedPoint.weekStart))] ?? THIS_WEEK_GOALS) : THIS_WEEK_GOALS
@@ -463,6 +468,9 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
   const displayYtdNDAs = refDate
     ? weeklyHistory.filter(w => w.weekStart <= refWeekStart).reduce((sum, w) => sum + w.ndas, 0)
     : actuals.ytdNDAs
+
+  const ytdRefWeek = refDate ? getISOWeek(refDate) : THIS_WEEK
+  const ytdNdaGoal = computeYtdNdaGoal(ytdRefWeek)
 
   const TYPE_META = [
     { key: 'emails' as const, label: 'Emails', icon: '✉️', color: '#818cf8' },
@@ -508,7 +516,7 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
           <div className="flex justify-around">
             <MiniGauge actual={activeNDAs} goal={activeNdaGoal} color="#c084fc" label={activeLabel} sublabel={`goal ${activeNdaGoal}`} />
             <MiniGauge actual={displayMtdNDAs} goal={mNdaGoal} color="#c084fc" label="MTD" sublabel={`goal ${mNdaGoal}`} />
-            <MiniGauge actual={displayYtdNDAs} goal={TARGETS.totalNDAs} color="#c084fc" label="YTD" sublabel={`goal ${TARGETS.totalNDAs}`} />
+            <MiniGauge actual={displayYtdNDAs} goal={ytdNdaGoal} color="#c084fc" label="YTD" sublabel={`goal ${ytdNdaGoal}`} />
           </div>
         </div>
       </div>
@@ -547,9 +555,6 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
             className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1">
             {showDetail ? '▲ Hide breakdown' : '▼ Activity by type'}
           </button>
-          <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-full px-3 py-1">
-            ⚠ {conversionRate}% conversion vs 4.4% target
-          </span>
         </div>
 
         {showDetail && actuals.breakdown && (
