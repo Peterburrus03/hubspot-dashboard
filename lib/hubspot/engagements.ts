@@ -296,9 +296,11 @@ export async function syncEngagementType(
   }
 
   let total = 0
+  const seenEngagementIds = new Set<string>()
   for (const { from, to } of windows) {
     console.log(`Syncing ${objectType} ${new Date(from).toISOString()} → ${new Date(to).toISOString()}…`)
     const items = await searchEngagements(objectType, from, to)
+    items.forEach((item) => seenEngagementIds.add(String(item.id)))
     if (items.length === 0) continue
 
     const ids = items.map((i) => String(i.id))
@@ -311,6 +313,18 @@ export async function syncEngagementType(
     console.log(`  → ${records.length} ${objectType} (window total: ${total})`)
   }
 
+  // Reconcile deletes: anything in our DB within the synced range that HubSpot
+  // did not return has been deleted (or moved) on the HubSpot side.
+  const removed = await reconcileDeletedEngagements(
+    ENGAGEMENT_TYPE_MAP[objectType],
+    new Date(start),
+    new Date(ceiling),
+    seenEngagementIds
+  )
+  if (removed > 0) {
+    console.log(`Removed ${removed} stale ${objectType} no longer in HubSpot`)
+  }
+
   await prisma.cacheMetadata.upsert({
     where: { cacheKey: `engagements_${objectType}` },
     update: { lastRefresh: new Date(), recordCount: total, status: 'success', errorMessage: null },
@@ -319,6 +333,69 @@ export async function syncEngagementType(
 
   console.log(`Synced ${total} ${objectType} total`)
   return total
+}
+
+async function reconcileDeletedEngagements(
+  type: EngagementRecord['type'],
+  rangeStart: Date,
+  rangeEnd: Date,
+  seenEngagementIds: Set<string>
+): Promise<number> {
+  const inDb = await prisma.engagement.findMany({
+    where: {
+      type,
+      timestamp: { gte: rangeStart, lt: rangeEnd },
+    },
+    select: { engagementId: true },
+  })
+  const stale = inDb
+    .map((r) => r.engagementId)
+    .filter((id) => !seenEngagementIds.has(id))
+  if (stale.length === 0) return 0
+  const result = await prisma.engagement.deleteMany({
+    where: { engagementId: { in: stale } },
+  })
+  return result.count
+}
+
+// Removes duplicate engagements that share the same (contactId, timestamp, body)
+// — these are almost always the same real-world event represented twice in HubSpot.
+// Keeps the most recently synced row (tiebreak: highest engagementId).
+export async function dedupeEngagements(
+  type: EngagementRecord['type']
+): Promise<number> {
+  const rows = await prisma.engagement.findMany({
+    where: { type },
+    select: { engagementId: true, contactId: true, timestamp: true, body: true, lastSyncedAt: true },
+  })
+
+  const groups = new Map<string, typeof rows>()
+  for (const row of rows) {
+    // Skip rows where the dedup key is too sparse to be reliable
+    if (!row.body || !row.timestamp) continue
+    const key = `${row.contactId ?? '∅'}|${row.timestamp.getTime()}|${row.body}`
+    const bucket = groups.get(key)
+    if (bucket) bucket.push(row)
+    else groups.set(key, [row])
+  }
+
+  const toDelete: string[] = []
+  for (const bucket of groups.values()) {
+    if (bucket.length < 2) continue
+    bucket.sort((a, b) => {
+      const t = b.lastSyncedAt.getTime() - a.lastSyncedAt.getTime()
+      if (t !== 0) return t
+      return b.engagementId.localeCompare(a.engagementId)
+    })
+    // Keep bucket[0], delete the rest
+    for (let i = 1; i < bucket.length; i++) toDelete.push(bucket[i].engagementId)
+  }
+
+  if (toDelete.length === 0) return 0
+  const result = await prisma.engagement.deleteMany({
+    where: { engagementId: { in: toDelete } },
+  })
+  return result.count
 }
 
 export async function syncAllEngagements(sinceDateMs?: number): Promise<Record<string, number>> {
@@ -332,6 +409,15 @@ export async function syncAllEngagements(sinceDateMs?: number): Promise<Record<s
       console.error(`Failed to sync ${type}:`, err?.message)
       results[type] = 0
     }
+  }
+
+  // Dedupe meetings — calendar invites in HubSpot occasionally end up duplicated
+  // (reschedules, integration replays). Same (contact, time, title/body) → one row.
+  try {
+    const removed = await dedupeEngagements('MEETING')
+    if (removed > 0) console.log(`Deduped ${removed} duplicate meeting engagements`)
+  } catch (err: any) {
+    console.error('Failed to dedupe meetings:', err?.message)
   }
 
   return results
