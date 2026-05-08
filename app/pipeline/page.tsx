@@ -40,22 +40,22 @@ const WEEKLY_GOALS: Record<number, { contacts: number; ndas: number }> = {
   21: { contacts: 50, ndas: 2 },
   22: { contacts: 50, ndas: 2 },
   // June (5 weeks: Jun 1–Jul 5) — weeks 23-27
-  23: { contacts: 64, ndas: 2 },
-  24: { contacts: 64, ndas: 2 },
-  25: { contacts: 64, ndas: 2 },
-  26: { contacts: 64, ndas: 2 },
-  27: { contacts: 64, ndas: 2 },
+  23: { contacts: 50, ndas: 2 },
+  24: { contacts: 50, ndas: 2 },
+  25: { contacts: 50, ndas: 2 },
+  26: { contacts: 50, ndas: 2 },
+  27: { contacts: 50, ndas: 2 },
   // July (4 weeks: Jul 6–Aug 2) — weeks 28-31
-  28: { contacts: 60, ndas: 2 },
-  29: { contacts: 60, ndas: 2 },
-  30: { contacts: 60, ndas: 2 },
-  31: { contacts: 60, ndas: 2 },
+  28: { contacts: 50, ndas: 2 },
+  29: { contacts: 50, ndas: 2 },
+  30: { contacts: 50, ndas: 2 },
+  31: { contacts: 50, ndas: 2 },
   // August (5 weeks: Aug 3–Sep 6) — weeks 32-36
-  32: { contacts: 60, ndas: 2 },
-  33: { contacts: 60, ndas: 2 },
-  34: { contacts: 60, ndas: 2 },
-  35: { contacts: 60, ndas: 2 },
-  36: { contacts: 60, ndas: 2 },
+  32: { contacts: 50, ndas: 2 },
+  33: { contacts: 50, ndas: 2 },
+  34: { contacts: 50, ndas: 2 },
+  35: { contacts: 50, ndas: 2 },
+  36: { contacts: 50, ndas: 2 },
   // September (deadline week: Sep 7) — week 37
   37: { contacts: 0, ndas: 2 },
 }
@@ -116,7 +116,10 @@ const TARGETS = {
   totalOutreach: 1820,
   weeklyOutreach: 68,
   weeklyNDAs: 2,
-  monthlyOutreach: { 3: 318, 4: 318, 5: 279, 6: 279, 7: 279, 8: 279, 9: 68 } as Record<number, number>,
+  // Monthly goals = sum of WEEKLY_GOALS for the ISO weeks in each month
+  // Mar (wks 10–14): 5×74=370 · Apr (15–18): 4×50=200 · May (19–22): 4×50=200
+  // Jun (23–27): 5×50=250 · Jul (28–31): 4×50=200 · Aug (32–36): 5×50=250 · Sep (37): 0
+  monthlyOutreach: { 3: 370, 4: 200, 5: 200, 6: 250, 7: 200, 8: 250, 9: 0 } as Record<number, number>,
   monthlyNDAs: { 3: 9, 4: 8, 5: 8, 6: 10, 7: 8, 8: 10, 9: 2 } as Record<number, number>,
 }
 
@@ -427,8 +430,8 @@ function OutreachSection({ actuals, weeklyHistory, lastWeekStart }: { actuals: P
       setSelectedWeekStart(weeklyHistory[weeklyHistory.length - 2].weekStart)
     }
   }, [weeklyHistory])
-  const mGoal = TARGETS.monthlyOutreach[CURRENT_MONTH] || 318
-  const mNdaGoal = TARGETS.monthlyNDAs[CURRENT_MONTH] || 9
+  const mGoal = TARGETS.monthlyOutreach[CURRENT_MONTH] ?? 200
+  const mNdaGoal = TARGETS.monthlyNDAs[CURRENT_MONTH] ?? 9
   const chartStyle = { fontSize: 10, fill: '#71717a' }
 
   const selectedPoint = weeklyHistory.find(w => w.weekStart === selectedWeekStart) ?? null
