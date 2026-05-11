@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       const contact = m.contactId ? contactMap.get(m.contactId) : null
       return {
         engagementId: m.engagementId,
-        date: m.timestamp.toISOString().split('T')[0],
+        date: m.timestamp.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
         timestamp: m.timestamp.toISOString(),
         title: m.body ?? null,
         ownerId: m.ownerId ?? null,
