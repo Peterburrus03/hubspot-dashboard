@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       const body = await request.json()
       if (body?.filters) filters = { ...DEFAULT_POOL_FILTERS, ...body.filters }
     } catch {}
-    const result = await initWeekAssignments(weekStart, filters, activeCampaignTag)
+    const result = await initWeekAssignments(weekStart, filters)
     return NextResponse.json({ ok: true, ...result })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
