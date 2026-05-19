@@ -163,7 +163,8 @@ export async function computeOutreachPool(
 
 export async function initWeekAssignments(
   weekStart: Date,
-  filters: OutreachPoolFilters = DEFAULT_POOL_FILTERS
+  filters: OutreachPoolFilters = DEFAULT_POOL_FILTERS,
+  campaignTag: string = '09'
 ): Promise<{ count: number; alreadyInitialized: boolean }> {
   const existing = await prisma.outreachWeekAssignment.count({ where: { weekStart } })
   if (existing > 0) return { count: existing, alreadyInitialized: true }
@@ -180,7 +181,7 @@ export async function initWeekAssignments(
         where: {
           type: 'TASK',
           taskStatus: 'COMPLETED',
-          body: { startsWith: '09' },
+          body: { startsWith: campaignTag },
           contactId: { in: allContactIds },
           timestamp: { gte: twoWeeksAgo },
         },

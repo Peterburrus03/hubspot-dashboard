@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getWeekStart, initWeekAssignments, DEFAULT_POOL_FILTERS, type OutreachPoolFilters } from '@/lib/outreach/pool'
+import { getActiveCampaign } from '@/lib/campaigns'
 
 async function findActiveCycle(): Promise<{ weekStart: Date; cycleWeek: number } | null> {
   const now = getWeekStart()
@@ -56,7 +57,7 @@ export async function GET() {
         where: {
           type: 'TASK',
           taskStatus: 'COMPLETED',
-          body: { startsWith: '09' },
+          body: { startsWith: getActiveCampaign()?.tag ?? '09' },
           contactId: { in: contactIds },
           timestamp: { gte: weekStart, lt: cycleEnds },
         },
@@ -148,13 +149,15 @@ export async function POST(request: NextRequest) {
     const lastMonday = new Date(currentMonday)
     lastMonday.setUTCDate(lastMonday.getUTCDate() - 7)
 
-    // If 09 campaign tasks ran last week, backdate the cycle to last Monday
+    const activeCampaignTag = getActiveCampaign()?.tag ?? '09'
+
+    // If active campaign tasks ran last week, backdate the cycle to last Monday
     // so cycleWeek correctly shows 2 (not 1) when this week is the second week
     const lastWeekCampaignCount = await prisma.engagement.count({
       where: {
         type: 'TASK',
         taskStatus: 'COMPLETED',
-        body: { startsWith: '09' },
+        body: { startsWith: activeCampaignTag },
         timestamp: { gte: lastMonday, lt: currentMonday },
       },
     })
@@ -166,7 +169,7 @@ export async function POST(request: NextRequest) {
       const body = await request.json()
       if (body?.filters) filters = { ...DEFAULT_POOL_FILTERS, ...body.filters }
     } catch {}
-    const result = await initWeekAssignments(weekStart, filters)
+    const result = await initWeekAssignments(weekStart, filters, activeCampaignTag)
     return NextResponse.json({ ok: true, ...result })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })

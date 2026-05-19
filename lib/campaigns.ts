@@ -6,6 +6,11 @@ export type Campaign = {
   endDate: string
 }
 
+export function getActiveCampaign(date: Date = new Date()): Campaign | undefined {
+  const d = date.toISOString().slice(0, 10)
+  return CAMPAIGNS.find(c => c.startDate <= d && c.endDate >= d)
+}
+
 export const CAMPAIGNS: Campaign[] = [
   {
     id: 'aosn-fedex-2026-04',
