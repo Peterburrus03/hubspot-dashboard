@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getWeekStart } from '@/lib/outreach/pool'
+import { getActiveCampaign } from '@/lib/campaigns'
 import { format } from 'date-fns'
 
 async function findActiveCycle(): Promise<{ weekStart: Date } | null> {
@@ -44,6 +45,10 @@ export async function GET() {
     return new NextResponse('', { headers: { 'Content-Type': 'text/csv' } })
   }
 
+  const campaign = getActiveCampaign()
+  const campaignTag = campaign?.tag ?? '10'
+  const campaignLabel = campaign?.label ?? 'Campaign Mailed'
+
   const [contacts, mailerTasks] = await Promise.all([
     prisma.contact.findMany({
       where: { contactId: { in: contactIds } },
@@ -61,12 +66,11 @@ export async function GET() {
         companyId: true,
       },
     }),
-    // Q2 Marketing Detailer = 09 FedEx campaign tasks
     prisma.engagement.findMany({
       where: {
         type: 'TASK',
         taskStatus: 'COMPLETED',
-        body: { startsWith: '09' },
+        body: { startsWith: campaignTag },
         contactId: { in: contactIds },
       },
       orderBy: { timestamp: 'asc' },
@@ -99,7 +103,7 @@ export async function GET() {
     'Contact Specialty',
     'Company Name',
     '# DVMs in Practice (Inc Residents)',
-    'Q2 Marketing Detailer Mailed',
+    campaignLabel,
     'Street Address',
     'City',
     'State',
