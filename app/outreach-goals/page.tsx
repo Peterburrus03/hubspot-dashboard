@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import ContactModal from '@/components/contacts/ContactModal'
 import CampaignTracker from '@/components/outreach/CampaignTracker'
-import { Clock, User, Check, Calendar, RefreshCw, Play, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from 'lucide-react'
+import { Clock, User, Check, Calendar, RefreshCw, Play, ChevronDown, ChevronUp, RotateCcw, TrendingUp, Download } from 'lucide-react'
 import { formatDistanceToNow, format, addDays } from 'date-fns'
 
 type Completion = {
@@ -472,6 +472,16 @@ export default function OutreachGoalsPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
+          {weekData?.initialized && (
+            <a
+              href="/api/dashboard/outreach-export"
+              download
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 border-gray-200 bg-white text-gray-500 hover:border-green-300 hover:text-green-600 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </a>
+          )}
           {weekData?.initialized && (
             <button
               onClick={() => { if (confirm('Reset the cycle? This clears all 3 weeks of contacts and checkmarks so you can start fresh.')) startCycle(true) }}
