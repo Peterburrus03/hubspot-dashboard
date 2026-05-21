@@ -21,7 +21,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'mailer-followup-2026-05',
-    label: '10-Mailer Follow Up',
+    label: '10 - Greeting Card',
     tag: '10',
     startDate: '2026-05-18',
     endDate: '2026-06-06',
