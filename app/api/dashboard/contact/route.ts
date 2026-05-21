@@ -15,6 +15,7 @@ const TASK_CATEGORIES: Record<string, string> = {
   '07': 'Other',
   '08': 'Check-in / In Town',
   '09': 'AOSN Detailer (FedEx)',
+  '10': '10 - Greeting Card',
 }
 
 function getTaskCategory(body: string | null | undefined): string {

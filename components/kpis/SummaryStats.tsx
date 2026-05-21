@@ -39,6 +39,7 @@ export default function SummaryStats({ summary, loading, taskCategories = [] }: 
     'Check-in / In Town': 'blue',
     'Other': 'gray',
     'Uncategorized': 'gray',
+    '10 - Greeting Card': 'rose',
   }
 
   return (
