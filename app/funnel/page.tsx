@@ -687,6 +687,7 @@ export default function FunnelPage() {
   })
   const [nurtureFilterOn, setNurtureFilterOn] = useState(true)
   const [tooEarlyDays, setTooEarlyDays] = useState<number | null>(null)
+  const [closedNurtureDays, setClosedNurtureDays] = useState<number | null>(null)
 
   const sortedList = (list: any[], dir: 'asc' | 'desc') =>
     [...list].sort((a, b) => {
@@ -952,7 +953,10 @@ export default function FunnelPage() {
             const col = 'closedNurture'
             const dir = colSort[col]
             const list = sortedList(data.closedNurture, dir)
-            const filteredList = nurtureFilterOn ? list.filter((c: any) => !c.hiddenByDisposition) : list
+            const cutoffCN = closedNurtureDays ? Date.now() - closedNurtureDays * 86400000 : null
+            const filteredList = list
+              .filter((c: any) => !nurtureFilterOn || !c.hiddenByDisposition)
+              .filter((c: any) => !cutoffCN || !c.lastActivity || new Date(c.lastActivity).getTime() < cutoffCN)
             return (
               <section className="space-y-4">
                 <div className="flex items-center justify-between px-1">
@@ -964,7 +968,7 @@ export default function FunnelPage() {
                       <div className="flex items-center gap-2">
                         <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Closed & Nurture</h3>
                         <span className="text-xs font-black text-emerald-500 bg-emerald-50 rounded-full px-2 py-0.5">
-                          {nurtureFilterOn ? `${filteredList.length} / ${list.length}` : list.length}
+                          {(nurtureFilterOn || cutoffCN) ? `${filteredList.length} / ${list.length}` : list.length}
                         </span>
                         <button
                           onClick={() => setNurtureFilterOn(p => !p)}
@@ -973,9 +977,21 @@ export default function FunnelPage() {
                           {nurtureFilterOn ? 'Recently Touched Hidden' : 'Show All'}
                         </button>
                       </div>
-                      <button onClick={() => toggleSort(col)} className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-700">
-                        {dir === 'asc' ? <><ChevronUp className="w-3 h-3" />Oldest First</> : <><ChevronDown className="w-3 h-3" />Newest First</>}
-                      </button>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <button onClick={() => toggleSort(col)} className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-700">
+                          {dir === 'asc' ? <><ChevronUp className="w-3 h-3" />Oldest First</> : <><ChevronDown className="w-3 h-3" />Newest First</>}
+                        </button>
+                        <span className="text-[10px] text-gray-300">·</span>
+                        {([null, 30, 60, 90] as (number | null)[]).map(d => (
+                          <button
+                            key={d ?? 'all'}
+                            onClick={() => setClosedNurtureDays(d)}
+                            className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest transition-all ${closedNurtureDays === d ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                          >
+                            {d ? `${d}d+` : 'All'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
