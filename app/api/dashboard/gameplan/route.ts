@@ -256,22 +256,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Addressable universe — all contacts bucketed by interest disposition
-    const allContacts = await prisma.contact.findMany({
-      where: baseWhere,
-      select: {
-        contactId: true,
-        firstName: true,
-        lastName: true,
-        specialty: true,
-        ownerId: true,
-        leadStatus: true,
-        interestedResponseDate: true,
-        notInterestedNowResponseDate: true,
-        notInterestedAtAllResponseDate: true,
-      },
-    })
-
     // In-pipeline contacts for the universe card (enriched with deal stage)
     const inPipelineContacts = await prisma.contact.findMany({
       where: { ...baseWhere, contactId: { in: pipelineContactIds } },
@@ -283,42 +267,55 @@ export async function GET(request: NextRequest) {
     })
     const pipelineDealStageMap = new Map(inPipelineDeals.map(d => [d.contactId, d.stage]))
 
-    const universe = {
-      interested:         allContacts.filter(c => c.interestedResponseDate != null),
-      notInterestedNow:   allContacts.filter(c => !c.interestedResponseDate && c.notInterestedNowResponseDate != null),
-      notInterestedAtAll: allContacts.filter(c => !c.interestedResponseDate && !c.notInterestedNowResponseDate && c.notInterestedAtAllResponseDate != null),
-      // Fair game = no disposition set AND has an assigned owner
-      fairGame:           allContacts.filter(c => !c.interestedResponseDate && !c.notInterestedNowResponseDate && !c.notInterestedAtAllResponseDate && c.ownerId != null),
+    // Addressable universe — built from column data so counts always match what's displayed
+    const BIZ_MISMATCH_BUCKETS = ['Model / Financial Mismatch', 'Geography / Strategic Hold', 'Complex Ownership']
+
+    function parseBucketName(reason: string | null | undefined): string | null {
+      if (!reason) return null
+      const idx = reason.indexOf(' — ')
+      return (idx === -1 ? reason : reason.slice(0, idx)).trim()
     }
 
-    // Enrich interested + fair game contacts with deal stage
-    const enrichedContactIds = [
-      ...universe.interested.map(c => c.contactId),
-      ...universe.fairGame.map(c => c.contactId),
-    ]
-    const enrichedDeals = await prisma.deal.findMany({
-      where: { contactId: { in: enrichedContactIds } },
-      select: { contactId: true, stage: true },
-    })
-    const dealStageByContact = new Map(enrichedDeals.map(d => [d.contactId, d.stage]))
+    type UniverseKey = 'inPipeline' | 'fairGame' | 'notNow' | 'notInterested' | 'businessModelMismatch'
+    function normalizeBucket(bucket: string | null): UniverseKey {
+      if (!bucket || bucket === 'Unresponsive') return 'fairGame'
+      if (bucket === 'Too Early / Timing') return 'notNow'
+      if (bucket === 'Not Interested') return 'notInterested'
+      if (BIZ_MISMATCH_BUCKETS.includes(bucket) || bucket === 'Business Model Mismatch') return 'businessModelMismatch'
+      return 'fairGame'
+    }
 
-    const mapContacts = (list: typeof allContacts) => list.map(c => ({
-      contactId: c.contactId,
-      name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
-      specialty: c.specialty,
-      ownerName: ownerMap.get(c.ownerId ?? '') ?? 'Unassigned',
-    }))
+    type UniverseContact = { contactId: string; name: string; specialty: string | null; ownerName: string; dealStage?: string | null }
+    const universeGroups: Record<UniverseKey, UniverseContact[]> = {
+      inPipeline: [], fairGame: [], notNow: [], notInterested: [], businessModelMismatch: [],
+    }
 
-    const enrichContacts = (list: typeof allContacts) => list.map(c => ({
-      contactId: c.contactId,
-      name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
-      specialty: c.specialty,
-      ownerName: ownerMap.get(c.ownerId ?? '') ?? 'Unassigned',
-      leadStatus: c.leadStatus ?? null,
-      dealStage: dealStageByContact.get(c.contactId) ?? null,
-    }))
+    for (const c of inPipelineContacts) {
+      universeGroups.inPipeline.push({
+        contactId: c.contactId,
+        name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
+        specialty: c.specialty ?? null,
+        ownerName: ownerMap.get(c.ownerId ?? '') ?? 'Unassigned',
+        dealStage: pipelineDealStageMap.get(c.contactId) ?? null,
+      })
+    }
+    for (const c of staleTier1s) {
+      universeGroups[normalizeBucket(parseBucketName(c.closedNurtureReason))].push(
+        { contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName }
+      )
+    }
+    for (const c of openLeads) {
+      universeGroups.fairGame.push(
+        { contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName }
+      )
+    }
+    for (const c of closedNurture) {
+      universeGroups[normalizeBucket(parseBucketName(c.notes))].push(
+        { contactId: c.contactId, name: c.name, specialty: c.specialty, ownerName: c.ownerName }
+      )
+    }
 
-    const fairGameContacts = enrichContacts(universe.fairGame)
+    const total = (Object.values(universeGroups) as UniverseContact[][]).reduce((sum, arr) => sum + arr.length, 0)
 
     return NextResponse.json({
       staleTier1s,
@@ -326,21 +323,12 @@ export async function GET(request: NextRequest) {
       closedNurture,
       actionableTriggers: actionableTriggers.slice(0, 20),
       universe: {
-        total: allContacts.length,
-        interested:         { count: universe.interested.length,         contacts: enrichContacts(universe.interested) },
-        fairGame:           { count: universe.fairGame.length,           contacts: fairGameContacts },
-        notInterestedNow:   { count: universe.notInterestedNow.length,   contacts: mapContacts(universe.notInterestedNow) },
-        notInterestedAtAll: { count: universe.notInterestedAtAll.length,  contacts: mapContacts(universe.notInterestedAtAll) },
-        inPipeline: {
-          count: inPipelineContacts.length,
-          contacts: inPipelineContacts.map(c => ({
-            contactId: c.contactId,
-            name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
-            specialty: c.specialty,
-            ownerName: ownerMap.get(c.ownerId ?? '') ?? 'Unassigned',
-            dealStage: pipelineDealStageMap.get(c.contactId) ?? null,
-          })),
-        },
+        total,
+        inPipeline:            { count: universeGroups.inPipeline.length,            contacts: universeGroups.inPipeline },
+        fairGame:              { count: universeGroups.fairGame.length,              contacts: universeGroups.fairGame },
+        notNow:                { count: universeGroups.notNow.length,                contacts: universeGroups.notNow },
+        notInterested:         { count: universeGroups.notInterested.length,         contacts: universeGroups.notInterested },
+        businessModelMismatch: { count: universeGroups.businessModelMismatch.length, contacts: universeGroups.businessModelMismatch },
       }
     })
   } catch (error: any) {

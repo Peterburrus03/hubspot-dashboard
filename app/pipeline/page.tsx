@@ -230,13 +230,14 @@ async function fetchAIContext(deals: DealItem[], actuals: PipelineActuals): Prom
     const u = gpRes.universe
     universeSection = `
 ADDRESSABLE UNIVERSE (${u.total} owner-contacts):
-- Interested: ${u.interested.count} (actively pursuing)
-- Fair Game: ${u.fairGame.count} (assigned owner, no disposition)
-- Not Now: ${u.notInterestedNow.count} (nurture bucket)
-- Not Interested: ${u.notInterestedAtAll.count} (do not contact)
+- In Pipeline: ${u.inPipeline.count} (active deal stage)
+- Fair Game: ${u.fairGame.count} (unresponsive or initial outreach)
+- Not Now: ${u.notNow.count} (too early / timing)
+- Not Interested: ${u.notInterested.count} (do not contact)
+- Biz Model Mismatch: ${u.businessModelMismatch.count} (financial · geographic · structural)
 
-TOP INTERESTED CONTACTS:
-${(u.interested.contacts as any[]).slice(0, 10).map((c: any) =>
+TOP IN-PIPELINE CONTACTS:
+${(u.inPipeline.contacts as any[]).slice(0, 10).map((c: any) =>
   `  ${c.name} | ${c.specialty ?? '—'} | ${c.ownerName}${c.dealStage ? ` | Deal: ${c.dealStage}` : ''}`
 ).join('\n')}`
   }

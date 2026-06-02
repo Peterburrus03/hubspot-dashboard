@@ -582,12 +582,16 @@ type ColumnContact = {
 
 const NURTURE_BUCKETS = [
   'Too Early / Timing',
-  'Not Interested',
-  'Model / Financial Mismatch',
   'Unresponsive',
-  'Geography / Strategic Hold',
-  'Complex Ownership',
+  'Not Interested',
+  'Business Model Mismatch',
 ] as const
+
+const BUCKET_ALIASES: Record<string, string> = {
+  'Model / Financial Mismatch': 'Business Model Mismatch',
+  'Geography / Strategic Hold': 'Business Model Mismatch',
+  'Complex Ownership': 'Business Model Mismatch',
+}
 
 function parseBucket(reason: string | null | undefined): { bucket: string; context: string } | null {
   if (!reason) return null
@@ -613,7 +617,8 @@ function groupByBucket(
   for (const c of sorted) {
     const parsed = parseBucket(getField(c))
     if (!parsed) { uncategorized.push(c); continue }
-    const key = NURTURE_BUCKETS.find(b => b === parsed.bucket) ?? parsed.bucket
+    const rawKey = NURTURE_BUCKETS.find(b => b === parsed.bucket) ?? parsed.bucket
+    const key = BUCKET_ALIASES[rawKey] ?? rawKey
     if (!bucketMap.has(key)) bucketMap.set(key, [])
     bucketMap.get(key)!.push(c)
   }
@@ -765,48 +770,48 @@ export default function FunnelPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
               <UniverseBucket
-                count={data.universe.interested.count}
-                label="Interested"
-                sublabel="Actively pursue"
-                colorClass="text-emerald-600"
-                borderClass="border-emerald-100"
-                contacts={data.universe.interested.contacts}
-                onSelectContact={setSelectedContact}
-              />
-              <UniverseBucket
-                count={data.universe.fairGame.count}
-                label="Fair Game"
-                sublabel="Has owner · no disposition"
-                colorClass="text-sky-600"
-                borderClass="border-sky-100"
-                contacts={data.universe.fairGame.contacts}
-                onSelectContact={setSelectedContact}
-              />
-              <UniverseBucket
-                count={data.universe.notInterestedNow.count}
-                label="Not Now"
-                sublabel="Nurture bucket"
-                colorClass="text-amber-600"
-                borderClass="border-amber-100"
-                contacts={data.universe.notInterestedNow.contacts}
-                onSelectContact={setSelectedContact}
-              />
-              <UniverseBucket
-                count={data.universe.notInterestedAtAll.count}
-                label="Not Interested"
-                sublabel="Do not contact"
-                colorClass="text-rose-600"
-                borderClass="border-rose-100"
-                contacts={data.universe.notInterestedAtAll.contacts}
-                onSelectContact={setSelectedContact}
-              />
-              <UniverseBucket
                 count={data.universe.inPipeline.count}
                 label="In Pipeline"
                 sublabel="NDA · LOI · Pre-LOI"
                 colorClass="text-violet-600"
                 borderClass="border-violet-100"
                 contacts={data.universe.inPipeline.contacts}
+                onSelectContact={setSelectedContact}
+              />
+              <UniverseBucket
+                count={data.universe.fairGame.count}
+                label="Fair Game"
+                sublabel="Unresponsive · initial outreach"
+                colorClass="text-sky-600"
+                borderClass="border-sky-100"
+                contacts={data.universe.fairGame.contacts}
+                onSelectContact={setSelectedContact}
+              />
+              <UniverseBucket
+                count={data.universe.notNow.count}
+                label="Not Now"
+                sublabel="Too early · timing"
+                colorClass="text-amber-600"
+                borderClass="border-amber-100"
+                contacts={data.universe.notNow.contacts}
+                onSelectContact={setSelectedContact}
+              />
+              <UniverseBucket
+                count={data.universe.notInterested.count}
+                label="Not Interested"
+                sublabel="Do not contact"
+                colorClass="text-rose-600"
+                borderClass="border-rose-100"
+                contacts={data.universe.notInterested.contacts}
+                onSelectContact={setSelectedContact}
+              />
+              <UniverseBucket
+                count={data.universe.businessModelMismatch.count}
+                label="Biz Model Mismatch"
+                sublabel="Financial · geographic · structural"
+                colorClass="text-slate-600"
+                borderClass="border-slate-100"
+                contacts={data.universe.businessModelMismatch.contacts}
                 onSelectContact={setSelectedContact}
               />
             </div>
