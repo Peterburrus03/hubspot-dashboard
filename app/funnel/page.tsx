@@ -686,6 +686,7 @@ export default function FunnelPage() {
     staleTier1s: 'asc', openLeads: 'asc', closedNurture: 'asc',
   })
   const [nurtureFilterOn, setNurtureFilterOn] = useState(true)
+  const [tooEarlyDays, setTooEarlyDays] = useState<number | null>(null)
 
   const sortedList = (list: any[], dir: 'asc' | 'desc') =>
     [...list].sort((a, b) => {
@@ -857,15 +858,36 @@ export default function FunnelPage() {
                     <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">All clear!</p>
                     </div>
-                  ) : groupByBucket(list, dir).map(({ bucket, contacts }) => (
+                  ) : groupByBucket(list, dir).map(({ bucket, contacts }) => {
+                    const isTooEarly = bucket === 'Too Early / Timing'
+                    const cutoff = tooEarlyDays ? Date.now() - tooEarlyDays * 86400000 : null
+                    const filtered = isTooEarly && cutoff
+                      ? contacts.filter((c: any) => !c.lastActivity || new Date(c.lastActivity).getTime() < cutoff)
+                      : contacts
+                    return (
                     <div key={bucket}>
                       <div className="flex items-center gap-2 mb-2 px-1">
                         <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{bucket}</span>
-                        <span className="text-[10px] font-black text-rose-300 bg-rose-50 rounded-full px-1.5 py-0.5">{contacts.length}</span>
+                        <span className="text-[10px] font-black text-rose-300 bg-rose-50 rounded-full px-1.5 py-0.5">
+                          {isTooEarly && cutoff ? `${filtered.length} / ${contacts.length}` : contacts.length}
+                        </span>
                         <div className="flex-1 h-px bg-rose-100" />
                       </div>
+                      {isTooEarly && (
+                        <div className="flex items-center gap-1 mb-3 flex-wrap">
+                          {([null, 30, 60, 90] as (number | null)[]).map(d => (
+                            <button
+                              key={d ?? 'all'}
+                              onClick={() => setTooEarlyDays(d)}
+                              className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest transition-all ${tooEarlyDays === d ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                            >
+                              {d ? `${d}d+` : 'All'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <div className="space-y-3">
-                        {contacts.map((c: any) => (
+                        {filtered.map((c: any) => (
                           <ContactCard
                             key={c.contactId}
                             c={c}
@@ -876,7 +898,8 @@ export default function FunnelPage() {
                         ))}
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </section>
             )
