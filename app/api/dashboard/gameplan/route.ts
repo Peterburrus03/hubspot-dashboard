@@ -278,18 +278,19 @@ export async function GET(request: NextRequest) {
       return (idx === -1 ? reason : reason.slice(0, idx)).trim()
     }
 
-    type UniverseKey = 'inPipeline' | 'fairGame' | 'notNow' | 'notInterested' | 'businessModelMismatch'
+    type UniverseKey = 'inPipeline' | 'fairGame' | 'notNow' | 'notInterested' | 'businessModelMismatch' | 'other'
     function normalizeBucket(bucket: string | null): UniverseKey {
-      if (!bucket || bucket === 'Unresponsive') return 'fairGame'
+      if (!bucket) return 'other'
+      if (bucket === 'Unresponsive') return 'fairGame'
       if (bucket === 'Too Early / Timing') return 'notNow'
       if (bucket === 'Not Interested') return 'notInterested'
       if (BIZ_MISMATCH_BUCKETS.includes(bucket) || bucket === 'Business Model Mismatch') return 'businessModelMismatch'
-      return 'fairGame'
+      return 'other'
     }
 
     type UniverseContact = { contactId: string; name: string; specialty: string | null; ownerName: string; dealStage?: string | null }
     const universeGroups: Record<UniverseKey, UniverseContact[]> = {
-      inPipeline: [], fairGame: [], notNow: [], notInterested: [], businessModelMismatch: [],
+      inPipeline: [], fairGame: [], notNow: [], notInterested: [], businessModelMismatch: [], other: [],
     }
 
     for (const c of inPipelineContacts) {
@@ -331,6 +332,7 @@ export async function GET(request: NextRequest) {
         notNow:                { count: universeGroups.notNow.length,                contacts: universeGroups.notNow },
         notInterested:         { count: universeGroups.notInterested.length,         contacts: universeGroups.notInterested },
         businessModelMismatch: { count: universeGroups.businessModelMismatch.length, contacts: universeGroups.businessModelMismatch },
+        other:                 { count: universeGroups.other.length,                 contacts: universeGroups.other },
       }
     })
   } catch (error: any) {
