@@ -80,6 +80,8 @@ export async function GET(request: NextRequest) {
     const OPEN_LEAD_STATUSES = ['OPEN', 'NEW', 'CONNECTED']
     const CLOSED_NURTURE_STATUSES = ['Closed and Nurturing']
     const ACTIVE_PIPELINE_STAGES = [
+      'Engaged',
+      'Presented to Growth Committee',
       'Data Collection (including NDA)',
       'LOI Extended',
       'LOI Signed/Diligence',
