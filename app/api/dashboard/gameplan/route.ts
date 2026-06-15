@@ -49,6 +49,26 @@ export async function GET(request: NextRequest) {
       closedDealRows.map(d => d.contactId).filter(Boolean) as string[]
     ))
 
+    // Contacts with an active pipeline deal — excluded from every funnel column so
+    // they surface only in the universe's "In Pipeline" bucket and are never
+    // double-counted (e.g. a pipeline contact still tagged 'Closed and Nurturing'
+    // would otherwise also land in the "Other" bucket).
+    const ACTIVE_PIPELINE_STAGES = [
+      'Engaged',
+      'Presented to Growth Committee',
+      'Data Collection (including NDA)',
+      'LOI Extended',
+      'LOI Signed/Diligence',
+      'Pre-LOI Analysis',
+    ]
+    const pipelineDealRows = await prisma.deal.findMany({
+      where: { stage: { in: ACTIVE_PIPELINE_STAGES } },
+      select: { contactId: true },
+    })
+    const pipelineContactIds = Array.from(new Set(
+      pipelineDealRows.map(d => d.contactId).filter(Boolean) as string[]
+    ))
+
     const baseWhere: any = {
       ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
       ...(tier1Only ? { tier1: true } : {}),
@@ -61,10 +81,13 @@ export async function GET(request: NextRequest) {
       ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
     }
 
-    // Base where without lead status restriction — used for fixed status columns
+    // Base where without lead status restriction — used for fixed status columns.
+    // Active-pipeline contacts are excluded here too so they can't be re-counted in
+    // any column bucket; they belong solely to the universe's "In Pipeline" bucket.
     const columnExcludeIds = Array.from(new Set([
       ...(dealContactIdExclude ?? []),
       ...closedDealContactIds,
+      ...pipelineContactIds,
     ]))
     const baseWhereNoStatus: any = {
       ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
@@ -79,43 +102,15 @@ export async function GET(request: NextRequest) {
     const HIDDEN_STATUSES = ['UNSUBSCRIBED', 'UNQUALIFIED', 'Disqualified']
     const OPEN_LEAD_STATUSES = ['OPEN', 'NEW', 'CONNECTED']
     const CLOSED_NURTURE_STATUSES = ['Closed and Nurturing']
-    const ACTIVE_PIPELINE_STAGES = [
-      'Engaged',
-      'Presented to Growth Committee',
-      'Data Collection (including NDA)',
-      'LOI Extended',
-      'LOI Signed/Diligence',
-      'Pre-LOI Analysis',
-    ]
 
     const owners = await prisma.owner.findMany()
     const ownerMap = new Map(owners.map(o => [o.ownerId, `${o.firstName} ${o.lastName}`]))
 
-    // Contacts with an active pipeline deal — excluded from Open Deal column
-    const pipelineDealRows = await prisma.deal.findMany({
-      where: { stage: { in: ACTIVE_PIPELINE_STAGES } },
-      select: { contactId: true },
-    })
-    const pipelineContactIds = Array.from(new Set(
-      pipelineDealRows.map(d => d.contactId).filter(Boolean) as string[]
-    ))
-
-    // Open Deal column excludes both terminally-closed deals AND active pipeline contacts
-    const openDealExcludeIds = Array.from(new Set([...columnExcludeIds, ...pipelineContactIds]))
-    const baseWhereOpenDeal: any = {
-      ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
-      ...(specialties.length > 0 ? { specialty: { in: specialties } } : {}),
-      professionalStatus: 'Owner',
-      ...companyTypeFilter,
-      ...locationWhere,
-      ...(openDealExcludeIds.length > 0 ? { NOT: { contactId: { in: openDealExcludeIds } } } : {}),
-      ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
-    }
-
-    // Fetch each column's contacts independently so status columns always show all contacts
+    // Fetch each column's contacts independently so status columns always show all contacts.
+    // All three columns use baseWhereNoStatus, which now excludes active-pipeline contacts.
     const [tier1Contacts, openLeadContacts, closedNurtureContacts] = await Promise.all([
       prisma.contact.findMany({
-        where: { ...baseWhereOpenDeal, leadStatus: 'OPEN_DEAL' },
+        where: { ...baseWhereNoStatus, leadStatus: 'OPEN_DEAL' },
       }),
       prisma.contact.findMany({
         where: { ...baseWhereNoStatus, leadStatus: { in: OPEN_LEAD_STATUSES } },
