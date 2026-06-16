@@ -26,4 +26,11 @@ export const CAMPAIGNS: Campaign[] = [
     startDate: '2026-05-18',
     endDate: '2026-06-06',
   },
+  {
+    id: 'new-website-2026-06',
+    label: '11 - New Website',
+    tag: '11',
+    startDate: '2026-06-14',
+    endDate: '2026-07-04',
+  },
 ]

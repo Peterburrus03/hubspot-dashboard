@@ -40,6 +40,7 @@ export default function SummaryStats({ summary, loading, taskCategories = [] }: 
     'Other': 'gray',
     'Uncategorized': 'gray',
     '10 - Greeting Card': 'rose',
+    '11 - New Website': 'purple',
   }
 
   return (
