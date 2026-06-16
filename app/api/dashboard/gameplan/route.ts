@@ -99,6 +99,19 @@ export async function GET(request: NextRequest) {
       ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
     }
 
+    // Base where for the In Pipeline universe block. Pipeline membership is defined by
+    // the deal, not the contact's status — so unlike the funnel columns this intentionally
+    // omits professionalStatus / leadStatus / tier1 restrictions. Otherwise pipeline
+    // contacts who aren't tagged 'Owner' (e.g. 'Co-Owner' or null) would be dropped here
+    // AND excluded from every column, vanishing from the universe entirely.
+    const baseWherePipeline: any = {
+      ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
+      ...(specialties.length > 0 ? { specialty: { in: specialties } } : {}),
+      ...companyTypeFilter,
+      ...locationWhere,
+      ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
+    }
+
     const HIDDEN_STATUSES = ['UNSUBSCRIBED', 'UNQUALIFIED', 'Disqualified']
     const OPEN_LEAD_STATUSES = ['OPEN', 'NEW', 'CONNECTED']
     const CLOSED_NURTURE_STATUSES = ['Closed and Nurturing']
@@ -255,7 +268,7 @@ export async function GET(request: NextRequest) {
 
     // In-pipeline contacts for the universe card (enriched with deal stage)
     const inPipelineContacts = await prisma.contact.findMany({
-      where: { ...baseWhere, contactId: { in: pipelineContactIds } },
+      where: { ...baseWherePipeline, contactId: { in: pipelineContactIds } },
       select: { contactId: true, firstName: true, lastName: true, specialty: true, ownerId: true, leadStatus: true },
     })
     const inPipelineDeals = await prisma.deal.findMany({
