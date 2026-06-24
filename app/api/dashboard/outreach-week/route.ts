@@ -29,6 +29,22 @@ export async function GET() {
     const assignments = await prisma.outreachWeekAssignment.findMany({ where: { weekStart } })
     const contactIds = assignments.map(a => a.contactId)
 
+    // A campaign "touch" is a completed `tag` task, or — for email-channel
+    // campaigns — an outbound email matching the campaign subject (no task).
+    const activeCampaign = getActiveCampaign()
+    const campaignTouchWhere =
+      activeCampaign?.channel === 'email'
+        ? {
+            type: 'EMAIL',
+            emailDirection: 'EMAIL',
+            emailSubject: activeCampaign.subjectMatch ?? '',
+          }
+        : {
+            type: 'TASK',
+            taskStatus: 'COMPLETED',
+            body: { startsWith: activeCampaign?.tag ?? '09' },
+          }
+
     const [contacts, owners, latestEngagements, engagementCounts, completions, campaignTouches] = await Promise.all([
       prisma.contact.findMany({
         where: { contactId: { in: contactIds } },
@@ -55,9 +71,7 @@ export async function GET() {
       prisma.outreachCompletion.findMany({ where: { weekStart } }),
       prisma.engagement.findMany({
         where: {
-          type: 'TASK',
-          taskStatus: 'COMPLETED',
-          body: { startsWith: getActiveCampaign()?.tag ?? '09' },
+          ...campaignTouchWhere,
           contactId: { in: contactIds },
           timestamp: { gte: weekStart, lt: cycleEnds },
         },

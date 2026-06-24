@@ -4,6 +4,12 @@ export type Campaign = {
   tag: string
   startDate: string
   endDate: string
+  // How a "touch" is recorded for this campaign.
+  // 'task' (default): completed HubSpot task whose body starts with `tag`.
+  // 'email': outbound email matching `subjectMatch` (no task needed — avoids
+  // double-counting since the email is already synced as activity).
+  channel?: 'task' | 'email'
+  subjectMatch?: string
 }
 
 export function getActiveCampaign(date: Date = new Date()): Campaign | undefined {
@@ -32,5 +38,7 @@ export const CAMPAIGNS: Campaign[] = [
     tag: '11',
     startDate: '2026-06-14',
     endDate: '2026-07-04',
+    channel: 'email',
+    subjectMatch: 'Big News from AOSN: A New Digital Home for Specialty Care',
   },
 ]

@@ -49,13 +49,22 @@ export async function GET(request: NextRequest) {
         const end = new Date(camp.endDate + 'T23:59:59.999Z')
         const tagPattern = camp.tag + '%'
 
+        // Email-channel campaigns count outbound sends matching the subject
+        // (no task is created, so we read the email activity directly).
+        // Task-channel campaigns (default) count completed `tag` tasks.
+        const channelClause = camp.channel === 'email'
+          ? Prisma.sql`e.type = 'EMAIL'
+            AND e."emailDirection" = 'EMAIL'
+            AND e."emailSubject" = ${camp.subjectMatch ?? ''}`
+          : Prisma.sql`e.type = 'TASK'
+            AND e."taskStatus" = 'COMPLETED'
+            AND e.body LIKE ${tagPattern}`
+
         const rows = await prisma.$queryRaw<{ owner_id: string | null; cnt: bigint }[]>(Prisma.sql`
           SELECT e."ownerId" AS owner_id, COUNT(*) AS cnt
           FROM engagements e
           LEFT JOIN contacts c ON c."contactId" = e."contactId"
-          WHERE e.type = 'TASK'
-            AND e."taskStatus" = 'COMPLETED'
-            AND e.body LIKE ${tagPattern}
+          WHERE ${channelClause}
             AND e.timestamp >= ${start}
             AND e.timestamp <= ${end}
             ${ownerFilter}
