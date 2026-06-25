@@ -91,9 +91,12 @@ async function fetchDealCompanyAssociations(ids: string[]): Promise<Map<string, 
   return map
 }
 
-async function fetchDealContactAssociations(ids: string[]): Promise<Map<string, string>> {
+// Returns ALL contacts associated with each deal. A deal frequently associates more
+// than one contact (the practice owner plus staff/referrers), so callers must pick the
+// relevant one rather than assuming the first — see resolvePrimaryContacts.
+async function fetchDealContactAssociations(ids: string[]): Promise<Map<string, string[]>> {
   const client = getClient()
-  const map = new Map<string, string>()
+  const map = new Map<string, string[]>()
   const batchSize = 100
 
   for (let i = 0; i < ids.length; i += batchSize) {
@@ -111,7 +114,7 @@ async function fetchDealContactAssociations(ids: string[]): Promise<Map<string, 
 
       for (const result of data.results || []) {
         if (result.to?.length > 0) {
-          map.set(String(result.from.id), String(result.to[0].toObjectId))
+          map.set(String(result.from.id), result.to.map((t: any) => String(t.toObjectId)))
         }
       }
     } catch (err: any) {
@@ -121,6 +124,34 @@ async function fetchDealContactAssociations(ids: string[]): Promise<Map<string, 
   }
 
   return map
+}
+
+// Pick the most relevant associated contact for each deal. Deals often associate multiple
+// contacts (doctor + staff/referrers); prefer the practice Owner so deal-level fields like
+// closed_nurture_reasons land on the right person. Falls back to any contact we sync, then
+// to the first association (the previous behavior) when nothing better is known.
+async function resolvePrimaryContacts(dealContacts: Map<string, string[]>): Promise<Map<string, string>> {
+  const allIds = Array.from(new Set(Array.from(dealContacts.values()).flat()))
+  const [owners, known] = await Promise.all([
+    prisma.contact.findMany({
+      where: { contactId: { in: allIds }, professionalStatus: 'Owner' },
+      select: { contactId: true },
+    }),
+    prisma.contact.findMany({
+      where: { contactId: { in: allIds } },
+      select: { contactId: true },
+    }),
+  ])
+  const ownerSet = new Set(owners.map((c) => c.contactId))
+  const knownSet = new Set(known.map((c) => c.contactId))
+
+  const resolved = new Map<string, string>()
+  for (const [dealId, contactIds] of dealContacts) {
+    const owner = contactIds.find((id) => ownerSet.has(id))
+    const knownContact = contactIds.find((id) => knownSet.has(id))
+    resolved.set(dealId, owner ?? knownContact ?? contactIds[0])
+  }
+  return resolved
 }
 
 // Transform HubSpot deal to internal format
@@ -482,11 +513,12 @@ export async function getDeals(forceRefresh = false): Promise<Deal[]> {
   const hubspotDeals = await fetchAllDealsFromHubSpot(stageEnteredProps)
   
   const dealIds = hubspotDeals.map((d) => d.id)
-  const [compMap, contMap] = await Promise.all([
+  const [compMap, contMapAll] = await Promise.all([
     fetchDealCompanyAssociations(dealIds),
     fetchDealContactAssociations(dealIds),
   ])
-  
+  const contMap = await resolvePrimaryContacts(contMapAll)
+
   const deals = hubspotDeals.map((d) => transformDeal(d, stageMap, compMap.get(d.id), contMap.get(d.id)))
 
   // Sync to database
