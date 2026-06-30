@@ -1393,5 +1393,41 @@
     "clinic": "Dr. Jana Korsch-Dismukes",
     "city": "Birmingham",
     "state": "AL"
+  },
+  {
+    "hubspotName": "Stephanie Holloway (Niemic)",
+    "csvName": "Veterinary Dental Specialties & Oral Surgery",
+    "latitude": 30.165,
+    "longitude": -81.7135,
+    "clinic": "Veterinary Dental Specialties & Oral Surgery",
+    "city": "Orange Park",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Kristi Schmidt",
+    "csvName": "Kristiane Schmidt",
+    "latitude": 35.125113,
+    "longitude": -120.577015,
+    "clinic": "Veterinary Ophthalmology Services, Inc.",
+    "city": "Arroyo Grande",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "A. Elizabeth (Betsy) Hershey",
+    "csvName": "Betsy Hershey",
+    "latitude": 33.475181,
+    "longitude": -112.012582,
+    "clinic": "Integrative Vet. Oncology, PC",
+    "city": "Phoenix",
+    "state": "AZ"
+  },
+  {
+    "hubspotName": "Jose Armando Villamil",
+    "csvName": "J Armando Villamil",
+    "latitude": 25.731781,
+    "longitude": -80.330888,
+    "clinic": "Pet Cancer Group",
+    "city": "Miami",
+    "state": "FL"
   }
 ]
