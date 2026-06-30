@@ -7,21 +7,9 @@ import FilterBar, { FilterState } from '@/components/filters/FilterBar'
 import ContactModal, { type ModalContact } from '@/components/ui/ContactModal'
 import InTownSection from '@/components/map/InTownSection'
 import type { MapContact, AdgLocation } from '@/components/ui/LeafletMap'
+import { UNIVERSE_COLORS as DISPOSITION_COLORS, UNIVERSE_LABELS as DISPOSITION_LABELS, UNIVERSE_KEYS } from '@/lib/universe'
 
 const LeafletMap = dynamic(() => import('@/components/ui/LeafletMap'), { ssr: false })
-
-const DISPOSITION_COLORS: Record<string, string> = {
-  interested:    '#16a34a',
-  fairGame:      '#0284c7',
-  notNow:        '#d97706',
-  notInterested: '#dc2626',
-}
-const DISPOSITION_LABELS: Record<string, string> = {
-  interested:    'Interested',
-  fairGame:      'Fair Game',
-  notNow:        'Not Now',
-  notInterested: 'Not Interested',
-}
 
 type MapData = {
   matched: MapContact[]
@@ -37,7 +25,7 @@ export default function MapPage() {
   const [data, setData] = useState<MapData | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeDispositions, setActiveDispositions] = useState<Set<string>>(
-    new Set(['interested', 'fairGame', 'notNow', 'notInterested'])
+    new Set(UNIVERSE_KEYS)
   )
   const [showAdg, setShowAdg] = useState(true)
 

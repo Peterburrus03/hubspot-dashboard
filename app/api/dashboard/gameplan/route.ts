@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { subDays, subMonths } from 'date-fns'
+import {
+  ACTIVE_PIPELINE_STAGES,
+  TERMINAL_DEAL_STAGES,
+  OPEN_LEAD_STATUSES,
+  CLOSED_NURTURE_STATUSES,
+  parseBucketName,
+  normalizeBucket,
+  type UniverseKey,
+} from '@/lib/universe'
 
 const CANADIAN_PROVINCES = ['AB', 'ON', 'NB', 'MB', 'BC', 'QC', 'SK', 'PE', 'NL', 'NS',
                              'ab', 'on', 'nb', 'mb', 'bc', 'qc', 'sk', 'pe', 'nl', 'ns']
@@ -40,7 +49,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Always exclude contacts whose actual deal stage is terminally closed
-    const TERMINAL_DEAL_STAGES = ['Closed Won', 'Closed Lost', 'Closed LOST', 'Closed PASS']
     const closedDealRows = await prisma.deal.findMany({
       where: { stage: { in: TERMINAL_DEAL_STAGES } },
       select: { contactId: true },
@@ -53,14 +61,6 @@ export async function GET(request: NextRequest) {
     // they surface only in the universe's "In Pipeline" bucket and are never
     // double-counted (e.g. a pipeline contact still tagged 'Closed and Nurturing'
     // would otherwise also land in the "Other" bucket).
-    const ACTIVE_PIPELINE_STAGES = [
-      'Engaged',
-      'Presented to Growth Committee',
-      'Data Collection (including NDA)',
-      'LOI Extended',
-      'LOI Signed/Diligence',
-      'Pre-LOI Analysis',
-    ]
     const pipelineDealRows = await prisma.deal.findMany({
       where: { stage: { in: ACTIVE_PIPELINE_STAGES } },
       select: { contactId: true },
@@ -111,10 +111,6 @@ export async function GET(request: NextRequest) {
       ...locationWhere,
       ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
     }
-
-    const HIDDEN_STATUSES = ['UNSUBSCRIBED', 'UNQUALIFIED', 'Disqualified']
-    const OPEN_LEAD_STATUSES = ['OPEN', 'NEW', 'CONNECTED']
-    const CLOSED_NURTURE_STATUSES = ['Closed and Nurturing']
 
     const owners = await prisma.owner.findMany()
     const ownerMap = new Map(owners.map(o => [o.ownerId, `${o.firstName} ${o.lastName}`]))
@@ -278,24 +274,6 @@ export async function GET(request: NextRequest) {
     const pipelineDealStageMap = new Map(inPipelineDeals.map(d => [d.contactId, d.stage]))
 
     // Addressable universe — built from column data so counts always match what's displayed
-    const BIZ_MISMATCH_BUCKETS = ['Model / Financial Mismatch', 'Geography / Strategic Hold', 'Complex Ownership']
-
-    function parseBucketName(reason: string | null | undefined): string | null {
-      if (!reason) return null
-      const idx = reason.indexOf(' — ')
-      return (idx === -1 ? reason : reason.slice(0, idx)).trim()
-    }
-
-    type UniverseKey = 'inPipeline' | 'fairGame' | 'notNow' | 'notInterested' | 'businessModelMismatch' | 'other'
-    function normalizeBucket(bucket: string | null): UniverseKey {
-      if (!bucket) return 'other'
-      if (bucket === 'Unresponsive') return 'fairGame'
-      if (bucket === 'Too Early / Timing') return 'notNow'
-      if (bucket === 'Not Interested') return 'notInterested'
-      if (BIZ_MISMATCH_BUCKETS.includes(bucket) || bucket === 'Business Model Mismatch') return 'businessModelMismatch'
-      return 'other'
-    }
-
     type UniverseContact = { contactId: string; name: string; specialty: string | null; ownerName: string; dealStage?: string | null }
     const universeGroups: Record<UniverseKey, UniverseContact[]> = {
       inPipeline: [], fairGame: [], notNow: [], notInterested: [], businessModelMismatch: [], other: [],

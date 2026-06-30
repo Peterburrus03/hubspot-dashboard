@@ -5,6 +5,7 @@ import { MapPin, Search, X, Check, Clock, ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import type { MapContact } from '@/components/ui/LeafletMap'
 import type { ModalContact } from '@/components/ui/ContactModal'
+import { UNIVERSE_COLORS as DISPOSITION_COLORS, UNIVERSE_LABELS as DISPOSITION_LABELS } from '@/lib/universe'
 
 type CheckInRecord = {
   timestamp: string
@@ -19,18 +20,6 @@ type CheckInStats = {
   tasks: CheckInRecord[]
 }
 
-const DISPOSITION_COLORS: Record<string, string> = {
-  interested:    '#16a34a',
-  fairGame:      '#0284c7',
-  notNow:        '#d97706',
-  notInterested: '#dc2626',
-}
-const DISPOSITION_LABELS: Record<string, string> = {
-  interested:    'Interested',
-  fairGame:      'Fair Game',
-  notNow:        'Not Now',
-  notInterested: 'Not Interested',
-}
 
 export default function InTownSection({ matched, onContactClick }: {
   matched: MapContact[]

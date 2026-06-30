@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import {
+  ACTIVE_PIPELINE_STAGES,
+  TERMINAL_DEAL_STAGES,
+  classifyContact,
+} from '@/lib/universe'
 
 const CANADIAN_PROVINCES = ['AB', 'ON', 'NB', 'MB', 'BC', 'QC', 'SK', 'PE', 'NL', 'NS',
                              'ab', 'on', 'nb', 'mb', 'bc', 'qc', 'sk', 'pe', 'nl', 'ns']
@@ -40,10 +45,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const ownerIds = searchParams.get('ownerIds')?.split(',').filter(Boolean) ?? []
-    const tier1Only = searchParams.get('tier1Only') === 'true'
+    // Note: tier1Only and leadStatuses are intentionally NOT read here. The map universe
+    // mirrors the Game Plan universe, which ignores both (tier1 is shown via marker size,
+    // and bucketing supersedes a raw leadStatus filter).
     const specialties = searchParams.get('specialties')?.split(',').filter(Boolean) ?? []
     const companyTypes = searchParams.get('companyTypes')?.split(',').filter(Boolean) ?? []
-    const leadStatuses = searchParams.get('leadStatuses')?.split(',').filter(Boolean) ?? []
     const dealStatuses = searchParams.get('dealStatuses')?.split(',').filter(Boolean) ?? []
     const locationFilter = searchParams.get('locationFilter') ?? 'all'
     const includeRemoved = searchParams.get('includeRemoved') !== 'false'
@@ -64,21 +70,44 @@ export async function GET(request: NextRequest) {
       dealContactIdExclude = matchingContacts.map(c => c.contactId).filter(Boolean) as string[]
     }
 
-    const baseWhere: any = {
-      ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
-      ...(tier1Only ? { tier1: true } : {}),
-      ...(specialties.length > 0 ? { specialty: { in: specialties } } : {}),
-      ...(leadStatuses.length > 0 ? { leadStatus: { in: leadStatuses } } : {}),
+    // Active-pipeline and terminally-closed deal membership drive bucketing. Fetched
+    // globally (NOT scoped to the owner set) because the universe includes pipeline
+    // contacts regardless of professionalStatus — see the OR clause below.
+    const [pipelineDealRows, terminalDealRows] = await Promise.all([
+      prisma.deal.findMany({ where: { stage: { in: ACTIVE_PIPELINE_STAGES } }, select: { contactId: true } }),
+      prisma.deal.findMany({ where: { stage: { in: TERMINAL_DEAL_STAGES } }, select: { contactId: true } }),
+    ])
+    const pipelineContactIdList = Array.from(new Set(pipelineDealRows.map(d => d.contactId).filter(Boolean) as string[]))
+    const pipelineContactIds = new Set(pipelineContactIdList)
+    const terminalContactIds = new Set(terminalDealRows.map(d => d.contactId).filter(Boolean) as string[])
+
+    // Universe membership mirrors the Game Plan exactly: owner contacts (the funnel
+    // columns) OR any active-pipeline contact regardless of professionalStatus. Like the
+    // Game Plan universe, this intentionally ignores the tier1Only and leadStatuses
+    // filters — the bucket is already derived from leadStatus / deal stage.
+    // The dealStatuses exclude applies only to the owner/column branch — the Game Plan's
+    // In Pipeline bucket never applies it, so pipeline contacts are never dropped by it.
+    const ownerBranch: any = {
       professionalStatus: 'Owner',
+      ...(dealContactIdExclude ? { NOT: { contactId: { in: dealContactIdExclude } } } : {}),
+    }
+    const andClauses: any[] = [
+      { OR: [ownerBranch, { contactId: { in: pipelineContactIdList } }] },
+    ]
+    if (!includeRemoved) {
+      andClauses.push({ OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] })
+    }
+    const universeFilter: any = {
+      ...(ownerIds.length > 0 ? { ownerId: { in: ownerIds } } : {}),
+      ...(specialties.length > 0 ? { specialty: { in: specialties } } : {}),
       ...companyTypeFilter,
       ...locationWhere,
-      ...(dealContactIdExclude ? { NOT: { contactId: { in: dealContactIdExclude } } } : {}),
-      ...(!includeRemoved ? { OR: [{ leadStatus: null }, { leadStatus: { not: 'Requested Removal From List' } }] } : {}),
+      AND: andClauses,
     }
 
     const [contacts, owners] = await Promise.all([
       prisma.contact.findMany({
-        where: baseWhere,
+        where: universeFilter,
         select: {
           contactId: true,
           firstName: true,
@@ -89,15 +118,25 @@ export async function GET(request: NextRequest) {
           tier1: true,
           city: true,
           state: true,
-          interestedResponseDate: true,
-          notInterestedNowResponseDate: true,
-          notInterestedAtAllResponseDate: true,
+          notes: true,
         },
       }),
       prisma.owner.findMany(),
     ])
 
     const ownerMap = new Map(owners.map(o => [o.ownerId, `${o.firstName} ${o.lastName}`]))
+
+    // closedNurtureReason (used to bucket OPEN_DEAL contacts), scoped to fetched contacts.
+    const contactIds = contacts.map(c => c.contactId).filter(Boolean) as string[]
+    const nurtureReasonRows = await prisma.deal.findMany({
+      where: { contactId: { in: contactIds }, closedNurtureReason: { not: null } },
+      select: { contactId: true, closedNurtureReason: true },
+    })
+    const nurtureReasonMap = new Map(
+      nurtureReasonRows
+        .filter(r => r.contactId)
+        .map(r => [r.contactId as string, r.closedNurtureReason])
+    )
 
     // Parse CSV and build name lookup
     const csvPath = join(process.cwd(), 'veterinary_specialists_geocoded.csv')
@@ -132,14 +171,21 @@ export async function GET(request: NextRequest) {
     const unmatched: any[] = []
 
     for (const contact of contacts) {
+      // Bucket the contact exactly as the Game Plan does. Contacts outside the
+      // addressable universe (terminally closed deals, or lead statuses that map to
+      // no column) classify to null and are dropped from the map entirely.
+      const disposition = classifyContact({
+        leadStatus: contact.leadStatus,
+        isInPipeline: pipelineContactIds.has(contact.contactId),
+        hasTerminalDeal: terminalContactIds.has(contact.contactId),
+        closedNurtureReason: nurtureReasonMap.get(contact.contactId),
+        notes: contact.notes,
+      })
+      if (!disposition) continue
+
       const fullName = `${contact.firstName ?? ''} ${contact.lastName ?? ''}`.trim()
       const key = normalizeName(fullName)
       const csvRow = csvByName.get(key)
-
-      const disposition = contact.interestedResponseDate ? 'interested'
-        : contact.notInterestedNowResponseDate ? 'notNow'
-        : contact.notInterestedAtAllResponseDate ? 'notInterested'
-        : 'fairGame'
 
       const base = {
         contactId: contact.contactId,
@@ -198,7 +244,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       matched,
       unmatched,
-      total: contacts.length,
+      // total reflects the addressable universe (classified contacts only), so it
+      // matches the Game Plan universe total rather than the raw contact count.
+      total: matched.length + unmatched.length,
       matchedCount: matched.length,
       unmatchedCount: unmatched.length,
       adgLocations,

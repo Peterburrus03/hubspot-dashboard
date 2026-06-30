@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { UNIVERSE_COLORS as DISPOSITION_COLORS, UNIVERSE_LABELS as DISPOSITION_LABELS, type UniverseKey } from '@/lib/universe'
 
 export type AdgLocation = {
   name: string
@@ -29,21 +30,7 @@ export type MapContact = {
   market: string | null
   state: string | null
   practiceTag: string | null
-  disposition: 'interested' | 'fairGame' | 'notNow' | 'notInterested'
-}
-
-const DISPOSITION_COLORS: Record<string, string> = {
-  interested:    '#16a34a',
-  fairGame:      '#0284c7',
-  notNow:        '#d97706',
-  notInterested: '#dc2626',
-}
-
-const DISPOSITION_LABELS: Record<string, string> = {
-  interested:    'Interested',
-  fairGame:      'Fair Game',
-  notNow:        'Not Now',
-  notInterested: 'Not Interested',
+  disposition: UniverseKey
 }
 
 // Child component — uses useMap() which only works inside MapContainer

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Phone, Mail, FileText, CalendarDays, Tablet } from 'lucide-react'
 import { format } from 'date-fns'
+import { UNIVERSE_COLORS as DISPOSITION_COLORS, UNIVERSE_LABELS as DISPOSITION_LABELS } from '@/lib/universe'
 
 function stripHtml(html: string | null | undefined): string {
   if (!html) return ''
@@ -43,19 +44,6 @@ const TIMELINE_FILTERS = [
   { label: '1yr',  days: 365 },
   { label: 'All',  days: null },
 ]
-
-const DISPOSITION_COLORS: Record<string, string> = {
-  interested:      '#16a34a',
-  fairGame:        '#0284c7',
-  notNow:          '#d97706',
-  notInterested:   '#dc2626',
-}
-const DISPOSITION_LABELS: Record<string, string> = {
-  interested:      'Interested',
-  fairGame:        'Fair Game',
-  notNow:          'Not Now',
-  notInterested:   'Not Interested',
-}
 
 export type ModalContact = {
   contactId: string
