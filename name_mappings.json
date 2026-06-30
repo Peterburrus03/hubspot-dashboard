@@ -1429,5 +1429,41 @@
     "clinic": "Pet Cancer Group",
     "city": "Miami",
     "state": "FL"
+  },
+  {
+    "hubspotName": "Erica Buchanan",
+    "csvName": "Erica Buchanan",
+    "latitude": 38.9959468,
+    "longitude": -76.5384444,
+    "clinic": null,
+    "city": "Annapolis",
+    "state": "MD"
+  },
+  {
+    "hubspotName": "Ian Holsworth",
+    "csvName": "Ian Holsworth",
+    "latitude": 34.2579657,
+    "longitude": -119.2265538,
+    "clinic": null,
+    "city": "Ventura",
+    "state": "CA"
+  },
+  {
+    "hubspotName": "Kelli Weaver",
+    "csvName": "Gulfstream Veterinary Specialty Services",
+    "latitude": 27.950575,
+    "longitude": -82.457178,
+    "clinic": "Gulfstream Veterinary Specialty Services (approx. Tampa)",
+    "city": "Tampa",
+    "state": "FL"
+  },
+  {
+    "hubspotName": "Rachel Venable",
+    "csvName": "Pet Cancer Care Consulting",
+    "latitude": 33.248472,
+    "longitude": -111.634331,
+    "clinic": "Pet Cancer Care Consulting (approx. Queen Creek)",
+    "city": "Queen Creek",
+    "state": "AZ"
   }
 ]
