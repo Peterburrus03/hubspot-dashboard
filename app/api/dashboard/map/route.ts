@@ -41,6 +41,14 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim()
 }
 
+// First + last token of a normalized name (drops middle names/initials). Used as a
+// fallback join key: HubSpot stores "First Last" while the geocoded CSV often carries a
+// middle initial ("First M. Last"), which breaks the exact full-name match.
+function firstLastKey(name: string): string | null {
+  const tokens = normalizeName(name).split(' ').filter(Boolean)
+  return tokens.length < 2 ? null : `${tokens[0]} ${tokens[tokens.length - 1]}`
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -149,6 +157,23 @@ export async function GET(request: NextRequest) {
       if (key) csvByName.set(key, row)
     }
 
+    // First+last fallback index. Built only from geocoded rows, and ONLY for keys that map
+    // to a single distinct person — if two different people share a first+last (15 such
+    // keys in the CSV), the key is dropped so we never place a pin on the wrong clinic.
+    const flGroups = new Map<string, { row: Record<string, string>; names: Set<string> }>()
+    for (const row of csvRows) {
+      if (!row.latitude || !row.longitude) continue
+      const k = firstLastKey(row.Name ?? '')
+      if (!k) continue
+      const g = flGroups.get(k)
+      if (g) g.names.add(normalizeName(row.Name ?? ''))
+      else flGroups.set(k, { row, names: new Set([normalizeName(row.Name ?? '')]) })
+    }
+    const csvByFirstLast = new Map<string, Record<string, string>>()
+    for (const [k, g] of flGroups) {
+      if (g.names.size === 1) csvByFirstLast.set(k, g.row)
+    }
+
     // Load verified manual mappings (from reviewed fuzzy match Excel)
     type ManualMapping = {
       hubspotName: string; csvName: string
@@ -185,7 +210,6 @@ export async function GET(request: NextRequest) {
 
       const fullName = `${contact.firstName ?? ''} ${contact.lastName ?? ''}`.trim()
       const key = normalizeName(fullName)
-      const csvRow = csvByName.get(key)
 
       const base = {
         contactId: contact.contactId,
@@ -199,31 +223,47 @@ export async function GET(request: NextRequest) {
         disposition,
       }
 
+      // Resolve a location through three tiers, in priority order:
+      //   1. exact full-name match in the geocoded CSV
+      //   2. verified manual mapping (name_mappings.json)
+      //   3. first+last fallback (unambiguous CSV names only)
+      type Hit = { latitude: number; longitude: number; clinic: string | null; market: string | null; practiceTag: string | null }
+      let hit: Hit | null = null
+
+      const csvRow = csvByName.get(key)
       if (csvRow && csvRow.latitude && csvRow.longitude) {
-        matched.push({
-          ...base,
+        hit = {
           latitude: parseFloat(csvRow.latitude),
           longitude: parseFloat(csvRow.longitude),
           clinic: csvRow.Final_Clinic || null,
           market: csvRow.Market || null,
           practiceTag: csvRow.Final_tag || null,
-        })
-      } else {
-        // Fall back to manually verified mappings
-        const manual = manualByName.get(key)
-        if (manual) {
-          matched.push({
-            ...base,
-            latitude: manual.latitude,
-            longitude: manual.longitude,
-            clinic: manual.clinic,
-            market: null,
-            practiceTag: null,
-          })
-        } else {
-          unmatched.push(base)
         }
       }
+
+      if (!hit) {
+        const manual = manualByName.get(key)
+        if (manual) {
+          hit = { latitude: manual.latitude, longitude: manual.longitude, clinic: manual.clinic, market: null, practiceTag: null }
+        }
+      }
+
+      if (!hit) {
+        const fl = firstLastKey(fullName)
+        const flRow = fl ? csvByFirstLast.get(fl) : undefined
+        if (flRow) {
+          hit = {
+            latitude: parseFloat(flRow.latitude),
+            longitude: parseFloat(flRow.longitude),
+            clinic: flRow.Final_Clinic || null,
+            market: flRow.Market || null,
+            practiceTag: flRow.Final_tag || null,
+          }
+        }
+      }
+
+      if (hit) matched.push({ ...base, ...hit })
+      else unmatched.push(base)
     }
 
     // AOSN/ADG locations — distinct layer from the addressable universe
