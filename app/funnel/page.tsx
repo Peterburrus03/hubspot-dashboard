@@ -16,7 +16,14 @@ async function callAI(body: object): Promise<any> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  return res.json()
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    // Surface the real failure (e.g. "ANTHROPIC_API_KEY not configured", Anthropic
+    // API errors) instead of silently returning an error payload
+    const msg = data?.error?.message ?? data?.error ?? `AI request failed (HTTP ${res.status})`
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg))
+  }
+  return data
 }
 
 function buildFilterQS(filters?: FilterState | null): string {
@@ -61,16 +68,20 @@ async function buildContext(filters?: FilterState | null): Promise<string> {
 
   let universeSection = ''
   if (gpRes.universe) {
+    // Bucket keys must match the gameplan API's universe shape (lib/universe.ts):
+    // inPipeline / fairGame / notNow / notInterested / businessModelMismatch / other
     const u = gpRes.universe
     universeSection = `
-ADDRESSABLE UNIVERSE (${u.total} owner-contacts):
-- Interested: ${u.interested.count}
-- Fair Game: ${u.fairGame.count} (no disposition yet)
-- Not Now: ${u.notInterestedNow.count}
-- Not Interested: ${u.notInterestedAtAll.count}
+ADDRESSABLE UNIVERSE (${u.total ?? 0} owner-contacts):
+- In Pipeline: ${u.inPipeline?.count ?? 0}
+- Fair Game: ${u.fairGame?.count ?? 0} (no disposition yet)
+- Not Now: ${u.notNow?.count ?? 0}
+- Not Interested: ${u.notInterested?.count ?? 0}
+- Biz Model Mismatch: ${u.businessModelMismatch?.count ?? 0}
+- Other: ${u.other?.count ?? 0}
 
-TOP INTERESTED CONTACTS:
-${(u.interested.contacts as any[]).slice(0, 10).map((c: any) =>
+IN-PIPELINE CONTACTS (top 10):
+${((u.inPipeline?.contacts ?? []) as any[]).slice(0, 10).map((c: any) =>
   `  ${c.name} | ${c.specialty ?? '—'} | ${c.ownerName}${c.dealStage ? ` | Deal: ${c.dealStage}` : ''}`
 ).join('\n')}`
   }
@@ -317,8 +328,9 @@ function BDStrategy({ filters }: { filters: FilterState | null }) {
       } catch {
         setRawErrors(e => ({ ...e, [key]: text }))
       }
-    } catch {
-      setRawErrors(e => ({ ...e, [key]: 'Error generating. Please try again.' }))
+    } catch (err) {
+      const msg = err instanceof Error && err.message ? err.message : 'Unknown error'
+      setRawErrors(e => ({ ...e, [key]: `Error generating: ${msg}` }))
     }
     setLoading(l => ({ ...l, [key]: false }))
   }
