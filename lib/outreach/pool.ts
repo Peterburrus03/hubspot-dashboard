@@ -1,14 +1,14 @@
 import { prisma } from '@/lib/db/prisma'
 import { subMonths } from 'date-fns'
+// Stage/status definitions live in lib/universe.ts — the single source of truth —
+// so the outreach pool always agrees with the Game Plan on who is "in pipeline".
+import {
+  ACTIVE_PIPELINE_STAGES,
+  TERMINAL_DEAL_STAGES,
+  OPEN_LEAD_STATUSES,
+  CLOSED_NURTURE_STATUSES,
+} from '@/lib/universe'
 
-const TERMINAL_STAGES = ['Closed Won', 'Closed Lost', 'Closed LOST', 'Closed PASS']
-const ACTIVE_PIPELINE_STAGES = [
-  'Data Collection (including NDA)',
-  'LOI Extended',
-  'LOI Signed/Diligence',
-  'Pre-LOI Analysis',
-]
-const OPEN_LEAD_STATUSES = ['OPEN', 'NEW', 'CONNECTED']
 const CANADIAN_PROVINCES = [
   'AB', 'ON', 'NB', 'MB', 'BC', 'QC', 'SK', 'PE', 'NL', 'NS',
   'ab', 'on', 'nb', 'mb', 'bc', 'qc', 'sk', 'pe', 'nl', 'ns',
@@ -69,13 +69,15 @@ export async function computeOutreachPool(
     : {}
 
   const [closedDealRows, pipelineDealRows] = await Promise.all([
-    prisma.deal.findMany({ where: { stage: { in: TERMINAL_STAGES } }, select: { contactId: true } }),
+    prisma.deal.findMany({ where: { stage: { in: TERMINAL_DEAL_STAGES } }, select: { contactId: true } }),
     prisma.deal.findMany({ where: { stage: { in: ACTIVE_PIPELINE_STAGES } }, select: { contactId: true } }),
   ])
 
   const closedIds = Array.from(new Set(closedDealRows.map(d => d.contactId).filter(Boolean) as string[]))
   const pipelineIds = Array.from(new Set(pipelineDealRows.map(d => d.contactId).filter(Boolean) as string[]))
-  const openDealExcludeIds = Array.from(new Set([...closedIds, ...pipelineIds]))
+  // Contacts with a terminally-closed OR active-pipeline deal are never cold-outreach
+  // candidates — matches the Game Plan's universe classification (classifyContact).
+  const excludeIds = Array.from(new Set([...closedIds, ...pipelineIds]))
 
   const exclude = (ids: string[]) => ids.length ? { NOT: { contactId: { in: ids } } } : {}
 
@@ -83,15 +85,15 @@ export async function computeOutreachPool(
 
   const [openLeadContacts, openDealContacts, closedNurtureContacts] = await Promise.all([
     prisma.contact.findMany({
-      where: { ...baseWhere, leadStatus: { in: OPEN_LEAD_STATUSES }, ...exclude(closedIds) },
+      where: { ...baseWhere, leadStatus: { in: OPEN_LEAD_STATUSES }, ...exclude(excludeIds) },
       select: { contactId: true },
     }),
     prisma.contact.findMany({
-      where: { ...baseWhere, leadStatus: 'OPEN_DEAL', ...exclude(openDealExcludeIds) },
+      where: { ...baseWhere, leadStatus: 'OPEN_DEAL', ...exclude(excludeIds) },
       select: { contactId: true },
     }),
     prisma.contact.findMany({
-      where: { ...baseWhere, leadStatus: 'Closed and Nurturing', ...exclude(closedIds) },
+      where: { ...baseWhere, leadStatus: { in: CLOSED_NURTURE_STATUSES }, ...exclude(excludeIds) },
       select: {
         contactId: true,
         notes: true,
@@ -159,6 +161,21 @@ export async function computeOutreachPool(
   })
 
   return pool
+}
+
+// A cycle spans 3 weeks. The active cycle is the most recent Monday (within the
+// last 3 weeks) that has week assignments; cycleWeek says how far into it we are.
+// Shared by the outreach-week API, the completion API, and the weekly cron so all
+// three agree on which cycle is live.
+export async function findActiveCycle(): Promise<{ weekStart: Date; cycleWeek: number } | null> {
+  const now = getWeekStart()
+  for (let i = 0; i < 3; i++) {
+    const candidate = new Date(now)
+    candidate.setUTCDate(candidate.getUTCDate() - i * 7)
+    const count = await prisma.outreachWeekAssignment.count({ where: { weekStart: candidate } })
+    if (count > 0) return { weekStart: candidate, cycleWeek: i + 1 }
+  }
+  return null
 }
 
 export async function initWeekAssignments(

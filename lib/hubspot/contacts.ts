@@ -159,6 +159,20 @@ async function syncContactsToDatabase(contacts: Contact[]): Promise<void> {
       )
     }
 
+    // Delete contacts no longer returned by HubSpot — either deleted/merged there,
+    // or their hs_lead_status was cleared (the fetch filters on HAS_PROPERTY).
+    // Mirrors the deal sync's reconciliation. Guarded so a bad/empty fetch can
+    // never wipe the table (fetch errors already throw before reaching here).
+    if (contacts.length > 0) {
+      const hubspotIds = new Set(contacts.map((c) => c.contactId))
+      const existing = await prisma.contact.findMany({ select: { contactId: true } })
+      const toDelete = existing.map((c) => c.contactId).filter((id) => !hubspotIds.has(id))
+      if (toDelete.length > 0) {
+        console.log(`Deleting ${toDelete.length} contacts no longer in HubSpot`)
+        await prisma.contact.deleteMany({ where: { contactId: { in: toDelete } } })
+      }
+    }
+
     await prisma.cacheMetadata.upsert({
       where: { cacheKey: 'contacts' },
       update: {

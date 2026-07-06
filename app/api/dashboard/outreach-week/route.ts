@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { getWeekStart, initWeekAssignments, DEFAULT_POOL_FILTERS, type OutreachPoolFilters } from '@/lib/outreach/pool'
+import { getWeekStart, findActiveCycle, initWeekAssignments, DEFAULT_POOL_FILTERS, type OutreachPoolFilters } from '@/lib/outreach/pool'
 import { getActiveCampaign } from '@/lib/campaigns'
-
-async function findActiveCycle(): Promise<{ weekStart: Date; cycleWeek: number } | null> {
-  const now = getWeekStart()
-  for (let i = 0; i < 3; i++) {
-    const candidate = new Date(now)
-    candidate.setUTCDate(candidate.getUTCDate() - i * 7)
-    const count = await prisma.outreachWeekAssignment.count({ where: { weekStart: candidate } })
-    if (count > 0) return { weekStart: candidate, cycleWeek: i + 1 }
-  }
-  return null
-}
 
 export async function GET() {
   try {

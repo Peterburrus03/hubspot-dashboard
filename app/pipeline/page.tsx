@@ -1295,7 +1295,8 @@ function WeeklyChanges({ deals, closedWonIds }: { deals: DealItem[]; closedWonId
   const takeSnapshot = async () => {
     setSnapping(true)
     try {
-      await fetch('/api/snapshots', { method: 'POST' })
+      const res = await fetch('/api/snapshots', { method: 'POST' })
+      if (!res.ok) throw new Error(`Snapshot failed (HTTP ${res.status})`)
       const [listRes, snapRes] = await Promise.all([
         fetch('/api/snapshots?list=true').then((r) => r.json()),
         fetch('/api/snapshots').then((r) => r.json()),
@@ -1303,7 +1304,10 @@ function WeeklyChanges({ deals, closedWonIds }: { deals: DealItem[]; closedWonId
       setSnapshotList(listRes)
       setSelectedAt(listRes[0] ?? '')
       setSnapshot(snapRes)
-    } catch (e) { console.error(e) }
+    } catch (e) {
+      console.error(e)
+      alert(e instanceof Error ? e.message : 'Snapshot failed')
+    }
     setSnapping(false)
   }
 

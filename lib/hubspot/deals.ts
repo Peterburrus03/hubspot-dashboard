@@ -509,6 +509,11 @@ export async function getDeals(forceRefresh = false): Promise<Deal[]> {
   // Fetch fresh data from HubSpot
   console.log('Fetching fresh deals from HubSpot')
   const stageMap = await getPipelineMap()
+  if (stageMap.size === 0) {
+    // Without stage labels every deal would sync with a raw stage ID and a fresh
+    // stageEnteredDate — abort and keep the existing DB data instead.
+    throw new Error('Deal pipeline stage map is empty — aborting deal sync to avoid corrupting stage data')
+  }
   const stageEnteredProps = Array.from(stageMap.keys()).map((id) => `hs_date_entered_${id}`)
   const hubspotDeals = await fetchAllDealsFromHubSpot(stageEnteredProps)
   

@@ -18,10 +18,16 @@ export async function POST(request: NextRequest) {
     const step: string = body.step ?? 'all'
 
     const lastSync = await getLastEngagementSync()
+    // Engagements are filtered by hs_timestamp (the activity date, not the record's
+    // created/modified date), so activities logged retroactively with a backdated
+    // timestamp would fall behind a pure lastSync watermark and never be picked up.
+    // Always re-sync at least a trailing 30-day window; upserts are idempotent and
+    // the delete-reconciliation also catches removals/moves within that window.
+    const TRAILING_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
     const sinceDateMs =
       fullRefresh || !lastSync
         ? Date.now() - lookbackDays * 24 * 60 * 60 * 1000
-        : lastSync.getTime()
+        : Math.min(lastSync.getTime(), Date.now() - TRAILING_WINDOW_MS)
 
     console.log(`Sync step="${step}" fullRefresh=${fullRefresh} since=${new Date(sinceDateMs).toISOString()}`)
 

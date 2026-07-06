@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { getWeekStart, initWeekAssignments } from '@/lib/outreach/pool'
+import { getWeekStart, findActiveCycle, initWeekAssignments } from '@/lib/outreach/pool'
 
 // Vercel crons always send GET requests — this endpoint is called by the weekly cron
 // and proxies the snapshot creation logic (identical to POST /api/snapshots)
@@ -29,8 +29,13 @@ export async function GET(request: NextRequest) {
       })),
     })
 
-    const weekStart = getWeekStart()
-    const weekResult = await initWeekAssignments(weekStart)
+    // Only start a new 3-week outreach cycle when no cycle is currently active.
+    // This cron runs every Monday — unconditionally initializing would restart
+    // the cycle weekly and it would never reach weeks 2/3.
+    const activeCycle = await findActiveCycle()
+    const weekResult = activeCycle
+      ? { count: 0, alreadyInitialized: true, activeCycleWeek: activeCycle.cycleWeek }
+      : await initWeekAssignments(getWeekStart())
 
     return NextResponse.json({
       ok: true,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { getWeekStart } from '@/lib/outreach/pool'
+import { getWeekStart, findActiveCycle } from '@/lib/outreach/pool'
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -9,7 +9,11 @@ export async function PATCH(request: NextRequest) {
 
     if (!contactId) return NextResponse.json({ error: 'contactId required' }, { status: 400 })
 
-    const weekStart = getWeekStart()
+    // Key completions to the active cycle's start Monday — the same key the
+    // outreach-week GET reads. Using the current Monday would orphan updates
+    // made during weeks 2/3 of a cycle.
+    const cycle = await findActiveCycle()
+    const weekStart = cycle?.weekStart ?? getWeekStart()
     const update: any = {}
     if (contacted !== undefined) update.contacted = contacted
     if (meetingSet !== undefined) update.meetingSet = meetingSet

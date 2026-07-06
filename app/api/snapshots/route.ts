@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 
+// Authorized when the caller has a valid dashboard session cookie (browser,
+// e.g. the "Take Snapshot" button) OR presents the cron secret (scheduled jobs).
+function isAuthorized(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization')
+  if (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) return true
+  const cookie = request.cookies.get('auth_token')?.value
+  return !!process.env.AUTH_TOKEN_VALUE && cookie === process.env.AUTH_TOKEN_VALUE
+}
+
 // POST — take a snapshot of current open pipeline deals
 export async function POST(request: NextRequest) {
-  // Verify cron secret in production
-  const authHeader = request.headers.get('authorization')
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

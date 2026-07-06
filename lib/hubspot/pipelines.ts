@@ -42,6 +42,9 @@ export async function getPipelineMap(): Promise<Map<string, string>> {
     return stageMap
   } catch (error: any) {
     console.error('Error fetching deal pipelines:', error.message)
-    return new Map() // Return empty map rather than crashing
+    // Propagate rather than returning an empty map: with no stage labels, a deal
+    // sync would write raw stage IDs into the DB and stamp bogus stageEnteredDates
+    // on every deal (a "stage change" both ways once labels come back).
+    throw new Error(`Failed to fetch deal pipelines: ${error?.message ?? 'unknown error'}`)
   }
 }
