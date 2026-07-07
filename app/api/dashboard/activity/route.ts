@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
       '01': 'Text', '02': 'Postal / Snail Mail Letter', '03': 'Greeting Card / Gift Card',
       '04': 'FedEx Letter', '05': 'LinkedIn Outreach', '06': 'Peer to Peer', '07': 'Other',
       '08': 'Check-in / In Town', '09': 'AOSN Detailer (FedEx)', '10': '10 - Greeting Card',
-      '11': '11 - New Website',
+      '11': '11 - New Website', '12': '12 - Mid Year Greeting Card',
     }
     type TaskRow = { owner_id: string | null; body: string | null; cnt: bigint }
     const taskRows = await prisma.$queryRaw<TaskRow[]>(Prisma.sql`

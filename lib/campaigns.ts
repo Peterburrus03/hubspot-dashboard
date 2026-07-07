@@ -41,4 +41,11 @@ export const CAMPAIGNS: Campaign[] = [
     channel: 'email',
     subjectMatch: 'Big News from AOSN: A New Digital Home for Specialty Care',
   },
+  {
+    id: 'mid-year-greeting-card-2026-07',
+    label: '12 - Mid Year Greeting Card',
+    tag: '12',
+    startDate: '2026-07-06',
+    endDate: '2026-07-25',
+  },
 ]
