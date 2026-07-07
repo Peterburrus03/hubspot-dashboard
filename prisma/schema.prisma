@@ -93,8 +93,10 @@ model Contact {
   specialty        String?
   status           String?
   leadStatus       String?
+  address          String?
   city             String?
   state            String?
+  zip              String?
 
   // iPad Campaign
   ipadCoverShipDate DateTime?

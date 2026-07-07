@@ -159,8 +159,10 @@ export interface Contact {
   specialty?: string
   status?: string
   leadStatus?: string
+  address?: string
   city?: string
   state?: string
+  zip?: string
   ipadShipmentDate?: Date
   ipadGroup?: string
   ipadResponse?: boolean
