@@ -48,4 +48,13 @@ export const CAMPAIGNS: Campaign[] = [
     startDate: '2026-07-06',
     endDate: '2026-07-25',
   },
+  {
+    id: 'specialist-spotlight-2026-07',
+    label: '13 - Specialist Spotlight',
+    tag: '13',
+    startDate: '2026-07-28',
+    endDate: '2026-08-16',
+    channel: 'email',
+    subjectMatch: 'Specialist Spotlight',
+  },
 ]
