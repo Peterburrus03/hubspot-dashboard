@@ -57,4 +57,11 @@ export const CAMPAIGNS: Campaign[] = [
     channel: 'email',
     subjectMatch: 'Specialist Spotlight',
   },
+  {
+    id: 'aosn-newsletter-2026-08',
+    label: '14 - AOSN Newsletter',
+    tag: '14',
+    startDate: '2026-08-19',
+    endDate: '2026-09-07',
+  },
 ]
